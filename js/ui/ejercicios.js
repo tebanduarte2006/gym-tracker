@@ -1,0 +1,357 @@
+// ejercicios.js — Tab 2: directorio de ejercicios, creación, detalle.
+
+import { el, clear, toast, guard } from '../dom.js';
+import { dbGetAll, dbGetAllBy, dbPut } from '../db.js';
+import { fmtWeight, fmtDateLong, normalizeKey } from '../format.js';
+import { weightPR, isCountable, sessionTs } from '../stats.js';
+import { ICON } from './icons.js';
+import { sheet, confirmAction, attachSuggest } from './modals.js';
+
+const MUSCLE_GROUPS = [
+  'Pecho', 'Pecho superior', 'Pecho inferior',
+  'Espalda', 'Dorsales', 'Trapecio', 'Romboides', 'Lumbar',
+  'Hombros', 'Hombro frontal', 'Hombro lateral', 'Hombro posterior',
+  'Bíceps', 'Tríceps', 'Antebrazo',
+  'Core', 'Abdominales', 'Oblicuos',
+  'Piernas', 'Cuádriceps', 'Isquiotibiales', 'Gemelos', 'Aductores', 'Abductores', 'Tibial',
+  'Glúteos', 'Cuello'
+];
+
+const _filter = { type: null, search: '' };
+
+export function renderEjercicios(panel) {
+  clear(panel);
+  const wrap = el('div', { class: 'g-lib' });
+
+  const searchWrap = el('div', { class: 'g-search-wrap' });
+  searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
+  const search = el('input', { class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…', value: _filter.search || '' });
+  searchWrap.appendChild(search);
+  wrap.appendChild(searchWrap);
+
+  const pills = el('div', { class: 'g-pills' });
+  const makePill = (label, value) => {
+    const active = _filter.type === value;
+    const p = el('button', { class: 'g-pill' + (active ? ' active' : ''), type: 'button' }, [label]);
+    p.addEventListener('click', () => {
+      _filter.type = _filter.type === value ? null : value;
+      renderEjercicios(panel);
+    });
+    return p;
+  };
+  pills.appendChild(makePill('Todos', null));
+  wrap.appendChild(pills);
+
+  const listWrap = el('div', {});
+  wrap.appendChild(listWrap);
+
+  const addBtn = el('button', { class: 'g-add-cta', type: 'button' }, ['+ Crear ejercicio']);
+  addBtn.addEventListener('click', () => showNewExerciseModal(() => renderEjercicios(panel)));
+  wrap.appendChild(addBtn);
+  panel.appendChild(wrap);
+
+  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sesiones')]), 'cargando directorio').then(([ejs, ses]) => {
+    const names = new Set();
+    ejs.forEach((e) => e.tipo && names.add(e.tipo));
+    ses.forEach((s) => s.routine_type && names.add(s.routine_type));
+    [...names].sort().forEach((t) => pills.appendChild(makePill(t, t)));
+  });
+
+  search.addEventListener('input', () => {
+    _filter.search = search.value;
+    renderList(listWrap, panel);
+  });
+  renderList(listWrap, panel);
+}
+
+function renderList(listEl, panel) {
+  clear(listEl);
+  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets')]), 'cargando ejercicios').then(([ejercicios, allSets]) => {
+    const termKey = normalizeKey(_filter.search || '');
+    const filtered = ejercicios.filter((e) => {
+      if (_filter.type && e.tipo !== _filter.type) return false;
+      if (termKey && normalizeKey(e.nombre).indexOf(termKey) < 0) return false;
+      return true;
+    });
+
+    const groups = {};
+    filtered.forEach((e) => {
+      const t = e.tipo || 'Sin tipo';
+      (groups[t] = groups[t] || []).push(e);
+    });
+    const keys = Object.keys(groups).sort((a, b) => {
+      if (a === 'Sin tipo') return 1;
+      if (b === 'Sin tipo') return -1;
+      return a.localeCompare(b);
+    });
+
+    if (keys.length === 0) {
+      listEl.appendChild(el('div', { class: 'g-empty-card', style: 'margin-top:24px;' }, ['Sin ejercicios. Crea el primero abajo.']));
+      return;
+    }
+
+    keys.forEach((k) => {
+      listEl.appendChild(el('div', { class: 'g-section-label' }, [k.toUpperCase()]));
+      const card = el('div', { class: 'g-list-card' });
+      groups[k].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((e) => {
+        const pr = weightPR(allSets.filter((s) => s.ejercicio_id === e.id));
+        const bestStr = pr ? fmtWeight(pr.peso) + ' × ' + pr.reps : '—';
+        const row = el('button', { class: 'g-list-row', type: 'button' }, [
+          el('div', {}, [
+            el('div', { class: 'g-list-name' }, [e.nombre]),
+            el('div', { class: 'g-list-sub' }, [(e.musculos || []).join(' · ') || 'sin músculo'])
+          ]),
+          el('div', { class: 'g-list-right' }, [
+            el('span', { class: 'g-list-pr' }, [bestStr]),
+            el('span', { class: 'g-list-arrow' }, ['›'])
+          ])
+        ]);
+        row.addEventListener('click', () => renderDetail(panel, e));
+        card.appendChild(row);
+      });
+      listEl.appendChild(card);
+    });
+  });
+}
+
+function renderDetail(panel, ej) {
+  clear(panel);
+  const wrap = el('div', { class: 'g-detail-screen' });
+  const back = el('button', { class: 'g-back-inline', type: 'button' }, ['Ejercicios']);
+  back.addEventListener('click', () => renderEjercicios(panel));
+  wrap.appendChild(back);
+  wrap.appendChild(el('h2', { class: 'g-detail-title' }, [ej.nombre]));
+  wrap.appendChild(el('div', { class: 'g-detail-sub' }, [(ej.musculos || []).join(' · ') || 'sin músculo']));
+
+  const sesCount = el('div', { class: 'g-info-value' }, ['—']);
+  wrap.appendChild(el('div', { class: 'g-info-grid' }, [
+    el('div', { class: 'g-info-item' }, [
+      el('div', { class: 'g-info-label' }, ['RUTINA']),
+      el('div', { class: 'g-info-value' }, [ej.tipo || 'Sin tipo'])
+    ]),
+    el('div', { class: 'g-info-item' }, [
+      el('div', { class: 'g-info-label' }, ['SESIONES']),
+      sesCount
+    ]),
+    el('div', { class: 'g-info-item' }, [
+      el('div', { class: 'g-info-label' }, ['DESCANSO']),
+      el('div', { class: 'g-info-value' }, [(ej.rest_sec ? ej.rest_sec + 's' : 'default')])
+    ])
+  ]));
+
+  const editBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['✏️ Editar músculos']);
+  editBtn.addEventListener('click', () => {
+    openEditMusclesModal(ej, (updated) => renderDetail(panel, updated));
+  });
+  wrap.appendChild(editBtn);
+
+  wrap.appendChild(el('div', { class: 'g-section-label', style: 'padding-left:20px;' }, ['HISTORIAL']));
+  const listWrap = el('div', { style: 'padding:0 16px;' });
+  wrap.appendChild(listWrap);
+  panel.appendChild(wrap);
+
+  guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ej.id), dbGetAll('sesiones')]), 'cargando historial')
+    .then(([sets, sesiones]) => {
+      const sesMap = {};
+      sesiones.forEach((s) => { sesMap[s.id] = s; });
+      const countable = sets.filter(isCountable).filter((s) => {
+        const ses = sesMap[s.sesion_id];
+        return ses && ses.finalizada === true;
+      });
+      const bySesion = {};
+      countable.forEach((st) => { (bySesion[st.sesion_id] = bySesion[st.sesion_id] || []).push(st); });
+      sesCount.textContent = String(Object.keys(bySesion).length);
+      if (countable.length === 0) {
+        listWrap.appendChild(el('div', { class: 'g-empty-card' }, ['Sin registros aún para este ejercicio.']));
+        return;
+      }
+      const rows = Object.keys(bySesion).map((sid) => {
+        const sesion = sesMap[sid];
+        const arr = bySesion[sid];
+        return { sesion, ts: sessionTs(sesion), count: arr.length, best: weightPR(arr) };
+      }).sort((a, b) => b.ts - a.ts);
+      const card = el('div', { class: 'g-list-card' });
+      rows.forEach((r) => {
+        card.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
+          el('div', {}, [
+            el('div', { class: 'g-list-name' }, [fmtDateLong(r.sesion ? r.sesion.fecha : null)]),
+            el('div', { class: 'g-list-sub' }, [(r.sesion && r.sesion.routine_type) || 'Sin rutina'])
+          ]),
+          el('span', { class: 'g-list-pr' }, [
+            r.count + ' sets · mejor ' + fmtWeight(r.best.peso) + ' × ' + r.best.reps
+          ])
+        ]));
+      });
+      listWrap.appendChild(card);
+    });
+}
+
+// ─── Muscle picker (reutilizable) ─────────────────────────────────────────────
+export function buildMusclePicker(opts = {}) {
+  const selected = {};
+  (opts.initialSelected || []).filter(Boolean).forEach((m) => { selected[m] = true; });
+
+  const wrap = el('div', {});
+  const chips = el('div', { class: 'g-muscle-chips' });
+  wrap.appendChild(chips);
+  const searchWrap = el('div', { class: 'g-search-wrap', style: 'margin-top:8px;' });
+  searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
+  const input = el('input', { class: 'g-search', type: 'text', placeholder: 'Buscar o crear músculo…', autocomplete: 'off' });
+  searchWrap.appendChild(input);
+  wrap.appendChild(searchWrap);
+  const sugg = el('div', { class: 'g-suggest' });
+  wrap.appendChild(sugg);
+
+  let allMuscles = MUSCLE_GROUPS.slice();
+  Object.keys(selected).forEach((m) => {
+    if (!allMuscles.some((x) => normalizeKey(x) === normalizeKey(m))) allMuscles.push(m);
+  });
+
+  function renderChips() {
+    clear(chips);
+    Object.keys(selected).forEach((m) => {
+      const chip = el('button', { type: 'button', class: 'g-muscle-chip-selected' }, [m + ' ✕']);
+      chip.addEventListener('click', () => {
+        delete selected[m];
+        renderChips();
+        renderSugg(input.value);
+      });
+      chips.appendChild(chip);
+    });
+  }
+
+  function renderSugg(term) {
+    clear(sugg);
+    const t = (term || '').trim();
+    const tKey = normalizeKey(t);
+    const filtered = allMuscles.filter((m) => {
+      if (selected[m]) return false;
+      if (!t) return true;
+      return normalizeKey(m).indexOf(tKey) >= 0;
+    });
+    filtered.slice(0, 12).forEach((m) => {
+      const item = el('button', { class: 'g-suggest-row', type: 'button' }, ['+ ' + m]);
+      item.addEventListener('click', () => {
+        selected[m] = true;
+        input.value = '';
+        renderChips();
+        renderSugg('');
+      });
+      sugg.appendChild(item);
+    });
+    if (t && !allMuscles.some((m) => normalizeKey(m) === tKey) && !selected[t]) {
+      const createItem = el('button', { class: 'g-suggest-row', type: 'button' }, [
+        el('span', { class: 'g-suggest-create' }, ['+ Crear "' + t + '"'])
+      ]);
+      createItem.addEventListener('click', () => {
+        selected[t] = true;
+        allMuscles.push(t);
+        allMuscles.sort((a, b) => a.localeCompare(b));
+        input.value = '';
+        renderChips();
+        renderSugg('');
+      });
+      sugg.appendChild(createItem);
+    }
+  }
+
+  guard(dbGetAll('ejercicios'), 'músculos descubiertos').then((all) => {
+    const seen = {};
+    allMuscles.forEach((m) => { seen[normalizeKey(m)] = true; });
+    all.forEach((e) => {
+      (e.musculos || []).forEach((m) => {
+        const key = normalizeKey(m);
+        if (m && !seen[key]) { seen[key] = true; allMuscles.push(m); }
+      });
+    });
+    allMuscles.sort((a, b) => a.localeCompare(b));
+    renderSugg(input.value);
+  });
+
+  input.addEventListener('input', () => renderSugg(input.value));
+  renderChips();
+
+  return { container: wrap, getSelected: () => Object.keys(selected) };
+}
+
+// ─── Crear ejercicio (compartido con Entrenar) ────────────────────────────────
+export function showNewExerciseModal(onCreated, defaultRoutine) {
+  const s = sheet('Crear ejercicio');
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Nombre']));
+  const nameInput = el('input', { class: 'g-modal-input', type: 'text', placeholder: 'Nombre del ejercicio' });
+  s.modal.appendChild(nameInput);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Rutina']));
+  const typeInput = el('input', {
+    class: 'g-modal-input', type: 'text', placeholder: 'Ej. Upper, Push, Leg Day…',
+    autocomplete: 'off', value: defaultRoutine || ''
+  });
+  s.modal.appendChild(typeInput);
+  const typeSugg = el('div', { class: 'g-suggest' });
+  s.modal.appendChild(typeSugg);
+  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'rutinas').then(([ses, ejs]) => {
+    const names = new Set();
+    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
+    ejs.forEach((x) => x.tipo && names.add(x.tipo));
+    attachSuggest(typeInput, typeSugg, () => [...names].sort(), (n) => { typeInput.value = n; }, normalizeKey);
+  });
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Músculos']));
+  const picker = buildMusclePicker({ initialSelected: [] });
+  s.modal.appendChild(picker.container);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:12px;' }, ['Descanso (s) · opcional']));
+  const restInput = el('input', {
+    class: 'g-modal-input', type: 'number', inputmode: 'numeric', placeholder: 'Vacío = default (90s)'
+  });
+  s.modal.appendChild(restInput);
+
+  const createBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Crear ejercicio']);
+  createBtn.addEventListener('click', () => {
+    const nombre = nameInput.value.trim();
+    if (!nombre) { toast('Nombre requerido'); return; }
+    const muscles = picker.getSelected();
+    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return; }
+    const rest = parseInt(restInput.value, 10);
+    const record = {
+      nombre,
+      musculos: muscles,
+      tipo: typeInput.value.trim() || null,
+      rest_sec: rest > 0 ? rest : null,
+      fecha_creacion: new Date().toISOString()
+    };
+    dbPut('ejercicios', record).then((id) => {
+      record.id = id;
+      s.close();
+      toast('Ejercicio creado');
+      if (onCreated) onCreated(record);
+    }).catch(() => toast('Error: ya existe un ejercicio con ese nombre'));
+  });
+  s.modal.appendChild(createBtn);
+  s.open();
+  setTimeout(() => nameInput.focus(), 80);
+}
+
+function openEditMusclesModal(ej, onSaved) {
+  const s = sheet('Editar músculos');
+  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:0;' }, [ej.nombre]));
+  const picker = buildMusclePicker({ initialSelected: ej.musculos || [] });
+  s.modal.appendChild(picker.container);
+  const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar cambios']);
+  save.addEventListener('click', () => {
+    const muscles = picker.getSelected();
+    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return; }
+    confirmAction('Confirmar',
+      'Cambiar los músculos de "' + ej.nombre + '"? Afecta también las sesiones pasadas.',
+      () => {
+        ej.musculos = muscles;
+        guard(dbPut('ejercicios', ej), 'guardando músculos').then(() => {
+          s.close();
+          toast('Músculos actualizados');
+          if (onSaved) onSaved(ej);
+        });
+      });
+  });
+  s.modal.appendChild(save);
+  s.open();
+}

@@ -1,0 +1,10 @@
+{
+  "name": "gym-tracker",
+  "private": true,
+  "type": "module",
+  "description": "PWA personal de Esteban para trackear progreso en el gimnasio. Sin dependencias.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check-syntax.mjs"
+  }
+}
