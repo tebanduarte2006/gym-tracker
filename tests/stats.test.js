@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isCountable, isPlaceholder, visibleSets, weightPR, repsPR,
-  epley1RM, volumeKg, sessionRows, markRunningPRs
+  epley1RM, volumeKg, sessionRows, markRunningPRs, nextWorkoutNumber
 } from '../js/stats.js';
 
 const done = (peso, reps, extra = {}) => ({ peso, reps, status: 'Done', ...extra });
@@ -67,6 +67,14 @@ test('sessionRows agrupa, ordena cronológicamente y excluye sesiones no finaliz
   assert.equal(rows[0].maxPesoKg, 35);
   assert.equal(rows[0].volumenKg, 30 * 8 + 35 * 6);
   assert.equal(rows[1].sesion.id, 2);
+});
+
+test('nextWorkoutNumber respeta historial importado y contador', () => {
+  const importadas = [{ nombre: 'Workout #35 · Legs' }, { nombre: 'Workout #12 · Push' }];
+  assert.equal(nextWorkoutNumber(0, importadas), 36);   // historial manda
+  assert.equal(nextWorkoutNumber(50, importadas), 51);  // contador manda
+  assert.equal(nextWorkoutNumber(0, []), 1);            // arranque limpio
+  assert.equal(nextWorkoutNumber(0, [{ nombre: 'Mi rutina' }]), 1); // nombres sin patrón
 });
 
 test('markRunningPRs marca récords en orden cronológico', () => {

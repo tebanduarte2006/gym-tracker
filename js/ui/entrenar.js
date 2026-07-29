@@ -16,7 +16,7 @@ import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
-import { STATUS, visibleSets, volumeKg, sessionTs } from '../stats.js';
+import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber } from '../stats.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON } from './icons.js';
@@ -358,9 +358,10 @@ function showStartModal(panel) {
 }
 
 function createSession(panel, routineType) {
-  // Contador persistente: no se repite aunque borres sesiones (bug heredado).
-  guard(prefGet('contador_workouts', 0), 'contador').then((n) => {
-    const num = Number(n) + 1;
+  // Contador persistente + máximo del historial: no se repite aunque borres
+  // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
+  guard(Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones')]), 'contador').then(([n, all]) => {
+    const num = nextWorkoutNumber(n, all);
     const now = Date.now();
     const sesion = {
       nombre: 'Workout #' + num + ' · ' + routineType,

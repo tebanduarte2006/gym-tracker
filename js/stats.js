@@ -96,6 +96,18 @@ export function sessionRows(sets, sesionMap) {
     .sort((a, b) => a.ts - b.ts);
 }
 
+// Número del próximo workout. Toma el máximo entre el contador persistente y
+// el mayor "Workout #N" existente (cubre historial importado de otra app o de
+// otro dispositivo, donde el contador local va atrasado).
+export function nextWorkoutNumber(prefCounter, sesiones) {
+  let max = Number(prefCounter) || 0;
+  (sesiones || []).forEach((s) => {
+    const m = /^Workout #(\d+)/.exec(s.nombre || '');
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return max + 1;
+}
+
 // Marca s._isPR (récord de peso en su momento) sobre filas cronológicas.
 export function markRunningPRs(rows) {
   let runningMax = 0;
