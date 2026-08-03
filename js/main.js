@@ -4,6 +4,7 @@
 
 import { el, clear, toast, guard } from './dom.js';
 import { dbGetAll, prefGet, prefSet, dbBulkImport } from './db.js';
+import { registerSW } from './swupdate.js';
 import { normalizeBackup } from './importer.js';
 import { installAudioUnlock } from './audio.js';
 import { renderEntrenar, suspendEntrenar } from './ui/entrenar.js';
@@ -112,73 +113,6 @@ function maybeOfferSeed(panels) {
     });
 }
 
-// ─── Service Worker + banner de actualización ─────────────────────────────────
-// Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
-// ver un cambio. Cuatro piezas, y las cuatro hacen falta:
-//   1. updateViaCache:'none' → el navegador no puede servir un sw.js viejo
-//      desde su caché HTTP (GitHub Pages manda max-age).
-//   2. reg.waiting al arrancar → si en la sesión anterior quedó una versión
-//      instalada esperando y él no tocó "Actualizar", el banner reaparece.
-//      Sin esto la actualización se quedaba trabada para siempre.
-//   3. reg.update() al abrir y al volver del background → una PWA que se queda
-//      abierta días detecta la versión nueva sin reiniciarse.
-//   4. La recarga por controllerchange SOLO si ya había un controller: en la
-//      primerísima instalación, clients.claim() disparaba una recarga completa
-//      e inútil que alargaba el arranque en frío.
-const UPDATE_CHECK_MS = 60 * 1000;
-let _lastUpdateCheck = 0;
-
-function registerSW() {
-  if (!('serviceWorker' in navigator)) return;
-
-  const hadController = !!navigator.serviceWorker.controller;
-
-  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
-    if (reg.waiting && hadController) showUpdateBanner(reg.waiting);
-
-    reg.addEventListener('updatefound', () => {
-      const nw = reg.installing;
-      if (!nw) return;
-      nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-          showUpdateBanner(nw);
-        }
-      });
-    });
-
-    const checkForUpdate = () => {
-      const now = Date.now();
-      if (now - _lastUpdateCheck < UPDATE_CHECK_MS) return;
-      _lastUpdateCheck = now;
-      reg.update().catch(() => {});
-    };
-    checkForUpdate();
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') checkForUpdate();
-    });
-  }).catch(() => {});
-
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloaded) return;
-    reloaded = true;
-    window.location.reload();
-  });
-}
-
-function showUpdateBanner(worker) {
-  if (document.querySelector('.update-banner')) return;
-  const btn = el('button', { class: 'update-banner-btn', type: 'button' }, ['Actualizar']);
-  const banner = el('div', { class: 'update-banner' }, [
-    el('span', {}, ['Nueva versión disponible']),
-    btn
-  ]);
-  btn.addEventListener('click', () => {
-    worker.postMessage('SKIP_WAITING');
-    banner.remove();
-  });
-  document.body.appendChild(banner);
-}
 
 // `guard()` re-lanza el error después de avisar por toast, así que casi todas
 // las cadenas terminan en una promesa rechazada sin catch. Eso es correcto

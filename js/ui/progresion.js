@@ -8,8 +8,9 @@ import {
   isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs
 } from '../stats.js';
 import { normalizeBackup, buildExport } from '../importer.js';
-import { sheet, confirmRow } from './modals.js';
+import { sheet, confirmRow, once } from './modals.js';
 import { buildCardioRow } from './entrenar.js';
+import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -35,6 +36,32 @@ export function renderProgresion(panel) {
   eiWrap.appendChild(exportBtn);
   eiWrap.appendChild(importBtn);
   wrap.appendChild(eiWrap);
+
+  // Versión + actualización manual. Sin esto no había forma de saber qué
+  // versión estabas corriendo, que es justo lo que vuelve indiagnosticable un
+  // "no se actualizó": el banner puede no salir simplemente porque ya estabas
+  // al día, y se ve idéntico a estar trabado en la versión vieja.
+  const verLine = el('div', { class: 'g-version-line' }, ['Versión ' + APP_VERSION]);
+  wrap.appendChild(verLine);
+  swVersion().then((sw) => {
+    if (!sw) { verLine.textContent = 'Versión ' + APP_VERSION + ' · sin service worker'; return; }
+    const servida = String(sw).replace('gymtracker-', '');
+    verLine.textContent = servida === APP_VERSION
+      ? 'Versión ' + APP_VERSION + ' · al día'
+      : 'Versión ' + APP_VERSION + ' · el service worker sirve ' + servida + ' ⚠️';
+  });
+
+  const updBtn = el('button', { class: 'g-secondary-btn', type: 'button', style: 'width:100%;' }, ['🔄 Buscar actualización']);
+  once(updBtn, () => {
+    toast('Buscando…');
+    return forceUpdateCheck().then((r) => {
+      if (r === 'actualizando') toast('Instalando versión nueva…');
+      else if (r === 'al-dia') toast('Ya tienes la última versión');
+      else toast('Service worker no disponible');
+    });
+  });
+  wrap.appendChild(updBtn);
+
   panel.appendChild(wrap);
 
   guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones'), dbGetAll('cardio')]), 'cargando progresión')

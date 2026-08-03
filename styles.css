@@ -808,3 +808,11 @@ body.g-modal-open { overflow: hidden; }
 .g-btn-primary, .g-btn-secondary, .g-btn-destructive,
 .g-add-exercise, .g-finalize, .g-confirm-set,
 .g-start-cta, .g-add-cta { min-height: 44px; }
+
+/* Versión de la app (Progresión → DATOS). Diagnóstico de actualizaciones. */
+.g-version-line {
+  font-size: 12px;
+  color: var(--t3);
+  text-align: center;
+  padding: 14px 20px 8px;
+}

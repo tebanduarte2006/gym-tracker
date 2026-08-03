@@ -1,13 +1,14 @@
 // Service Worker — Gym Tracker
 // Bumpear CACHE en cada deploy (formato gymtracker-YYYYMMDD-N).
 // Archivos nuevos → agregarlos a ASSETS. Ver README §Deploy.
-var CACHE = "gymtracker-" + "20260802-1";
+var CACHE = "gymtracker-" + "20260802-2";
 var ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.json",
   "./js/main.js",
+  "./js/swupdate.js",
   "./js/db.js",
   "./js/dom.js",
   "./js/format.js",
@@ -80,4 +81,7 @@ self.addEventListener("fetch", function (e) {
 
 self.addEventListener("message", function (e) {
   if (e.data === "SKIP_WAITING") self.skipWaiting();
+  // La app pregunta qué versión se está sirviendo de verdad, para mostrarla en
+  // Progresión → DATOS. Sin esto era imposible saber si una actualización entró.
+  if (e.data === "VERSION" && e.ports && e.ports[0]) e.ports[0].postMessage(CACHE);
 });

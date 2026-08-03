@@ -45,8 +45,10 @@ en su **iPhone 11** desde GitHub Pages.
 7. **Antes de CADA commit:** `npm test` (26+ tests) y `npm run check`
    (sintaxis de todo el JS). Ambos deben pasar. El CI de GitHub Actions los
    repite en cada push — un push rojo se corrige de inmediato.
-8. **Bumpear `CACHE` en `sw.js`** en cada deploy (`gymtracker-YYYYMMDD-N`).
-   Archivo nuevo → agregarlo a `ASSETS`. Olvidarlo = la PWA sirve código viejo.
+8. **Bumpear `CACHE` en `sw.js` Y `APP_VERSION` en `js/swupdate.js`** con el
+   MISMO valor en cada deploy (`YYYYMMDD-N`). Archivo nuevo → agregarlo a
+   `ASSETS`. Olvidar `CACHE` = la PWA sirve código viejo; olvidar `APP_VERSION`
+   = la pantalla de versión miente y marca ⚠️ sin motivo.
 9. **Registrar todo cambio en §9 (Historial)** en el mismo commit.
 10. **Commit + push al terminar cada tarea.** Sin `--amend`, `--force-push`
     ni `--no-verify` salvo instrucción explícita de Esteban.
@@ -62,9 +64,10 @@ en su **iPhone 11** desde GitHub Pages.
 index.html            Shell ESTÁTICO (título + tabs + esqueleto) + <script type="module">.
 styles.css            Design tokens Apple dark + clases g-*. Fuente: rediseño V3 de habitos-app, depurado.
 manifest.json         PWA (es-CO, standalone, iconos 192/512/maskable).
-sw.js                 Service worker: cache-first versionado + banner de update (main.js lo dispara).
+sw.js                 Service worker: cache-first versionado; responde 'VERSION' y 'SKIP_WAITING'.
 js/
-  main.js             Bootstrap: tabs, registro SW, banner update, oferta de seed.
+  main.js             Bootstrap: tabs, oferta de seed.
+  swupdate.js         Registro del SW, detección/aplicación de versiones, APP_VERSION.
   db.js               IndexedDB: UNA conexión cacheada, índices usados de verdad, bulk import transaccional.
   dom.js              el() / clear() / toast() / guard().
   format.js           [PURO] unidades kg↔lbs, fechas es-CO, duraciones, normalización.
@@ -108,24 +111,46 @@ estas piezas, entiende primero por qué están:
 ### Actualizaciones automáticas (nunca hay que reinstalar la PWA)
 
 Requisito duro de Esteban: **ningún cambio debe exigir desinstalar y reinstalar**.
-Cuatro piezas en `js/main.js` › `registerSW()`, y hacen falta las cuatro:
+Todo vive en `js/swupdate.js` (aparte de `main.js` porque Progresión necesita
+`swVersion()`/`forceUpdateCheck()` y `main.js` ya importa Progresión: juntarlos
+sería un import circular). Seis piezas, y hacen falta las seis:
 
 1. `register(..., { updateViaCache: 'none' })` — el navegador no puede servir un
-   `sw.js` viejo desde su caché HTTP (GitHub Pages manda `max-age`).
-2. **`reg.waiting` al arrancar** → si en la sesión anterior quedó una versión
-   instalada esperando y él no tocó "Actualizar", el banner reaparece. Sin esto
-   la actualización se quedaba trabada para siempre (era un bug real).
-3. `reg.update()` al abrir y al volver del background (throttle 60 s) → una PWA
+   `sw.js` viejo desde su caché HTTP (GitHub Pages manda `max-age=600`).
+2. **Mirar los TRES estados** (`reg.waiting`, `reg.installing`, `updatefound`).
+   Cuando `register()` resuelve, el navegador puede haber encontrado e instalado
+   ya la versión nueva: `updatefound` **ya se disparó** y engancharlo entonces no
+   sirve de nada. Enganchar solo `updatefound` deja la actualización invisible
+   para siempre. Fue el bug que dejó a Esteban sin banner el 2026-08-02.
+3. **Auto-activación si no está entrenando.** Depender de que vea y toque un
+   banner es frágil. Si hay una sesión de gym a medias sí se pregunta (recargar
+   en mitad de una serie es peor que esperar); si no, se aplica sola.
+4. `reg.update()` al abrir y al volver del background (throttle 60 s) → una PWA
    que queda abierta días detecta la versión nueva sin reiniciarse.
-4. Recarga por `controllerchange` **solo si ya había controller** (ver arriba).
+5. Recarga por `controllerchange` **solo si ya había controller** (ver arriba).
+6. **Versión visible + botón manual** en Progresión → DATOS. `APP_VERSION`
+   (lo que este JS cree ser) contra la constante `CACHE` que el service worker
+   responde por `postMessage('VERSION')` (lo que se sirve de verdad). Si
+   divergen, sale ⚠️. **Sin esto era imposible diagnosticar "no se actualizó"**:
+   la ausencia de banner porque ya estás al día se ve idéntica a estar trabado
+   en la versión vieja. Al bumpear `CACHE` en `sw.js`, bumpea `APP_VERSION` en
+   `js/swupdate.js` con el mismo valor.
+
+**Trampa de arranque (leer antes de tocar esto):** el código que decide si te
+avisa de una actualización es el que YA está cacheado en el teléfono. Un arreglo
+al mecanismo de actualización no se aplica a sí mismo — solo protege de la
+siguiente vez en adelante. Por eso importan el botón manual y la versión visible:
+son la salida de emergencia cuando el automatismo falla.
 
 Además `sw.js` cachea el shell (`CORE`) de forma atómica y el resto uno por uno:
 antes, UN solo 404 en `ASSETS` tumbaba la instalación entera y la PWA se quedaba
 clavada en la versión vieja sin avisar.
 
-Verificado end-to-end en navegador el 2026-08-02: bump de `CACHE` → banner sin
-recargar → recarga sin aceptar → el banner vuelve → "Actualizar" → caché vieja
-borrada, versión nueva activa, datos intactos.
+Verificado end-to-end en navegador el 2026-08-02, los cuatro caminos: (a) bump
+de `CACHE` → banner sin recargar; (b) recarga sin aceptar → el banner vuelve;
+(c) sin sesión activa → se actualiza sola, sin banner, caché vieja borrada;
+(d) con sesión de gym a medias → NO recarga, muestra el banner. Datos intactos
+en los cuatro.
 
 ### Render quirúrgico (regla de UI)
 
@@ -269,6 +294,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-02 | `(pending)` | **Actualizaciones: el banner nunca salió en el iPhone.** Esteban abrió la PWA tras el deploy anterior y no vio el aviso ni cerrándola del multitarea varias veces. Causa: `registerSW()` solo enganchaba `updatefound`, pero cuando `register()` resuelve el navegador **ya puede haber instalado** la versión nueva — el evento ya se disparó y el worker se queda en `waiting` invisible para siempre. Ahora se miran los tres estados (`waiting`, `installing`, `updatefound`). Además: **auto-activación** si no hay sesión de gym a medias (no depender de que vea un banner; entrenando sí pregunta), **versión visible** en Progresión → DATOS contrastando `APP_VERSION` con la constante `CACHE` que el SW responde por `postMessage`, y botón **"Buscar actualización"** manual como salida de emergencia. Lógica movida a `js/swupdate.js` (evita el import circular con Progresión). Verificado en Chrome los 4 caminos: banner sin recargar, banner que vuelve tras recargar, auto-actualización silenciosa sin sesión activa, y banner (sin recarga) con sesión a medias. 30/30 tests. `sw.js → gymtracker-20260802-2`. |
 | 2026-08-02 | `ad9d827` | **Revisión maestra #2: 20 defectos corregidos.** Auditoría línea por línea de los 22 archivos. **Datos:** el backup v3 perdía `preferencias` (descanso global, contador de workouts) y `ts` de sets/cardio en cada restauración — el test "conserva todo" no los verificaba; ahora sí (30 tests). `dbBulkImport` acepta `preferencias` con lista blanca de claves. **Robustez:** `db.onclose` + `withDB()` reabren la conexión IndexedDB si iOS la mata (antes la app quedaba inservible hasta reabrirla); `boot()` aísla el render de cada tab; `sw.js` ya no aborta la instalación entera por un 404. **Actualizaciones (requisito de Esteban):** `updateViaCache:'none'`, banner desde `reg.waiting` al arrancar (antes una actualización ignorada se perdía para siempre), `reg.update()` al abrir y al volver del background, y fin de la recarga espuria del primer arranque. **Arranque:** 5 splashes `apple-touch-startup-image` + shell estático en `index.html` (ver §Arranque). **UX:** barra de descanso `sticky`; edición de sets ya guardados (peso/reps/unidad); descanso por ejercicio y `rest_default` global editables desde el tab Ejercicios; renombrar/cambiar rutina de un ejercicio; scroll del fondo bloqueado con el sheet abierto; `once()` contra el doble toque (dos sesiones de un tirón). **Correcciones:** PR del directorio contaba sesiones sin finalizar; cronómetro seguía latiendo al cambiar de tab; Wake Locks huérfanos; carrera en `orden` de sets; `fmtDate*` corría un día con fechas sin hora; mensaje de error engañoso al crear ejercicio; buscador de Ejercicios con debounce y una sola carga (antes 2 `dbGetAll` por tecla); Progresión indexa sets por ejercicio. Verificado en Chrome: restauración del seed, sesión completa, edición de set, descanso 150s, finalización, Progresión, export/import y el ciclo de actualización end-to-end. 0 errores de consola. 30/30 tests. `sw.js → gymtracker-20260802-1`. |
 | 2026-07-29 | `5b8b9c1` | **Fix contador + smoke test integral.** `nextWorkoutNumber()` en `stats.js` (+ test): el número de workout ahora toma el máximo entre el contador persistente y el mayor "Workout #N" del historial — tras importar el seed, la primera sesión nueva salía "Workout #1" duplicando nombres históricos; ahora sale #36. Verificado en navegador real (Chrome, servidor local): restauración del seed, los 3 tabs, sesión completa (ejercicio, copiar última sesión, chips, rest timer, finalizar con limpieza de pendientes), cardio, config de descanso por ejercicio, modal de reanudación, eliminación cascade, y el banner de actualización del SW end-to-end. 0 errores de consola. 27/27 tests. `sw.js → gymtracker-20260729-1`. |
 | 2026-07-28 | `a6e85ac` | **Génesis.** App completa creada desde cero tras revisión maestra de habitos-app (35 sesiones/578 sets migrados vía `data/seed.json`). Arquitectura ES modules, 26 tests Node, importador v2/v3 (rescata 167 sets legacy `peso_lbs`), rest timer por timestamp + beep Web Audio + Wake Lock, render quirúrgico, cardio, PR peso/reps, reordenar ejercicios, copiar última sesión, descanso por ejercicio, banner de update del SW, CI GitHub Actions. `sw.js → gymtracker-20260728-1`. |
