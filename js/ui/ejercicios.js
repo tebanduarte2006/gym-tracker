@@ -1,11 +1,11 @@
 // ejercicios.js — Tab 2: directorio de ejercicios, creación, detalle.
 
 import { el, clear, toast, guard } from '../dom.js';
-import { dbGetAll, dbGetAllBy, dbPut } from '../db.js';
+import { dbGetAll, dbGetAllBy, dbPut, prefGet, prefSet } from '../db.js';
 import { fmtWeight, fmtDateLong, normalizeKey } from '../format.js';
 import { weightPR, isCountable, sessionTs } from '../stats.js';
 import { ICON } from './icons.js';
-import { sheet, confirmAction, attachSuggest } from './modals.js';
+import { sheet, confirmAction, attachSuggest, once } from './modals.js';
 
 const MUSCLE_GROUPS = [
   'Pecho', 'Pecho superior', 'Pecho inferior',
@@ -57,16 +57,41 @@ export function renderEjercicios(panel) {
     [...names].sort().forEach((t) => pills.appendChild(makePill(t, t)));
   });
 
+  // El directorio se carga UNA vez y se filtra en memoria. Antes cada tecla
+  // disparaba dos dbGetAll completos (36 ejercicios + 559 sets y subiendo):
+  // en el iPhone 11 eso se sentía como tirones al escribir.
+  let _cache = null;
+  const repaint = () => renderList(listWrap, panel, _cache);
+  let _debounce = null;
   search.addEventListener('input', () => {
     _filter.search = search.value;
-    renderList(listWrap, panel);
+    clearTimeout(_debounce);
+    _debounce = setTimeout(repaint, 120);
   });
-  renderList(listWrap, panel);
+
+  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones')]), 'cargando ejercicios')
+    .then(([ejercicios, allSets, sesiones]) => {
+      _cache = { ejercicios, allSets, sesiones };
+      repaint();
+    });
+  renderList(listWrap, panel, null);
 }
 
-function renderList(listEl, panel) {
+function renderList(listEl, panel, data) {
   clear(listEl);
-  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets')]), 'cargando ejercicios').then(([ejercicios, allSets]) => {
+  if (!data) return; // aún cargando; repaint() lo pinta al llegar
+  {
+    const { ejercicios, allSets, sesiones } = data;
+    // PR SOLO de sesiones finalizadas, igual que el detalle del ejercicio y
+    // que todo el tab Progresión. Antes el directorio contaba también los sets
+    // de la sesión en curso y mostraba un récord distinto en cada pantalla.
+    const finalizadas = new Set(sesiones.filter((s) => s.finalizada === true).map((s) => s.id));
+    const setsPorEj = new Map();
+    allSets.forEach((s) => {
+      if (!finalizadas.has(s.sesion_id)) return;
+      const arr = setsPorEj.get(s.ejercicio_id);
+      if (arr) arr.push(s); else setsPorEj.set(s.ejercicio_id, [s]);
+    });
     const termKey = normalizeKey(_filter.search || '');
     const filtered = ejercicios.filter((e) => {
       if (_filter.type && e.tipo !== _filter.type) return false;
@@ -94,7 +119,7 @@ function renderList(listEl, panel) {
       listEl.appendChild(el('div', { class: 'g-section-label' }, [k.toUpperCase()]));
       const card = el('div', { class: 'g-list-card' });
       groups[k].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((e) => {
-        const pr = weightPR(allSets.filter((s) => s.ejercicio_id === e.id));
+        const pr = weightPR(setsPorEj.get(e.id) || []);
         const bestStr = pr ? fmtWeight(pr.peso) + ' × ' + pr.reps : '—';
         const row = el('button', { class: 'g-list-row', type: 'button' }, [
           el('div', {}, [
@@ -111,7 +136,7 @@ function renderList(listEl, panel) {
       });
       listEl.appendChild(card);
     });
-  });
+  }
 }
 
 function renderDetail(panel, ej) {
@@ -124,6 +149,7 @@ function renderDetail(panel, ej) {
   wrap.appendChild(el('div', { class: 'g-detail-sub' }, [(ej.musculos || []).join(' · ') || 'sin músculo']));
 
   const sesCount = el('div', { class: 'g-info-value' }, ['—']);
+  const restValue = el('div', { class: 'g-info-value' }, [ej.rest_sec ? ej.rest_sec + 's' : 'default']);
   wrap.appendChild(el('div', { class: 'g-info-grid' }, [
     el('div', { class: 'g-info-item' }, [
       el('div', { class: 'g-info-label' }, ['RUTINA']),
@@ -135,15 +161,32 @@ function renderDetail(panel, ej) {
     ]),
     el('div', { class: 'g-info-item' }, [
       el('div', { class: 'g-info-label' }, ['DESCANSO']),
-      el('div', { class: 'g-info-value' }, [(ej.rest_sec ? ej.rest_sec + 's' : 'default')])
+      restValue
     ])
   ]));
+  // El descanso por defecto solo se podía tocar DENTRO de una sesión activa:
+  // aquí se mostraba pero no se podía cambiar.
+  guard(prefGet('rest_default', 90), 'descanso por defecto').then((def) => {
+    if (!ej.rest_sec) restValue.textContent = def + 's (global)';
+  });
 
   const editBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['✏️ Editar músculos']);
   editBtn.addEventListener('click', () => {
     openEditMusclesModal(ej, (updated) => renderDetail(panel, updated));
   });
   wrap.appendChild(editBtn);
+
+  const renameBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['✏️ Renombrar / cambiar rutina']);
+  renameBtn.addEventListener('click', () => {
+    openRenameModal(ej, (updated) => renderDetail(panel, updated));
+  });
+  wrap.appendChild(renameBtn);
+
+  const restBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['⏱ Descanso de este ejercicio']);
+  restBtn.addEventListener('click', () => {
+    openRestModal(ej, (updated) => renderDetail(panel, updated));
+  });
+  wrap.appendChild(restBtn);
 
   wrap.appendChild(el('div', { class: 'g-section-label', style: 'padding-left:20px;' }, ['HISTORIAL']));
   const listWrap = el('div', { style: 'padding:0 16px;' });
@@ -184,6 +227,102 @@ function renderDetail(panel, ej) {
       });
       listWrap.appendChild(card);
     });
+}
+
+// ─── Renombrar / cambiar rutina ───────────────────────────────────────────────
+function openRenameModal(ej, onSaved) {
+  const s = sheet('Editar ejercicio');
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Nombre']));
+  const nameInput = el('input', { class: 'g-modal-input', type: 'text', value: ej.nombre });
+  s.modal.appendChild(nameInput);
+  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:14px;' }, ['Rutina']));
+  const typeInput = el('input', {
+    class: 'g-modal-input', type: 'text', autocomplete: 'off',
+    placeholder: 'Ej. Upper, Push, Leg Day…', value: ej.tipo || ''
+  });
+  s.modal.appendChild(typeInput);
+  const typeSugg = el('div', { class: 'g-suggest' });
+  s.modal.appendChild(typeSugg);
+  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'rutinas').then(([ses, ejs]) => {
+    const names = new Set();
+    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
+    ejs.forEach((x) => x.tipo && names.add(x.tipo));
+    attachSuggest(typeInput, typeSugg, () => [...names].sort(), (n) => { typeInput.value = n; }, normalizeKey);
+  });
+
+  const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar cambios']);
+  once(save, () => {
+    const nombre = nameInput.value.trim();
+    if (!nombre) { toast('Nombre requerido'); return null; }
+    const prev = { nombre: ej.nombre, tipo: ej.tipo };
+    ej.nombre = nombre;
+    ej.tipo = typeInput.value.trim() || null;
+    return dbPut('ejercicios', ej).then(() => {
+      s.close();
+      toast('Ejercicio actualizado');
+      if (onSaved) onSaved(ej);
+    }).catch((err) => {
+      ej.nombre = prev.nombre;
+      ej.tipo = prev.tipo;
+      // El índice `nombre` es unique: ese es el único error esperable aquí.
+      toast(err && err.name === 'ConstraintError'
+        ? 'Ya existe un ejercicio con ese nombre'
+        : 'Error guardando el ejercicio');
+    });
+  });
+  s.modal.appendChild(save);
+  s.open();
+}
+
+// ─── Descanso por ejercicio + default global ──────────────────────────────────
+function openRestModal(ej, onSaved) {
+  const s = sheet('Descanso · ' + ej.nombre);
+  const readVal = (input, permitirVacio) => {
+    const raw = String(input.value || '').trim();
+    if (!raw && permitirVacio) return null;
+    const v = parseInt(raw, 10);
+    if (!(v >= 10 && v <= 3600)) { toast('Entre 10 y 3600 segundos'); return NaN; }
+    return v;
+  };
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Descanso de este ejercicio (s)']));
+  const ejInput = el('input', {
+    class: 'g-modal-input', type: 'number', inputmode: 'numeric',
+    placeholder: 'Vacío = usar el global', value: ej.rest_sec ? String(ej.rest_sec) : ''
+  });
+  s.modal.appendChild(ejInput);
+  const saveEj = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar para este ejercicio']);
+  once(saveEj, () => {
+    const v = readVal(ejInput, true);
+    if (Number.isNaN(v)) return null;
+    ej.rest_sec = v;
+    return guard(dbPut('ejercicios', ej), 'guardando descanso').then(() => {
+      s.close();
+      toast(v == null ? 'Usará el descanso global' : 'Descanso: ' + v + 's');
+      if (onSaved) onSaved(ej);
+    });
+  });
+  s.modal.appendChild(saveEj);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:20px;' }, ['Descanso global por defecto (s)']));
+  const defInput = el('input', { class: 'g-modal-input', type: 'number', inputmode: 'numeric', placeholder: '90' });
+  s.modal.appendChild(defInput);
+  s.modal.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:8px;' }, [
+    'Se aplica a todos los ejercicios que no tengan un descanso propio.'
+  ]));
+  guard(prefGet('rest_default', 90), 'descanso por defecto').then((d) => { defInput.value = String(d); });
+  const saveDef = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Guardar descanso global']);
+  once(saveDef, () => {
+    const v = readVal(defInput, false);
+    if (v == null || Number.isNaN(v)) return null;
+    return guard(prefSet('rest_default', v), 'guardando descanso global').then(() => {
+      s.close();
+      toast('Descanso global: ' + v + 's');
+      if (onSaved) onSaved(ej);
+    });
+  });
+  s.modal.appendChild(saveDef);
+  s.open();
 }
 
 // ─── Muscle picker (reutilizable) ─────────────────────────────────────────────
@@ -307,11 +446,11 @@ export function showNewExerciseModal(onCreated, defaultRoutine) {
   s.modal.appendChild(restInput);
 
   const createBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Crear ejercicio']);
-  createBtn.addEventListener('click', () => {
+  once(createBtn, () => {
     const nombre = nameInput.value.trim();
-    if (!nombre) { toast('Nombre requerido'); return; }
+    if (!nombre) { toast('Nombre requerido'); return null; }
     const muscles = picker.getSelected();
-    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return; }
+    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return null; }
     const rest = parseInt(restInput.value, 10);
     const record = {
       nombre,
@@ -320,12 +459,19 @@ export function showNewExerciseModal(onCreated, defaultRoutine) {
       rest_sec: rest > 0 ? rest : null,
       fecha_creacion: new Date().toISOString()
     };
-    dbPut('ejercicios', record).then((id) => {
+    return dbPut('ejercicios', record).then((id) => {
       record.id = id;
       s.close();
       toast('Ejercicio creado');
       if (onCreated) onCreated(record);
-    }).catch(() => toast('Error: ya existe un ejercicio con ese nombre'));
+    }).catch((err) => {
+      // Antes CUALQUIER fallo se reportaba como nombre duplicado. El índice
+      // `nombre` es unique, así que solo ConstraintError significa eso.
+      console.error('[gym-tracker] creando ejercicio', err);
+      toast(err && err.name === 'ConstraintError'
+        ? 'Ya existe un ejercicio con ese nombre'
+        : 'Error creando el ejercicio');
+    });
   });
   s.modal.appendChild(createBtn);
   s.open();

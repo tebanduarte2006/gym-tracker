@@ -6,7 +6,7 @@ import { el, clear, toast, guard } from './dom.js';
 import { dbGetAll, prefGet, prefSet, dbBulkImport } from './db.js';
 import { normalizeBackup } from './importer.js';
 import { installAudioUnlock } from './audio.js';
-import { renderEntrenar } from './ui/entrenar.js';
+import { renderEntrenar, suspendEntrenar } from './ui/entrenar.js';
 import { renderEjercicios } from './ui/ejercicios.js';
 import { renderProgresion } from './ui/progresion.js';
 import { sheet, confirmRow } from './ui/modals.js';
@@ -17,36 +17,46 @@ const TABS = [
   { id: 'progresion', label: 'Progresión', render: renderProgresion }
 ];
 
+// El título y la barra de tabs viven ESTÁTICOS en index.html a propósito: son
+// lo único que iOS puede pintar antes de descargar y ejecutar los módulos, y
+// sin ellos el arranque en frío de la PWA era una pantalla negra de segundos.
+// No los muevas de vuelta a JS "por limpieza" — ver README §Arranque.
 function boot() {
   installAudioUnlock();
-  const root = document.getElementById('app');
-  clear(root);
-  root.appendChild(el('h1', { class: 'g-screen-title' }, ['Gym Tracker']));
-
-  const tabBar = el('div', { class: 'main-tabs' });
-  const content = el('div', {});
-  root.appendChild(tabBar);
-  root.appendChild(content);
+  const content = document.getElementById('tab-content');
+  clear(content); // quita el esqueleto estático de arranque
 
   const panels = {};
   TABS.forEach((tab, i) => {
-    const btn = el('button', {
-      class: 'main-tab' + (i === 0 ? ' active' : ''),
-      id: 'tab-btn-' + tab.id, type: 'button'
-    }, [tab.label]);
-    btn.addEventListener('click', () => switchTab(tab.id, panels));
-    tabBar.appendChild(btn);
+    const btn = document.getElementById('tab-btn-' + tab.id);
+    if (btn) btn.addEventListener('click', () => switchTab(tab.id, panels));
     const panel = el('div', { class: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + tab.id });
     panels[tab.id] = panel;
     content.appendChild(panel);
   });
 
-  TABS.forEach((tab) => tab.render(panels[tab.id]));
+  // Un fallo pintando UN tab no puede tumbar el arranque: sin este try/catch,
+  // una excepción aquí abortaba el forEach y dejaba la app sin service worker
+  // (adiós actualizaciones) y sin la oferta de restaurar el historial.
+  TABS.forEach((tab) => {
+    try {
+      tab.render(panels[tab.id]);
+    } catch (err) {
+      console.error('[gym-tracker] render del tab', tab.id, err);
+      clear(panels[tab.id]);
+      panels[tab.id].appendChild(el('div', { class: 'g-empty-card' }, [
+        'Esta pestaña falló al cargar. Cierra y vuelve a abrir la app.'
+      ]));
+    }
+  });
   registerSW();
   maybeOfferSeed(panels);
 }
 
 function switchTab(activeId, panels) {
+  // El tab que se va deja de consumir CPU: su cronómetro de sesión seguía
+  // latiendo 1×/s en segundo plano mientras mirabas otra pestaña.
+  if (activeId !== 'entrenar') suspendEntrenar();
   TABS.forEach((tab) => {
     const btn = document.getElementById('tab-btn-' + tab.id);
     const isActive = tab.id === activeId;
@@ -103,11 +113,29 @@ function maybeOfferSeed(panels) {
 }
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
-// La app vieja tenía el listener SKIP_WAITING pero nada lo enviaba: había que
-// matar la PWA a mano para actualizar. Aquí hay banner explícito.
+// Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
+// ver un cambio. Cuatro piezas, y las cuatro hacen falta:
+//   1. updateViaCache:'none' → el navegador no puede servir un sw.js viejo
+//      desde su caché HTTP (GitHub Pages manda max-age).
+//   2. reg.waiting al arrancar → si en la sesión anterior quedó una versión
+//      instalada esperando y él no tocó "Actualizar", el banner reaparece.
+//      Sin esto la actualización se quedaba trabada para siempre.
+//   3. reg.update() al abrir y al volver del background → una PWA que se queda
+//      abierta días detecta la versión nueva sin reiniciarse.
+//   4. La recarga por controllerchange SOLO si ya había un controller: en la
+//      primerísima instalación, clients.claim() disparaba una recarga completa
+//      e inútil que alargaba el arranque en frío.
+const UPDATE_CHECK_MS = 60 * 1000;
+let _lastUpdateCheck = 0;
+
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('./sw.js').then((reg) => {
+
+  const hadController = !!navigator.serviceWorker.controller;
+
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+    if (reg.waiting && hadController) showUpdateBanner(reg.waiting);
+
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       if (!nw) return;
@@ -117,11 +145,22 @@ function registerSW() {
         }
       });
     });
+
+    const checkForUpdate = () => {
+      const now = Date.now();
+      if (now - _lastUpdateCheck < UPDATE_CHECK_MS) return;
+      _lastUpdateCheck = now;
+      reg.update().catch(() => {});
+    };
+    checkForUpdate();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkForUpdate();
+    });
   }).catch(() => {});
 
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return;
+    if (!hadController || reloaded) return;
     reloaded = true;
     window.location.reload();
   });
@@ -141,4 +180,15 @@ function showUpdateBanner(worker) {
   document.body.appendChild(banner);
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+// `guard()` re-lanza el error después de avisar por toast, así que casi todas
+// las cadenas terminan en una promesa rechazada sin catch. Eso es correcto
+// (el usuario ya vio el aviso), pero llenaba la consola de "Unhandled promise
+// rejection" y enterraba los errores de verdad al depurar.
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason && e.reason._gymHandled) e.preventDefault();
+});
+
+// Los módulos ES son diferidos: si el DOM ya está listo cuando este archivo
+// termina de evaluarse, DOMContentLoaded no vuelve a dispararse.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();

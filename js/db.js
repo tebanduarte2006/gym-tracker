@@ -36,10 +36,20 @@ export function openDB() {
         db.createObjectStore('preferencias', { keyPath: 'clave' });
       }
     };
+    req.onblocked = () => {
+      // Otra pestaña/instancia bloquea el upgrade. No es fatal: se resuelve
+      // cuando la otra suelte. Dejamos constancia para el debug.
+      console.warn('[gym-tracker] openDB bloqueado por otra instancia');
+    };
     req.onsuccess = () => {
       const db = req.result;
       // Si otro tab/versión fuerza upgrade, soltar la conexión cacheada.
       db.onversionchange = () => { db.close(); _connPromise = null; };
+      // iOS puede cerrar la conexión por presión de memoria o suspensión larga.
+      // Sin esto, _connPromise queda apuntando a una conexión muerta y CADA
+      // operación posterior lanza InvalidStateError: la app queda inservible
+      // hasta matarla y reabrirla.
+      db.onclose = () => { _connPromise = null; };
       resolve(db);
     };
     req.onerror = () => { _connPromise = null; reject(req.error); };
@@ -54,38 +64,48 @@ function reqToPromise(req) {
   });
 }
 
-export async function dbGet(store, key) {
+// Ejecuta `fn(db)` y, si la conexión cacheada estaba muerta (InvalidStateError
+// al abrir la transacción), la descarta, reabre UNA vez y reintenta.
+// Todo acceso a la DB pasa por aquí: es la red de seguridad de la PWA en iOS.
+async function withDB(fn) {
   const db = await openDB();
-  return reqToPromise(db.transaction(store, 'readonly').objectStore(store).get(key));
+  try {
+    return await fn(db);
+  } catch (err) {
+    if (!err || err.name !== 'InvalidStateError') throw err;
+    console.warn('[gym-tracker] conexión IndexedDB muerta; reabriendo');
+    _connPromise = null;
+    const fresh = await openDB();
+    return fn(fresh);
+  }
+}
+
+export async function dbGet(store, key) {
+  return withDB((db) => reqToPromise(db.transaction(store, 'readonly').objectStore(store).get(key)));
 }
 
 export async function dbPut(store, value) {
-  const db = await openDB();
-  return reqToPromise(db.transaction(store, 'readwrite').objectStore(store).put(value));
+  return withDB((db) => reqToPromise(db.transaction(store, 'readwrite').objectStore(store).put(value)));
 }
 
 export async function dbDelete(store, key) {
-  const db = await openDB();
-  return reqToPromise(db.transaction(store, 'readwrite').objectStore(store).delete(key));
+  return withDB((db) => reqToPromise(db.transaction(store, 'readwrite').objectStore(store).delete(key)));
 }
 
 export async function dbGetAll(store) {
-  const db = await openDB();
-  return reqToPromise(db.transaction(store, 'readonly').objectStore(store).getAll());
+  return withDB((db) => reqToPromise(db.transaction(store, 'readonly').objectStore(store).getAll()));
 }
 
 // getAll por índice — evita traer la tabla entera para filtrar en JS.
 export async function dbGetAllBy(store, index, value) {
-  const db = await openDB();
-  return reqToPromise(
+  return withDB((db) => reqToPromise(
     db.transaction(store, 'readonly').objectStore(store).index(index).getAll(value)
-  );
+  ));
 }
 
 // Borra en cascada una sesión con sus sets y cardio, en UNA transacción.
 export async function dbDeleteSessionCascade(sesionId) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
+  return withDB((db) => new Promise((resolve, reject) => {
     const tx = db.transaction(['sesiones', 'sets', 'cardio'], 'readwrite');
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -98,14 +118,15 @@ export async function dbDeleteSessionCascade(sesionId) {
       e.target.result.forEach((k) => cardio.delete(k));
     };
     tx.objectStore('sesiones').delete(sesionId);
-  });
+  }));
 }
 
 // Import masivo en una sola transacción (roll-back automático si algo falla).
-export async function dbBulkImport({ sesiones, ejercicios, sets, cardio }) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(['sesiones', 'ejercicios', 'sets', 'cardio'], 'readwrite');
+// `preferencias` incluida: sin ella, restaurar un backup en otro teléfono perdía
+// el descanso por defecto y el contador de workouts.
+export async function dbBulkImport({ sesiones, ejercicios, sets, cardio, preferencias }) {
+  return withDB((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(['sesiones', 'ejercicios', 'sets', 'cardio', 'preferencias'], 'readwrite');
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Import abortado'));
@@ -113,7 +134,8 @@ export async function dbBulkImport({ sesiones, ejercicios, sets, cardio }) {
     (ejercicios || []).forEach((r) => tx.objectStore('ejercicios').put(r));
     (sets || []).forEach((r) => tx.objectStore('sets').put(r));
     (cardio || []).forEach((r) => tx.objectStore('cardio').put(r));
-  });
+    (preferencias || []).forEach((r) => tx.objectStore('preferencias').put(r));
+  }));
 }
 
 // Preferencias con default.

@@ -4,7 +4,7 @@
 // conteo quedaba falso. Aquí el fin es un instante fijo (endTs) y el display
 // solo se recalcula contra Date.now(): siempre exacto, aunque iOS congele.
 
-import { beep } from './audio.js';
+import { beep, scheduleBeep, cancelScheduledBeep, scheduleWasLost } from './audio.js';
 
 let _endTs = null;
 let _totalSec = 0;
@@ -18,8 +18,11 @@ function tick() {
   if (_onTick) _onTick(remaining, _totalSec);
   if (remaining <= 0) {
     const end = _onEnd;
+    // Si el beep programado sí sonó (contexto vivo), no repetirlo. Si iOS lo
+    // mató mientras la app estaba en background, sonar ahora al volver.
+    const perdido = scheduleWasLost();
     stopRest();
-    beep();
+    if (perdido) beep();
     if (end) end();
   }
 }
@@ -28,6 +31,7 @@ export function startRest(seconds) {
   clearInterval(_intervalId);
   _totalSec = seconds;
   _endTs = Date.now() + seconds * 1000;
+  scheduleBeep(seconds);
   _intervalId = setInterval(tick, 250);
   tick();
 }
@@ -36,6 +40,7 @@ export function stopRest() {
   clearInterval(_intervalId);
   _intervalId = null;
   _endTs = null;
+  cancelScheduledBeep();
 }
 
 export function restActive() {

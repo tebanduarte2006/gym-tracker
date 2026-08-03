@@ -20,6 +20,10 @@ import { KG_PER_LB } from './format.js';
 
 export const EXPORT_VERSION = 3;
 
+// Claves de `preferencias` que un backup puede restaurar. Lista blanca a
+// propósito: un archivo externo no debe inyectar configuración arbitraria.
+export const PREFS_IMPORTABLES = new Set(['rest_default', 'contador_workouts', 'seed_decidido']);
+
 function parseMuscles(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
@@ -102,7 +106,10 @@ export function normalizeBackup(data) {
       reps,
       orden: s.orden || null,
       status,
-      unidad: s.unidad || null
+      unidad: s.unidad || null,
+      // `ts` se conserva: ordena la memoria de "última unidad usada por
+      // ejercicio" y estima la duración al guardar una sesión olvidada.
+      ts: s.ts != null && isFinite(Number(s.ts)) ? Number(s.ts) : null
     });
   });
   if (placeholders) warnings.push(`${placeholders} placeholders Pending 0/0 descartados`);
@@ -118,11 +125,23 @@ export function normalizeBackup(data) {
           duracion_min: Number(c.duracion_min) || 0,
           velocidad_kmh: c.velocidad_kmh != null && isFinite(Number(c.velocidad_kmh)) ? Number(c.velocidad_kmh) : null,
           inclinacion: c.inclinacion != null && isFinite(Number(c.inclinacion)) ? Number(c.inclinacion) : null,
-          orden: c.orden || null
+          orden: c.orden || null,
+          ts: c.ts != null && isFinite(Number(c.ts)) ? Number(c.ts) : null
         }))
     : [];
 
-  return { version: v, sesiones, ejercicios, sets, cardio, warnings };
+  // Preferencias (solo v3). Se filtran a las claves conocidas: un backup no
+  // debe poder inyectar basura en el store de configuración.
+  const preferencias = Array.isArray(data.preferencias)
+    ? data.preferencias
+        .filter((p) => p && typeof p.clave === 'string' && PREFS_IMPORTABLES.has(p.clave))
+        .map((p) => ({ clave: p.clave, valor: p.valor }))
+    : [];
+  if (Array.isArray(data.preferencias) && preferencias.length < data.preferencias.length) {
+    warnings.push(`${data.preferencias.length - preferencias.length} preferencia(s) desconocida(s) ignorada(s)`);
+  }
+
+  return { version: v, sesiones, ejercicios, sets, cardio, preferencias, warnings };
 }
 
 export function buildExport({ sesiones, ejercicios, sets, cardio, preferencias }) {

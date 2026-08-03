@@ -20,7 +20,7 @@ import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber } from '../
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON } from './icons.js';
-import { sheet, confirmAction, confirmRow, attachSuggest } from './modals.js';
+import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
 import { showNewExerciseModal } from './ejercicios.js';
 
 const DEFAULT_REST = 90;
@@ -322,11 +322,11 @@ function showStartModal(panel) {
   s.modal.appendChild(sugg);
 
   const startBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Comenzar entrenamiento']);
-  startBtn.addEventListener('click', () => {
+  once(startBtn, () => {
     const name = input.value.trim();
-    if (!name) { toast('Escribe un nombre para la rutina'); return; }
+    if (!name) { toast('Escribe un nombre para la rutina'); return null; }
     s.close();
-    createSession(panel, name);
+    return createSession(panel, name);
   });
   s.modal.appendChild(startBtn);
 
@@ -360,25 +360,30 @@ function showStartModal(panel) {
 function createSession(panel, routineType) {
   // Contador persistente + máximo del historial: no se repite aunque borres
   // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
-  guard(Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones')]), 'contador').then(([n, all]) => {
-    const num = nextWorkoutNumber(n, all);
-    const now = Date.now();
-    const sesion = {
-      nombre: 'Workout #' + num + ' · ' + routineType,
-      fecha: new Date(now).toISOString(),
-      timestamp_inicio: now,
-      finalizada: false,
-      routine_type: routineType,
-      ej_orden: []
-    };
-    Promise.all([dbPut('sesiones', sesion), prefSet('contador_workouts', num)]).then(([id]) => {
-      sesion.id = id;
-      _ack = id;
-      _openEj = new Set();
-      _restOverrides = {};
-      renderActiveSession(panel, sesion);
-    });
-  });
+  return guard(
+    Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones')])
+      .then(([n, all]) => {
+        const num = nextWorkoutNumber(n, all);
+        const now = Date.now();
+        const sesion = {
+          nombre: 'Workout #' + num + ' · ' + routineType,
+          fecha: new Date(now).toISOString(),
+          timestamp_inicio: now,
+          finalizada: false,
+          routine_type: routineType,
+          ej_orden: []
+        };
+        return Promise.all([dbPut('sesiones', sesion), prefSet('contador_workouts', num)])
+          .then(([id]) => {
+            sesion.id = id;
+            _ack = id;
+            _openEj = new Set();
+            _restOverrides = {};
+            renderActiveSession(panel, sesion);
+          });
+      }),
+    'creando sesión'
+  );
 }
 
 // ─── Sesión activa ────────────────────────────────────────────────────────────
@@ -444,6 +449,13 @@ function startSessionTimer(startTs) {
 
 function stopSessionTimer() {
   if (_sessionTimerId) { clearInterval(_sessionTimerId); _sessionTimerId = null; }
+}
+
+// main.js la llama al salir del tab: el panel sigue en el DOM (solo oculto), así
+// que el cronómetro seguía latiendo 1×/s mientras mirabas otra pestaña.
+// El rest timer NO se toca: debe seguir corriendo aunque cambies de tab.
+export function suspendEntrenar() {
+  stopSessionTimer();
 }
 
 // ─── Rest bar UI ──────────────────────────────────────────────────────────────
@@ -651,7 +663,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
         setsList.appendChild(buildSetRow(sesion, ej, st, idx + 1, () => updateSets()));
       });
       const done = mine.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
-      countEl.textContent = done + '/' + (mine.length || '—');
+      countEl.textContent = done + '/' + mine.length;
       addRow.setNextOrden(mine.length > 0 ? Math.max(...mine.map((s) => s.orden || 0)) + 1 : 1);
     });
   }
@@ -722,14 +734,74 @@ function loadLastSession(ejercicioId, excludeSesionId) {
     });
 }
 
+// Modal de corrección de un set ya guardado. Antes la única forma de arreglar
+// un "135" tecleado donde iba "155" era borrar el set y volver a crearlo, lo
+// que además le cambiaba el orden.
+function openEditSetModal(set, num, onSaved) {
+  const s = sheet('Editar set ' + num);
+  let unit = set.unidad === 'kg' ? 'kg' : 'lbs';
+  const shown = unit === 'kg' ? Math.round(Number(set.peso) * 1000) / 1000 : kgToLbs(set.peso);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso']));
+  const pesoInput = el('input', {
+    class: 'g-modal-input', type: 'text', inputmode: 'decimal',
+    autocomplete: 'off', value: shown == null ? '' : String(shown)
+  });
+  s.modal.appendChild(pesoInput);
+
+  const lbsBtn = el('button', { type: 'button', class: unit === 'lbs' ? 'active' : null }, ['lbs']);
+  const kgBtn = el('button', { type: 'button', class: unit === 'kg' ? 'active' : null }, ['kg']);
+  const setUnit = (u) => {
+    // Reexpresa el valor visible en la unidad nueva: cambiar el toggle no debe
+    // reinterpretar 100 lbs como 100 kg.
+    const actual = parseDecimal(pesoInput.value);
+    if (isFinite(actual)) {
+      const kg = inputToKg(actual, unit);
+      pesoInput.value = String(u === 'kg' ? Math.round(kg * 1000) / 1000 : kgToLbs(kg));
+    }
+    unit = u;
+    lbsBtn.classList.toggle('active', u === 'lbs');
+    kgBtn.classList.toggle('active', u === 'kg');
+  };
+  lbsBtn.addEventListener('click', () => setUnit('lbs'));
+  kgBtn.addEventListener('click', () => setUnit('kg'));
+  s.modal.appendChild(el('div', { class: 'g-unit-toggle', style: 'margin-top:8px;' }, [lbsBtn, kgBtn]));
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:14px;' }, ['Reps']));
+  const repsInput = el('input', {
+    class: 'g-modal-input', type: 'number', inputmode: 'numeric', step: '1',
+    value: String(Number(set.reps) || 0)
+  });
+  s.modal.appendChild(repsInput);
+
+  const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar cambios']);
+  once(save, () => {
+    const val = parseDecimal(pesoInput.value);
+    const reps = parseInt(repsInput.value, 10);
+    if (!(val >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
+    set.peso = inputToKg(val, unit);
+    set.reps = reps;
+    set.unidad = unit;
+    return guard(dbPut('sets', set), 'guardando set').then(() => {
+      s.close();
+      toast('Set actualizado');
+      onSaved();
+    });
+  });
+  s.modal.appendChild(save);
+  s.open();
+}
+
 function buildSetRow(sesion, ej, set, num, onChange) {
   const row = el('div', { class: 'g-set-row' });
   row.appendChild(el('div', { class: 'g-set-n' }, ['Set ' + num]));
-  row.appendChild(el('div', { class: 'g-set-val' }, [
-    el('b', {}, [fmtWeight(set.peso)]), el('span', {}, ['lbs'])
-  ]));
-  row.appendChild(el('div', { class: 'g-set-times' }, ['×']));
-  row.appendChild(el('div', { class: 'g-set-val' }, [el('b', {}, [String(set.reps)])]));
+  const valores = el('button', { class: 'g-set-edit', type: 'button', title: 'Editar set' }, [
+    el('div', { class: 'g-set-val' }, [el('b', {}, [fmtWeight(set.peso)]), el('span', {}, ['lbs'])]),
+    el('div', { class: 'g-set-times' }, ['×']),
+    el('div', { class: 'g-set-val' }, [el('b', {}, [String(set.reps)])])
+  ]);
+  valores.addEventListener('click', () => openEditSetModal(set, num, onChange));
+  row.appendChild(valores);
 
   const status = set.status || STATUS.DONE;
   const cfg = {
@@ -781,14 +853,17 @@ function buildAddSetRow(sesion, ej, onAdded) {
     class: 'g-input-num', type: 'number', placeholder: 'Reps', step: '1', inputmode: 'numeric'
   });
   const confirmBtn = el('button', { class: 'g-confirm-set', type: 'button', title: 'Confirmar set' }, ['+']);
-  confirmBtn.addEventListener('click', () => {
+  once(confirmBtn, () => {
     const inputVal = parseDecimal(pesoInput.value);
     const reps = parseInt(repsInput.value, 10);
-    if (!(inputVal >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return; }
+    if (!(inputVal >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
     const pesoKg = inputToKg(inputVal, unit);
-    guard(dbPut('sets', {
+    // Se incrementa YA, no cuando vuelva updateSets(): dos toques rápidos
+    // creaban dos sets con el mismo `orden` y quedaban en orden aleatorio.
+    const orden = nextOrden++;
+    return guard(dbPut('sets', {
       sesion_id: sesion.id, ejercicio_id: ej.id,
-      peso: pesoKg, reps, orden: nextOrden,
+      peso: pesoKg, reps, orden,
       status: STATUS.DONE, unidad: unit, ts: Date.now()
     }), 'guardando set').then(() => {
       pesoInput.value = '';
@@ -998,9 +1073,9 @@ function confirmFinalize(sesion, panel) {
       ]));
     }
     const doneBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Finalizar y guardar']);
-    doneBtn.addEventListener('click', () => {
+    once(doneBtn, () => {
       s.close();
-      finalizeSession(sesion, sets, panel, { silent: false });
+      return finalizeSession(sesion, sets, panel, { silent: false });
     });
     const contBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Continuar entrenando']);
     contBtn.addEventListener('click', () => s.close());
@@ -1024,7 +1099,7 @@ function finalizeSession(sesion, sets, panel, { silent }) {
   }
   sesion.finalizada = true;
   sesion.duracion_ms = Math.max(0, fin - inicio);
-  guard(
+  return guard(
     Promise.all(pendings.map((s) => dbDelete('sets', s.id))).then(() => dbPut('sesiones', sesion)),
     'finalizando sesión'
   ).then(() => {

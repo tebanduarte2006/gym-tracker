@@ -61,8 +61,12 @@ test('v3 roundtrip: buildExport → normalizeBackup conserva todo', () => {
   const exp = buildExport({
     sesiones: [{ id: 1, fecha: '2026-07-28', finalizada: true, timestamp_inicio: 5, nombre: 'W', routine_type: 'Push' }],
     ejercicios: [{ id: 1, nombre: 'Press', musculos: ['Pecho'], tipo: 'Push', rest_sec: 120 }],
-    sets: [{ id: 1, sesion_id: 1, ejercicio_id: 1, peso: 29.483, reps: 7, status: 'Done', unidad: 'lbs' }],
-    cardio: [{ id: 1, sesion_id: 1, tipo: 'Caminadora', duracion_min: 10, velocidad_kmh: 4, inclinacion: 10 }]
+    sets: [{ id: 1, sesion_id: 1, ejercicio_id: 1, peso: 29.483, reps: 7, status: 'Done', unidad: 'lbs', ts: 1700000000000 }],
+    cardio: [{ id: 1, sesion_id: 1, tipo: 'Caminadora', duracion_min: 10, velocidad_kmh: 4, inclinacion: 10, ts: 1700000000001 }],
+    preferencias: [
+      { clave: 'rest_default', valor: 120 },
+      { clave: 'contador_workouts', valor: 42 }
+    ]
   });
   assert.equal(exp.version, EXPORT_VERSION);
   const r = normalizeBackup(exp);
@@ -71,6 +75,34 @@ test('v3 roundtrip: buildExport → normalizeBackup conserva todo', () => {
   assert.equal(r.ejercicios[0].rest_sec, 120);
   assert.equal(r.cardio.length, 1);
   assert.equal(r.cardio[0].velocidad_kmh, 4);
+  // Estas tres aserciones son la razón de existir del test. Antes se llamaba
+  // "conserva todo" y NO comprobaba ni ts ni preferencias — justo lo que el
+  // importador tiraba a la basura al restaurar el backup en otro teléfono.
+  assert.equal(r.sets[0].ts, 1700000000000);
+  assert.equal(r.cardio[0].ts, 1700000000001);
+  assert.deepEqual(r.preferencias, [
+    { clave: 'rest_default', valor: 120 },
+    { clave: 'contador_workouts', valor: 42 }
+  ]);
+});
+
+test('preferencias: solo pasan las claves de la lista blanca', () => {
+  const r = normalizeBackup({
+    version: 3,
+    sesiones: [], ejercicios: [], sets: [],
+    preferencias: [
+      { clave: 'rest_default', valor: 75 },
+      { clave: 'clave_inventada', valor: 'x' },
+      { clave: 'seed_decidido', valor: true }
+    ]
+  });
+  assert.deepEqual(r.preferencias.map((p) => p.clave), ['rest_default', 'seed_decidido']);
+  assert.ok(r.warnings.some((w) => /desconocida/.test(w)));
+});
+
+test('backup sin preferencias: lista vacía, nunca undefined', () => {
+  const r = normalizeBackup({ version: 2, sesiones: [], ejercicios: [], sets: [] });
+  assert.deepEqual(r.preferencias, []);
 });
 
 test('backup REAL de Esteban (data/seed.json): importa completo y sin sorpresas', () => {

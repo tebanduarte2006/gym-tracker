@@ -47,6 +47,12 @@ export function guard(promise, contexto) {
   return promise.catch((err) => {
     console.error('[gym-tracker]', contexto, err);
     toast('Error: ' + contexto);
+    // Marca para que main.js silencie el "unhandled rejection": el error YA se
+    // reportó al usuario y se registró en consola. Se re-lanza para cortar la
+    // cadena (nadie debe seguir pintando con datos que no llegaron).
+    if (err && typeof err === 'object') {
+      try { err._gymHandled = true; } catch { /* objeto congelado */ }
+    }
     throw err;
   });
 }

@@ -2,17 +2,30 @@
 
 import { el } from '../dom.js';
 
+// Cuántos sheets hay abiertos: el bloqueo de scroll del body se suelta al
+// cerrar el ÚLTIMO, no al cerrar cualquiera.
+let _openCount = 0;
+
+function closeOverlay(overlay) {
+  if (!overlay || !overlay.isConnected) return;
+  overlay.remove();
+  _openCount = Math.max(0, _openCount - 1);
+  if (_openCount === 0) document.body.classList.remove('g-modal-open');
+}
+
 export function openOverlay(modalEl) {
   const overlay = el('div', { class: 'g-modal-overlay' }, [modalEl]);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) closeOverlay(overlay);
   });
   document.body.appendChild(overlay);
+  _openCount++;
+  document.body.classList.add('g-modal-open');
   return overlay;
 }
 
 // Crea el sheet estándar: handle + título + botón cerrar.
-// Devuelve { modal, overlay abrir con open(), close }.
+// Devuelve { modal, open(), close(), lock(btn, fn) }.
 export function sheet(title) {
   const modal = el('div', { class: 'g-modal' });
   modal.appendChild(el('div', { class: 'g-modal-handle' }));
@@ -25,10 +38,31 @@ export function sheet(title) {
   const api = {
     modal,
     open() { overlay = openOverlay(modal); return overlay; },
-    close() { if (overlay) overlay.remove(); }
+    close() { closeOverlay(overlay); overlay = null; }
   };
   closeBtn.addEventListener('click', () => api.close());
   return api;
+}
+
+// Envuelve un handler de click para que un doble toque rápido no lo dispare dos
+// veces mientras el trabajo asíncrono está en vuelo. Sin esto, dos toques
+// seguidos en "Comenzar entrenamiento" creaban DOS sesiones.
+export function once(btn, handler) {
+  let busy = false;
+  btn.addEventListener('click', () => {
+    if (busy) return;
+    busy = true;
+    btn.disabled = true;
+    let result;
+    try {
+      result = handler();
+    } finally {
+      const unlock = () => { busy = false; btn.disabled = false; };
+      if (result && typeof result.then === 'function') result.then(unlock, unlock);
+      else unlock();
+    }
+  });
+  return btn;
 }
 
 export function confirmRow(label, value) {

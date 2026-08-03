@@ -1,7 +1,7 @@
 // Service Worker — Gym Tracker
 // Bumpear CACHE en cada deploy (formato gymtracker-YYYYMMDD-N).
 // Archivos nuevos → agregarlos a ASSETS. Ver README §Deploy.
-var CACHE = "gymtracker-" + "20260729-1";
+var CACHE = "gymtracker-" + "20260802-1";
 var ASSETS = [
   "./",
   "./index.html",
@@ -25,11 +25,33 @@ var ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-512-maskable.png",
+  "./icons/splash-828x1792.png",
+  "./icons/splash-1125x2436.png",
+  "./icons/splash-1170x2532.png",
+  "./icons/splash-1179x2556.png",
+  "./icons/splash-1242x2688.png",
   "./data/seed.json"
 ];
 
+// El shell mínimo se cachea de forma atómica (sin él la app no arranca offline).
+// El resto va uno por uno y sin abortar: con addAll(ASSETS) completo, UN solo
+// 404 (un splash renombrado, un módulo nuevo mal escrito en la lista) tumbaba
+// la instalación entera y la PWA se quedaba clavada en la versión vieja sin
+// decir nada.
+var CORE = ["./", "./index.html", "./styles.css", "./js/main.js"];
+
 self.addEventListener("install", function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (cache) { return cache.addAll(ASSETS); }));
+  e.waitUntil(
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(CORE).then(function () {
+        return Promise.all(ASSETS.map(function (url) {
+          return cache.add(url).catch(function (err) {
+            console.warn("[sw] no se pudo cachear", url, err);
+          });
+        }));
+      });
+    })
+  );
 });
 
 self.addEventListener("activate", function (e) {

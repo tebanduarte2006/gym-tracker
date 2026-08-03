@@ -46,6 +46,23 @@ input { font-family: inherit; }
 
 #app { padding-top: max(env(safe-area-inset-top), 16px); padding-bottom: 60px; }
 
+/* Bloquea el scroll del fondo mientras hay un bottom sheet abierto: en iOS el
+   contenido de atrás se arrastraba bajo el modal. */
+body.g-modal-open { overflow: hidden; }
+
+/* Esqueleto de arranque (vive en index.html; main.js lo reemplaza). Existe para
+   que la PRIMERA pintura no sea una pantalla negra. Ver README §Arranque. */
+.g-boot-skeleton { padding: 8px 20px; }
+.g-boot-bar {
+  height: 72px;
+  border-radius: var(--r-lg);
+  background: var(--bg2);
+  margin-bottom: 12px;
+  animation: boot-pulse 1.4s ease-in-out infinite;
+}
+.g-boot-bar.short { height: 48px; opacity: 0.6; }
+@keyframes boot-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+
 /* ─── Título + tabs ─────────────────────────────────────────────────────────── */
 .g-screen-title {
   font-size: 34px;
@@ -108,14 +125,23 @@ input { font-family: inherit; }
   color: var(--accent);
 }
 
-/* Rest timer */
+/* Rest timer.
+   STICKY a propósito: antes iba en el flujo normal, arriba del todo, así que
+   en cuanto bajabas al 2º o 3er ejercicio el descanso quedaba fuera de
+   pantalla — justo cuando lo estás mirando. No lo vuelvas a poner estático. */
 .g-rest-bar {
+  position: sticky;
+  top: max(env(safe-area-inset-top), 4px);
+  z-index: 50;
   margin: 0 0 12px;
   padding: 10px 14px;
   display: flex; align-items: center; gap: 10px;
-  background: var(--accent-dim);
+  background: #241a06;
   border: 1px solid var(--accent-border);
   border-radius: var(--r-md);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .g-rest-label { font-size: 13px; font-weight: 600; color: var(--t1); }
 .g-rest-time {
@@ -227,6 +253,15 @@ input { font-family: inherit; }
 .g-set-val b { font-size: 17px; font-weight: 700; color: var(--t1); }
 .g-set-val span { font-size: 11px; font-weight: 500; color: var(--t3); margin-left: 2px; }
 .g-set-times { color: var(--t3); font-size: 13px; margin: 0 2px; }
+/* Zona táctil para corregir un set ya guardado (peso/reps). */
+.g-set-edit {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 4px 6px;
+  margin: -4px -2px;
+  border-radius: var(--r-sm);
+  color: inherit;
+}
+.g-set-edit:active { background: rgba(255,255,255,0.08); }
 .g-chip {
   margin-left: auto;
   border: none;

@@ -51,6 +51,13 @@ export function renderProgresion(panel) {
         const ses = sesMap[s.sesion_id];
         return isCountable(s) && ses && ses.finalizada === true;
       });
+      // Índice por ejercicio: antes se hacía realSets.filter() DENTRO del
+      // forEach de ejercicios (36 × 559 hoy, y crece multiplicando).
+      const porEj = new Map();
+      realSets.forEach((s) => {
+        const arr = porEj.get(s.ejercicio_id);
+        if (arr) arr.push(s); else porEj.set(s.ejercicio_id, [s]);
+      });
 
       // Hero: récord de la semana
       const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -60,7 +67,7 @@ export function renderProgresion(panel) {
         const ejBest = ejercicios.find((e) => e.id === weekBest.ejercicio_id);
         if (ejBest) {
           const ejWeekRows = sessionRows(
-            realSets.filter((s) => s.ejercicio_id === ejBest.id && sessionTs(sesMap[s.sesion_id]) >= weekAgo),
+            weekSets.filter((s) => s.ejercicio_id === ejBest.id),
             sesMap
           );
           heroSlot.appendChild(buildHero(panel, ejBest, weekBest, ejWeekRows));
@@ -71,7 +78,7 @@ export function renderProgresion(panel) {
       const withData = [];
       const noData = [];
       ejercicios.forEach((ej) => {
-        const setsEj = realSets.filter((s) => s.ejercicio_id === ej.id);
+        const setsEj = porEj.get(ej.id) || [];
         if (setsEj.length === 0) { noData.push(ej); return; }
         const pr = weightPR(setsEj);
         const sesIds = new Set(setsEj.map((s) => s.sesion_id));

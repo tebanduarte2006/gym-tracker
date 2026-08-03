@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   kgToLbs, inputToKg, fmtWeight, parseDecimal, fmtDuration, fmtHourMin,
-  normalizeKey, fmtDateShort, tsToDatetimeLocal
+  normalizeKey, fmtDateShort, fmtDateLong, tsToDatetimeLocal
 } from '../js/format.js';
 
 test('kgToLbs redondea a 1 decimal', () => {
@@ -70,4 +70,13 @@ test('fmtDateShort', () => {
 test('tsToDatetimeLocal produce formato input datetime-local', () => {
   const s = tsToDatetimeLocal(new Date(2026, 6, 28, 9, 5).getTime());
   assert.equal(s, '2026-07-28T09:05');
+});
+
+test('fmtDate*: una fecha sin hora NO se corre un día en zonas UTC-x', () => {
+  // "2026-04-07" se parsea como UTC en la especificación; en Bogotá (UTC−5)
+  // new Date(iso).getDate() devolvía 6. Debe leerse como fecha local.
+  assert.equal(fmtDateShort('2026-04-07'), '7 abr');
+  assert.equal(fmtDateLong('2026-04-07'), '7 abr 2026');
+  // Con hora completa se sigue respetando la zona local del dispositivo.
+  assert.equal(fmtDateLong('2026-04-07T13:46:05.247Z').endsWith('2026'), true);
 });

@@ -32,16 +32,27 @@ export function parseDecimal(raw) {
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+// Una fecha SIN hora ("2026-04-07") la especificación la parsea como UTC, así
+// que en Bogotá (UTC−5) getDate() devolvía el día ANTERIOR. Las sesiones
+// propias siempre traen hora completa, pero un backup externo puede no traerla.
+function parseFecha(iso) {
+  if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso.trim())) {
+    const [y, m, d] = iso.trim().split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(iso);
+}
+
 export function fmtDateShort(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = parseFecha(iso);
   if (isNaN(d.getTime())) return String(iso);
   return d.getDate() + ' ' + MESES[d.getMonth()];
 }
 
 export function fmtDateLong(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = parseFecha(iso);
   if (isNaN(d.getTime())) return String(iso);
   return d.getDate() + ' ' + MESES[d.getMonth()] + ' ' + d.getFullYear();
 }

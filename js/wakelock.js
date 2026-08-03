@@ -6,14 +6,25 @@
 
 let _lock = null;
 let _wanted = false;
+let _pending = false;
 
 async function acquire() {
   if (!('wakeLock' in navigator)) return;
+  // Sin estas guardas, cada render de la sesión activa (y hay uno por cada
+  // vuelta al tab Entrenar) pedía un lock nuevo y perdía la referencia al
+  // anterior: locks huérfanos que releaseAwake() ya no podía soltar.
+  if (_lock || _pending) return;
+  if (document.visibilityState !== 'visible') return;
+  _pending = true;
   try {
-    _lock = await navigator.wakeLock.request('screen');
+    const lock = await navigator.wakeLock.request('screen');
+    if (!_wanted) { lock.release().catch(() => {}); return; }
+    _lock = lock;
     _lock.addEventListener('release', () => { _lock = null; });
   } catch {
     _lock = null; // batería baja o política del SO: no es fatal
+  } finally {
+    _pending = false;
   }
 }
 

@@ -59,7 +59,7 @@ en su **iPhone 11** desde GitHub Pages.
 ## 3. Arquitectura
 
 ```
-index.html            Shell mínimo. Un solo <script type="module"> (js/main.js).
+index.html            Shell ESTÁTICO (título + tabs + esqueleto) + <script type="module">.
 styles.css            Design tokens Apple dark + clases g-*. Fuente: rediseño V3 de habitos-app, depurado.
 manifest.json         PWA (es-CO, standalone, iconos 192/512/maskable).
 sw.js                 Service worker: cache-first versionado + banner de update (main.js lo dispara).
@@ -83,6 +83,49 @@ scripts/check-syntax.mjs   npm run check.
 data/seed.json        Backup real de habitos-app (2026-07-28). Primera apertura con DB vacía lo ofrece restaurar.
 icons/                Generados desde la imagen elegida por Esteban. NO regenerar sin que él lo pida.
 ```
+
+### Arranque (por qué index.html NO está vacío)
+
+El arranque en frío de la PWA en iOS era **una pantalla negra de varios
+segundos**. Tres causas, las tres corregidas el 2026-08-02; si tocas alguna de
+estas piezas, entiende primero por qué están:
+
+1. **Sin splash.** Sin etiquetas `apple-touch-startup-image`, iOS pinta el
+   `background_color` del manifest (negro) mientras arranca. Ahora hay 5
+   splashes (`icons/splash-*.png`, ícono redondeado sobre negro) cubriendo los
+   iPhone con notch, incluido el 11 de Esteban (828×1792). Regenerarlos desde
+   `icons/icon-512.png` si cambia el ícono.
+2. **`index.html` no pintaba nada** hasta que los 12 módulos ES se descargaban,
+   se ejecutaban y volvía el primer viaje a IndexedDB. Ahora el título, la barra
+   de tabs y un esqueleto viven **estáticos en el HTML**; `js/main.js` se
+   engancha a esos nodos (`#tab-btn-*`, `#tab-content`) en vez de crearlos.
+   **No devuelvas eso a JS "por limpieza".** Si cambias los ids o las etiquetas,
+   cambia `TABS` en `js/main.js` a la vez.
+3. **Recarga espuria:** `controllerchange` recargaba la página también en la
+   primerísima instalación (cuando `clients.claim()` toma control por primera
+   vez), duplicando el arranque. Ahora solo recarga si ya había un controller.
+
+### Actualizaciones automáticas (nunca hay que reinstalar la PWA)
+
+Requisito duro de Esteban: **ningún cambio debe exigir desinstalar y reinstalar**.
+Cuatro piezas en `js/main.js` › `registerSW()`, y hacen falta las cuatro:
+
+1. `register(..., { updateViaCache: 'none' })` — el navegador no puede servir un
+   `sw.js` viejo desde su caché HTTP (GitHub Pages manda `max-age`).
+2. **`reg.waiting` al arrancar** → si en la sesión anterior quedó una versión
+   instalada esperando y él no tocó "Actualizar", el banner reaparece. Sin esto
+   la actualización se quedaba trabada para siempre (era un bug real).
+3. `reg.update()` al abrir y al volver del background (throttle 60 s) → una PWA
+   que queda abierta días detecta la versión nueva sin reiniciarse.
+4. Recarga por `controllerchange` **solo si ya había controller** (ver arriba).
+
+Además `sw.js` cachea el shell (`CORE`) de forma atómica y el resto uno por uno:
+antes, UN solo 404 en `ASSETS` tumbaba la instalación entera y la PWA se quedaba
+clavada en la versión vieja sin avisar.
+
+Verificado end-to-end en navegador el 2026-08-02: bump de `CACHE` → banner sin
+recargar → recarga sin aceptar → el banner vuelve → "Actualizar" → caché vieja
+borrada, versión nueva activa, datos intactos.
 
 ### Render quirúrgico (regla de UI)
 
@@ -122,8 +165,21 @@ actualizar `importer.js` + tests + esta sección, en el mismo commit.
 - **Display lbs, input lbs/kg** por set (su gym mezcla equipos). El toggle
   recuerda la última unidad usada por ejercicio.
 - **Rest timer:** default 90s → configurable por ejercicio (persistente) o
-  solo-esta-sesión (en memoria). Beep Web Audio + Wake Lock. **Widgets de
-  home screen: imposible en PWA de iOS** — no prometérselo.
+  solo-esta-sesión (en memoria), desde la sesión activa **o** desde el detalle
+  del ejercicio (que también ajusta el `rest_default` global). Beep Web Audio +
+  Wake Lock. **Widgets de home screen y Live Activities de lock screen:
+  imposibles en una PWA de iOS** (requieren app nativa con WidgetKit/ActivityKit)
+  — no prometérselo.
+- **Alerta de fin de descanso — límite honesto:** con la app en background o la
+  pantalla bloqueada, iOS congela los timers de JS y suspende el AudioContext.
+  El *conteo* sí sobrevive (va por timestamp fijo), la *alerta* no está
+  garantizada. Mitigación: el beep se **programa por adelantado** en el reloj
+  del AudioContext (`audio.js` › `scheduleBeep`), que suena aunque el JS esté
+  congelado *si* iOS no suspendió el contexto; si lo suspendió,
+  `scheduleWasLost()` hace que suene al volver, sin duplicar. La defensa real
+  es el Wake Lock: durante la sesión la pantalla no se apaga sola.
+  **No escribas en el README ni en la UI que el aviso suena con la pantalla
+  bloqueada.**
 - **Cardio:** tipo free-text + duración min + velocidad/inclinación opcionales.
 - **Estética:** Apple dark + acento naranja `#FF9F0A`, heredada. No cambiarla.
 - **Ícono:** su imagen de mancuerna cartoon, sin distorsión. Fondo blanco.
@@ -172,14 +228,39 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
    archivos huérfanos.
 10. **IndexedDB no indexa booleanos** (la app vieja tenía un índice sobre
     `finalizada` que nunca pudo funcionar).
+11. **Un test que dice "conserva todo" y no lo comprueba es peor que no
+    tenerlo.** `v3 roundtrip` pasaba en verde mientras el importador tiraba a la
+    basura `preferencias` y `ts` en cada restauración. Si el nombre de un test
+    hace una promesa, las aserciones tienen que cubrirla entera.
+12. **Una conexión IndexedDB cacheada puede morir.** iOS la cierra por presión
+    de memoria o suspensión larga; sin `db.onclose` que suelte la caché, toda
+    operación posterior lanza `InvalidStateError` y la app queda inservible
+    hasta reabrirla. `db.js` › `withDB()` reabre y reintenta una vez.
+13. **Un fallo pintando un tab no puede tumbar el arranque.** Una excepción en
+    `boot()` abortaba el `forEach` y dejaba la app sin service worker (adiós
+    actualizaciones) y sin la oferta de restaurar el historial. Ahora cada tab
+    se pinta dentro de su propio try/catch.
+14. **El mismo dato calculado en dos pantallas con filtros distintos siempre
+    diverge.** El PR del directorio incluía sesiones sin finalizar; el detalle y
+    Progresión no. Un solo criterio, o discrepan y no sabes cuál creer.
+15. **Un elemento que hay que mirar no puede ir en el flujo normal.** La barra
+    de descanso vivía arriba del todo: bajabas al 2º ejercicio y desaparecía,
+    justo cuando la estás mirando. Ahora es `position: sticky`.
 
 ## 8. Pendientes / ideas evaluables
 
 - [ ] Preferencia para display en kg (hoy display fijo lbs; pedirá OK Esteban).
 - [ ] Gráfica de volumen por sesión además de peso máx.
 - [ ] Recordatorio de export mensual (toast si el último export > 30 días).
-- [ ] Editar sets de sesiones finalizadas (hoy solo duración/eliminar).
+- [ ] Editar sets de sesiones finalizadas (en la sesión ACTIVA ya se puede:
+      tocar los valores del set abre el modal de corrección).
 - [ ] Progresión de cardio (tiempo/velocidad en el tiempo) si Esteban acumula data.
+- [ ] **Lo tecleado se pierde al reordenar/agregar ejercicio.** `refreshExercises()`
+      reconstruye la lista entera, así que un peso a medio escribir en otra card
+      se borra. Detectado 2026-08-02; no corregido (exige reescribir el render de
+      la lista y la regla es "cambios quirúrgicos, cero refactors de paso").
+- [ ] Sin historial del navegador: el gesto "atrás" del iPhone sale de la app en
+      vez de volver de un detalle. Requeriría la History API.
 
 ## 9. Historial de cambios estructurales
 
@@ -188,5 +269,6 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-02 | `(pending)` | **Revisión maestra #2: 20 defectos corregidos.** Auditoría línea por línea de los 22 archivos. **Datos:** el backup v3 perdía `preferencias` (descanso global, contador de workouts) y `ts` de sets/cardio en cada restauración — el test "conserva todo" no los verificaba; ahora sí (30 tests). `dbBulkImport` acepta `preferencias` con lista blanca de claves. **Robustez:** `db.onclose` + `withDB()` reabren la conexión IndexedDB si iOS la mata (antes la app quedaba inservible hasta reabrirla); `boot()` aísla el render de cada tab; `sw.js` ya no aborta la instalación entera por un 404. **Actualizaciones (requisito de Esteban):** `updateViaCache:'none'`, banner desde `reg.waiting` al arrancar (antes una actualización ignorada se perdía para siempre), `reg.update()` al abrir y al volver del background, y fin de la recarga espuria del primer arranque. **Arranque:** 5 splashes `apple-touch-startup-image` + shell estático en `index.html` (ver §Arranque). **UX:** barra de descanso `sticky`; edición de sets ya guardados (peso/reps/unidad); descanso por ejercicio y `rest_default` global editables desde el tab Ejercicios; renombrar/cambiar rutina de un ejercicio; scroll del fondo bloqueado con el sheet abierto; `once()` contra el doble toque (dos sesiones de un tirón). **Correcciones:** PR del directorio contaba sesiones sin finalizar; cronómetro seguía latiendo al cambiar de tab; Wake Locks huérfanos; carrera en `orden` de sets; `fmtDate*` corría un día con fechas sin hora; mensaje de error engañoso al crear ejercicio; buscador de Ejercicios con debounce y una sola carga (antes 2 `dbGetAll` por tecla); Progresión indexa sets por ejercicio. Verificado en Chrome: restauración del seed, sesión completa, edición de set, descanso 150s, finalización, Progresión, export/import y el ciclo de actualización end-to-end. 0 errores de consola. 30/30 tests. `sw.js → gymtracker-20260802-1`. |
 | 2026-07-29 | `5b8b9c1` | **Fix contador + smoke test integral.** `nextWorkoutNumber()` en `stats.js` (+ test): el número de workout ahora toma el máximo entre el contador persistente y el mayor "Workout #N" del historial — tras importar el seed, la primera sesión nueva salía "Workout #1" duplicando nombres históricos; ahora sale #36. Verificado en navegador real (Chrome, servidor local): restauración del seed, los 3 tabs, sesión completa (ejercicio, copiar última sesión, chips, rest timer, finalizar con limpieza de pendientes), cardio, config de descanso por ejercicio, modal de reanudación, eliminación cascade, y el banner de actualización del SW end-to-end. 0 errores de consola. 27/27 tests. `sw.js → gymtracker-20260729-1`. |
 | 2026-07-28 | `a6e85ac` | **Génesis.** App completa creada desde cero tras revisión maestra de habitos-app (35 sesiones/578 sets migrados vía `data/seed.json`). Arquitectura ES modules, 26 tests Node, importador v2/v3 (rescata 167 sets legacy `peso_lbs`), rest timer por timestamp + beep Web Audio + Wake Lock, render quirúrgico, cardio, PR peso/reps, reordenar ejercicios, copiar última sesión, descanso por ejercicio, banner de update del SW, CI GitHub Actions. `sw.js → gymtracker-20260728-1`. |

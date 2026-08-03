@@ -11,10 +11,42 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <!-- Splash de arranque de iOS. Sin estas etiquetas iOS pinta el
+       background_color del manifest (negro) durante el arranque en frío y la
+       app parecía colgada varios segundos. Ver README §Arranque. -->
+  <link rel="apple-touch-startup-image" href="icons/splash-828x1792.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="icons/splash-1125x2436.png"
+        media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="icons/splash-1242x2688.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="icons/splash-1170x2532.png"
+        media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="icons/splash-1179x2556.png"
+        media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app"></div>
+  <!-- SHELL ESTÁTICO: es lo único que iOS puede pintar antes de descargar y
+       ejecutar los módulos ES. js/main.js se engancha a estos nodos, no los
+       recrea. Si cambias los ids o las etiquetas, cambia también TABS en
+       js/main.js. NO lo devuelvas a JS "por limpieza": era la causa #2 de la
+       pantalla negra al abrir. Ver README §Arranque. -->
+  <div id="app">
+    <h1 class="g-screen-title">Gym Tracker</h1>
+    <div class="main-tabs">
+      <button class="main-tab active" id="tab-btn-entrenar" type="button">Entrenar</button>
+      <button class="main-tab" id="tab-btn-ejercicios" type="button">Ejercicios</button>
+      <button class="main-tab" id="tab-btn-progresion" type="button">Progresión</button>
+    </div>
+    <div id="tab-content">
+      <div class="g-boot-skeleton" aria-hidden="true">
+        <div class="g-boot-bar"></div>
+        <div class="g-boot-bar"></div>
+        <div class="g-boot-bar short"></div>
+      </div>
+    </div>
+  </div>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
