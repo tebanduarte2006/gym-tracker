@@ -781,28 +781,47 @@ body.g-modal-open { overflow: hidden; }
 .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* Banner de actualización */
+/* Banner de actualización.
+   Iba como una píldora gris de 13px encima del título: Esteban lo describió
+   como "casi imperceptible" y tiene razón — es el único aviso de que hay
+   versión nueva y competía con el fondo. Ahora es una tarjeta naranja de ancho
+   completo, con el color de acento de la marca, texto en bold y un botón con
+   área táctil de verdad. Si vuelve a encogerse, se vuelve invisible otra vez. */
 .update-banner {
   position: fixed;
-  top: max(env(safe-area-inset-top), 12px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: max(env(safe-area-inset-top), 10px);
+  left: 12px; right: 12px;
   display: flex; align-items: center; gap: 12px;
-  background: var(--bg3);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--pill);
-  padding: 10px 16px;
-  font-size: 13px; font-weight: 500;
+  background: linear-gradient(180deg, #FFB340 0%, var(--accent) 100%);
+  border: none;
+  border-radius: var(--r-lg);
+  padding: 16px 16px 16px 18px;
+  color: #000;
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.2px;
   z-index: 300;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 34px rgba(255,159,10,0.42), 0 2px 10px rgba(0,0,0,0.55);
+  animation: update-banner-in .32s cubic-bezier(.2,.9,.3,1.2);
+}
+.update-banner > span { flex: 1; line-height: 1.25; }
+@keyframes update-banner-in {
+  from { opacity: 0; transform: translateY(-20px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .update-banner-btn {
-  background: var(--accent);
-  color: #000;
+  background: #000;
+  color: var(--accent);
   border: none;
   border-radius: var(--pill);
-  padding: 6px 12px;
-  font-size: 13px; font-weight: 700;
+  padding: 12px 20px;
+  font-size: 15px; font-weight: 700;
+  min-height: 44px;          /* área táctil mínima de Apple HIG */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+.update-banner-btn:active { opacity: .75; }
+/* Mientras el banner está arriba, el contenido baja para no quedar tapado. */
+body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) + 84px); }
 
 /* Touch targets */
 .g-btn-primary, .g-btn-secondary, .g-btn-destructive,

@@ -8,7 +8,7 @@ import { dbGetAll } from './db.js';
 
 // Versión de la app que este JS cree ser. Debe coincidir con CACHE en sw.js.
 // Se muestra en Progresión → DATOS junto a la que sirve el SW de verdad.
-export const APP_VERSION = '20260802-2';
+export const APP_VERSION = '20260803-1';
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
 // Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
@@ -47,10 +47,19 @@ export function registerSW() {
     // cuando register() resuelve: en ese caso `updatefound` ya se disparó y
     // engancharlo ahora no sirve de nada. Hay que mirar los tres estados.
     const track = (worker) => {
-      if (!worker || !hadController) return;
-      if (worker.state === 'installed') { onNewVersionReady(worker); return; }
+      if (!worker) return;
+      const listo = () => {
+        // Se consulta el controller AHORA, no el `hadController` del arranque:
+        // si la app se abrió por primera vez (sin controller) y se queda
+        // abierta, al instalarse el SW ya hay controller y una versión
+        // posterior sí debe avisar. Con el valor congelado del arranque esa
+        // pestaña se quedaba sorda el resto de su vida.
+        if (!navigator.serviceWorker.controller) return; // primera instalación
+        onNewVersionReady(worker);
+      };
+      if (worker.state === 'installed') { listo(); return; }
       worker.addEventListener('statechange', () => {
-        if (worker.state === 'installed') onNewVersionReady(worker);
+        if (worker.state === 'installed') listo();
       });
     };
     track(reg.waiting);
@@ -118,12 +127,29 @@ function showUpdateBanner(worker) {
   if (document.querySelector('.update-banner')) return;
   const btn = el('button', { class: 'update-banner-btn', type: 'button' }, ['Actualizar']);
   const banner = el('div', { class: 'update-banner' }, [
-    el('span', {}, ['Nueva versión disponible']),
+    el('span', {}, ['✨ Nueva versión lista']),
     btn
   ]);
   btn.addEventListener('click', () => {
-    worker.postMessage('SKIP_WAITING');
-    banner.remove();
+    // No se quita el banner: se deja en "Actualizando…" hasta que
+    // controllerchange recargue la página. Quitarlo de inmediato daba la
+    // sensación de que no había pasado nada.
+    btn.disabled = true;
+    btn.textContent = 'Actualizando…';
+    // Se lee `_reg.waiting` EN EL MOMENTO DEL CLIC, no el worker capturado al
+    // crear el banner: si entre medias apareció otro worker, el capturado
+    // quedó `redundant` y su postMessage no hace absolutamente nada — el
+    // botón se veía pulsado y no pasaba nada. Reproducido en Chrome.
+    const actual = (_reg && _reg.waiting) || worker;
+    actual.postMessage('SKIP_WAITING');
+    // Red de seguridad: si en 6 s no hubo recarga (el worker estaba muerto o
+    // el mensaje se perdió), se recarga a mano en vez de dejarlo colgado.
+    setTimeout(() => {
+      if (document.body.contains(banner)) window.location.reload();
+    }, 6000);
   });
   document.body.appendChild(banner);
+  // El banner es `fixed` y tapa el título: se empuja el contenido mientras esté
+  // visible para que nada quede inalcanzable debajo.
+  document.body.classList.add('g-update-open');
 }
