@@ -9,7 +9,6 @@ import {
 } from '../stats.js';
 import { normalizeBackup, buildExport } from '../importer.js';
 import { sheet, confirmRow, once } from './modals.js';
-import { buildCardioRow } from './entrenar.js';
 import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

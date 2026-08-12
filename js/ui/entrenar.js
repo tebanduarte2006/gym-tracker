@@ -333,6 +333,11 @@ function showStartModal(panel) {
   // NO se enfoca el campo al abrir: el teclado taparía la lista de días, que es
   // lo que se usa el 95% de las veces.
   let dias = [];
+  // Hasta que la DB conteste no se sabe si hay días o no. Sin esta bandera, el
+  // primer pintado (con `dias` vacío) enseñaba "escribe tu primer día" a alguien
+  // que tiene seis: un parpadeo en escritorio, pero en el iPhone con IndexedDB
+  // fría se lee perfectamente y desconcierta.
+  let cargado = false;
   const arrancar = (nombre) => {
     s.close();
     return createSession(panel, nombre);
@@ -372,7 +377,7 @@ function showStartModal(panel) {
       lista.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:10px;' }, [
         'Arranca vacío. Lo que registres hoy será la propuesta de la próxima vez.'
       ]));
-    } else if (filtrados.length === 0) {
+    } else if (filtrados.length === 0 && cargado) {
       lista.appendChild(el('div', { class: 'g-empty-card' }, [
         'Escribe el nombre de tu primer día — por ejemplo Upper A, Push o Legs.'
       ]));
@@ -408,6 +413,7 @@ function showStartModal(panel) {
             : 'Sin sets registrados · ' + fmtDateShort(x.fecha)
         });
       });
+    cargado = true;
     pintar();
   });
 
