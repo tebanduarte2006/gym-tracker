@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   isCountable, isPlaceholder, visibleSets, weightPR, repsPR,
   epley1RM, volumeKg, sessionRows, markRunningPRs, nextWorkoutNumber,
-  suggestNextSet, setsPerMuscle
+  suggestNextSet, setsPerMuscle, autofillPlan
 } from '../js/stats.js';
 
 const done = (peso, reps, extra = {}) => ({ peso, reps, status: 'Done', ...extra });
@@ -172,4 +172,112 @@ test('setsPerMuscle ordena de más a menos sets', () => {
     { ejercicio_id: 1, peso: 10, reps: 5, status: 'Done' }
   ];
   assert.deepEqual(setsPerMuscle(sets, ejMap).map((x) => x.musculo), ['Pierna', 'Hombro']);
+});
+
+// ─── Autollenado desde la última sesión de la misma rutina ────────────────────
+const ses = (id, routine, ts, extra = {}) =>
+  ({ id, routine_type: routine, timestamp_inicio: ts, finalizada: true, ...extra });
+
+test('autofillPlan toma la última sesión finalizada de esa rutina', () => {
+  const sesiones = [
+    ses(1, 'Upper A', 1000),
+    ses(2, 'Upper A', 3000),
+    ses(3, 'Lower A', 4000)
+  ];
+  const sets = [
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' },
+    { id: 2, sesion_id: 2, ejercicio_id: 10, peso: 60, reps: 8, orden: 1, status: 'Done' },
+    { id: 3, sesion_id: 3, ejercicio_id: 20, peso: 90, reps: 5, orden: 1, status: 'Done' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.equal(plan.sesion.id, 2, 'la más reciente, no la primera');
+  assert.deepEqual(plan.ejercicios, [
+    { ejercicio_id: 10, sets: [{ peso: 60, reps: 8, unidad: null }] }
+  ]);
+});
+
+test('autofillPlan ignora mayúsculas, tildes y espacios del nombre', () => {
+  const sesiones = [ses(1, 'Día de Pecho', 1000)];
+  const sets = [{ id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' }];
+  assert.ok(autofillPlan('  dia de pecho ', sesiones, sets));
+  assert.ok(autofillPlan('DÍA DE PECHO', sesiones, sets));
+});
+
+test('autofillPlan NO propone sets que quedaron sin registrar', () => {
+  const sesiones = [ses(1, 'Upper A', 1000)];
+  const sets = [
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 60, reps: 8, orden: 1, status: 'Done' },
+    { id: 2, sesion_id: 1, ejercicio_id: 10, peso: 60, reps: 8, orden: 2, status: 'Pending' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.equal(plan.ejercicios[0].sets.length, 1, 'lo propuesto y no hecho no se hereda');
+});
+
+test('autofillPlan respeta ej_orden de aquella sesión', () => {
+  const sesiones = [ses(1, 'Upper A', 1000, { ej_orden: [30, 10, 20] })];
+  const sets = [
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' },
+    { id: 2, sesion_id: 1, ejercicio_id: 20, peso: 40, reps: 8, orden: 2, status: 'Done' },
+    { id: 3, sesion_id: 1, ejercicio_id: 30, peso: 30, reps: 8, orden: 3, status: 'Done' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.deepEqual(plan.ejercicios.map((e) => e.ejercicio_id), [30, 10, 20]);
+});
+
+test('autofillPlan cae al orden de aparición si no hay ej_orden', () => {
+  const sesiones = [ses(1, 'Upper A', 1000)];
+  const sets = [
+    { id: 3, sesion_id: 1, ejercicio_id: 20, peso: 40, reps: 8, orden: 5, status: 'Done' },
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.deepEqual(plan.ejercicios.map((e) => e.ejercicio_id), [10, 20]);
+});
+
+test('autofillPlan conserva el orden y la unidad de cada set', () => {
+  const sesiones = [ses(1, 'Upper A', 1000)];
+  const sets = [
+    { id: 2, sesion_id: 1, ejercicio_id: 10, peso: 70, reps: 6, orden: 2, status: 'Done', unidad: 'kg' },
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 60, reps: 10, orden: 1, status: 'Done', unidad: 'lbs' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.deepEqual(plan.ejercicios[0].sets, [
+    { peso: 60, reps: 10, unidad: 'lbs' },
+    { peso: 70, reps: 6, unidad: 'kg' }
+  ]);
+});
+
+test('autofillPlan devuelve null la primera vez que haces esa rutina', () => {
+  const sesiones = [ses(1, 'Upper A', 1000)];
+  const sets = [{ id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' }];
+  assert.equal(autofillPlan('Lower B', sesiones, sets), null);
+  assert.equal(autofillPlan('', sesiones, sets), null);
+  assert.equal(autofillPlan(null, sesiones, sets), null);
+});
+
+test('autofillPlan ignora sesiones sin finalizar', () => {
+  const sesiones = [
+    ses(1, 'Upper A', 1000),
+    { id: 2, routine_type: 'Upper A', timestamp_inicio: 9000, finalizada: false }
+  ];
+  const sets = [
+    { id: 1, sesion_id: 1, ejercicio_id: 10, peso: 50, reps: 8, orden: 1, status: 'Done' },
+    { id: 2, sesion_id: 2, ejercicio_id: 99, peso: 999, reps: 1, orden: 1, status: 'Done' }
+  ];
+  const plan = autofillPlan('Upper A', sesiones, sets);
+  assert.equal(plan.sesion.id, 1);
+  assert.deepEqual(plan.ejercicios.map((e) => e.ejercicio_id), [10]);
+});
+
+test('autofillPlan devuelve null si la última sesión no registró nada', () => {
+  const sesiones = [ses(1, 'Upper A', 1000)];
+  const sets = [{ id: 1, sesion_id: 1, ejercicio_id: 10, peso: 0, reps: 0, orden: 0, status: 'Pending' }];
+  assert.equal(autofillPlan('Upper A', sesiones, sets), null);
+});
+
+test('autofillPlan hereda el peso corporal (0 kg con reps)', () => {
+  const sesiones = [ses(1, 'Core', 1000)];
+  const sets = [{ id: 1, sesion_id: 1, ejercicio_id: 10, peso: 0, reps: 15, orden: 1, status: 'Done' }];
+  const plan = autofillPlan('Core', sesiones, sets);
+  assert.deepEqual(plan.ejercicios[0].sets, [{ peso: 0, reps: 15, unidad: null }]);
 });

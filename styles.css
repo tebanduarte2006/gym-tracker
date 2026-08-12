@@ -1,8 +1,8 @@
 /* ─── Gym Tracker — "Vidrio Negro" ──────────────────────────────────────────
    Dirección visual: negro real + grises transparentes + material Liquid Glass
-   de Apple. Acento PLATINO (#EDEDF0): la app es estrictamente blanco/negro y
-   el único color que sobrevive es el verde de "hecho" y el rojo destructivo.
-   Aprobado por Esteban el 2026-08-12. Reglas completas en README §5.
+   de Apple. Acento PLATINO (#EDEDF0). Aprobado por Esteban el 2026-08-12.
+   Tras quitar los chips de estado, el ÚNICO color que queda en toda la app es
+   el rojo destructivo: blanco, negro y grises. Reglas completas en README §5.1.
 
    Las cuatro que más se rompen si no se leen:
    1. El vidrio es la capa de CONTROLES, nunca la de contenido. Los números de
@@ -45,9 +45,9 @@
   --accent-line: rgba(237,237,240,0.26);
   --on-accent: #0A0A0B;
 
-  /* Semánticos — NO son acento, son estado */
-  --green: #30D158;
-  --green-soft: rgba(48,209,88,0.18);
+  /* Rojo destructivo: el único color de la app. NO es acento — nunca decora,
+     solo marca lo que borra o cierra algo. El verde de "hecho" se fue con los
+     chips de estado el 2026-08-12 (ver README §5.2). */
   --red: #FF453A;
   --red-soft: rgba(255,69,58,0.16);
 
@@ -376,6 +376,7 @@ body.g-modal-open {
   background: var(--glass-2);
   border-radius: var(--r-sm);
   box-shadow: inset 0 0.5px 0 var(--rim-top);
+  transition: background var(--fast);
 }
 .g-set-n { font-size: 12px; font-weight: 600; color: var(--t3); width: 40px; flex-shrink: 0; }
 .g-set-info { font-size: 14px; color: var(--t1); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
@@ -392,20 +393,54 @@ body.g-modal-open {
   color: inherit;
 }
 .g-set-edit:active { background: rgba(255,255,255,0.08); }
-.g-chip {
+/* Propuesto vs registrado.
+   La distinción tiene que ser de CONTRASTE, no de matiz: se lee de reojo, de
+   pie, sudando y con el brazo cargado. Un propuesto se apaga entero (fondo casi
+   invisible, números en terciario) y el registrado queda en blanco sólido. Si
+   alguna vez se acercan, se acabó poder leer el propio historial de un vistazo.
+   Los chips "Hecho / Pendiente / Saltado" que vivían aquí eran herencia de un
+   template de Notion y los quitó Esteban el 2026-08-12. No los revivas: el
+   estado ahora se deduce del gesto de registrar. Ver README §5.2. */
+.g-set-propuesto { background: rgba(255,255,255,0.022); box-shadow: none; }
+.g-set-propuesto .g-set-val b { color: var(--t3); font-weight: 600; }
+.g-set-propuesto .g-set-val span,
+.g-set-propuesto .g-set-times,
+.g-set-propuesto .g-set-n { color: var(--t4); }
+
+/* Botón dedicado de registro. Esteban lo pidió explícitamente en vez de tocar
+   la fila entera: la fila es un blanco enorme para el pulgar y un registro
+   accidental ensucia PRs y volumen sin que te enteres. */
+.g-set-mark {
+  position: relative;   /* ancla del círculo dibujado en ::before */
   margin-left: auto;
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  margin-top: -11px; margin-bottom: -11px; margin-right: -6px;
+  padding: 0;
+  background: none;
   border: none;
-  border-radius: var(--pill);
-  padding: 6px 11px;
-  font-size: 11px; font-weight: 650;
-  display: inline-flex; align-items: center; gap: 5px;
-  white-space: nowrap;
-  min-height: 32px;
-  transition: background var(--fast);
+  display: flex; align-items: center; justify-content: center;
+  color: transparent;                 /* el check no se ve hasta registrar */
+  transition: color var(--fast), background var(--fast);
 }
-.g-chip-Pending { background: rgba(255,255,255,0.10); color: var(--t2); }
-.g-chip-Done    { background: var(--green-soft);  color: var(--green); }
-.g-chip-Skipped { background: var(--red-soft);    color: var(--red); }
+/* El círculo es un pseudo-elemento para que el área táctil (44px) y el dibujo
+   (26px) sean independientes. */
+.g-set-mark::before {
+  content: '';
+  position: absolute;
+  /* Centrado con margen negativo, no con translate: así el scale(.9) del
+     :active no tiene que recomponer la traslación. */
+  top: 50%; left: 50%;
+  margin: -13px 0 0 -13px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.28);
+  transition: background var(--fast) var(--ease), border-color var(--fast);
+}
+.g-set-mark > svg { position: relative; z-index: 1; }
+.g-set-mark.on { color: var(--on-accent); }
+.g-set-mark.on::before { background: var(--accent); border-color: var(--accent); }
+.g-set-mark:active::before { transform: scale(.9); }
 .g-set-del {
   background: none; border: none;
   color: var(--t3);

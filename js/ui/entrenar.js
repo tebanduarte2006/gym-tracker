@@ -16,7 +16,9 @@ import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
-import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber, suggestNextSet } from '../stats.js';
+import {
+  STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber, suggestNextSet, autofillPlan
+} from '../stats.js';
 import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
@@ -141,8 +143,9 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     if (!sesion) { renderEntrenar(panel); return; }
     const ejMap = {};
     ejercicios.forEach((e) => { ejMap[e.id] = e; });
-    const visible = visibleSets(sets);
-    const done = visible.filter((s) => s.status === STATUS.DONE || !s.status).length;
+    // Una sesión finalizada solo contiene lo que registraste: los propuestos se
+    // borran al cerrar. Se filtra igual por si un backup importado trae basura.
+    const visible = visibleSets(sets).filter((s) => (s.status || STATUS.DONE) === STATUS.DONE);
     const ejIds = [...new Set(visible.map((s) => s.ejercicio_id))];
     const volLbs = Math.round(kgToLbs(volumeKg(visible)) || 0);
     const cardioMin = cardio.reduce((sum, c) => sum + (Number(c.duracion_min) || 0), 0);
@@ -156,7 +159,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     const stats = el('div', { class: 'g-confirm-summary', style: 'margin-top:14px;' }, [
       confirmRow('Duración', sesion.duracion_ms ? fmtDuration(sesion.duracion_ms) : '—'),
       confirmRow('Ejercicios', String(ejIds.length)),
-      confirmRow('Sets completados', done + ' / ' + visible.length),
+      confirmRow('Sets', String(visible.length)),
       confirmRow('Volumen total', fmtInt(volLbs) + ' lbs')
     ]);
     if (cardioMin > 0) stats.appendChild(confirmRow('Cardio', cardioMin + ' min'));
@@ -175,11 +178,9 @@ function renderSessionDetail(panel, sesionId, fromAll) {
       byEj[ejId]
         .sort((a, b) => (a.orden || a.id) - (b.orden || b.id))
         .forEach((st, idx) => {
-          const statusLabel = st.status === STATUS.SKIPPED ? ' · saltado'
-            : st.status === STATUS.PENDING ? ' · pendiente' : '';
           setsList.appendChild(el('div', { class: 'g-set-row' }, [
             el('div', { class: 'g-set-info' }, [
-              'Set ' + (idx + 1) + ' · ' + fmtWeight(st.peso) + ' lbs × ' + (Number(st.reps) || 0) + ' reps' + statusLabel
+              'Set ' + (idx + 1) + ' · ' + fmtWeight(st.peso) + ' lbs × ' + (Number(st.reps) || 0) + ' reps'
             ])
           ]));
         });
@@ -306,22 +307,24 @@ function promptResume(panel, activa) {
 }
 
 // ─── Iniciar sesión ───────────────────────────────────────────────────────────
+// Se ELIGE el día de una lista, no se escribe. El autollenado busca la última
+// sesión con el mismo nombre de rutina: si un día tecleas "Upper A" y otro
+// "upper a " con un espacio, el día se parte en dos y te quedas sin propuesta.
+// (La comparación normaliza tildes y mayúsculas, pero elegir lo hace imposible
+// de romper y además ahorra teclear en el gimnasio.)
 function showStartModal(panel) {
-  const s = sheet('Iniciar sesión');
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Tipo de rutina']));
+  const s = sheet('¿Qué entrenas hoy?');
+  const lista = el('div', {});
+  s.modal.appendChild(lista);
+
+  // Rutina nueva: plegada, para que no compita con lo que se usa el 95% de las
+  // veces, que es repetir un día que ya existe.
+  const nuevaWrap = el('div', { class: 'hidden', style: 'margin-top:6px;' });
   const input = el('input', {
     class: 'g-modal-input', type: 'text',
-    placeholder: 'Ej. Upper, Push, Leg Day…', autocomplete: 'off'
+    placeholder: 'Ej. Upper A, Push, Leg Day…', autocomplete: 'off'
   });
-  s.modal.appendChild(input);
-
-  const pillsLabel = el('div', { class: 'g-modal-sub', style: 'margin-top:14px;' }, ['Recientes']);
-  const pills = el('div', { class: 'g-pills', style: 'margin-bottom:12px;' });
-  s.modal.appendChild(pillsLabel);
-  s.modal.appendChild(pills);
-  const sugg = el('div', { class: 'g-suggest' });
-  s.modal.appendChild(sugg);
-
+  nuevaWrap.appendChild(input);
   const startBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Comenzar entrenamiento']);
   once(startBtn, () => {
     const name = input.value.trim();
@@ -329,42 +332,75 @@ function showStartModal(panel) {
     s.close();
     return createSession(panel, name);
   });
-  s.modal.appendChild(startBtn);
+  nuevaWrap.appendChild(startBtn);
 
-  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'cargando rutinas').then(([ses, ejs]) => {
-    const names = new Set();
-    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
-    ejs.forEach((x) => x.tipo && names.add(x.tipo));
-    const allNames = [...names].sort();
+  const nuevaBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['+ Rutina nueva']);
+  nuevaBtn.addEventListener('click', () => {
+    nuevaBtn.classList.add('hidden');
+    nuevaWrap.classList.remove('hidden');
+    setTimeout(() => input.focus(), 60);
+  });
+  s.modal.appendChild(nuevaBtn);
+  s.modal.appendChild(nuevaWrap);
 
-    const recents = [];
-    ses.slice().sort((a, b) => sessionTs(b) - sessionTs(a)).forEach((x) => {
-      if (x.routine_type && !recents.includes(x.routine_type) && recents.length < 6) recents.push(x.routine_type);
-    });
-    if (recents.length === 0) pillsLabel.style.display = 'none';
-    recents.forEach((name) => {
-      const p = el('button', { class: 'g-pill', type: 'button' }, [name]);
-      p.addEventListener('click', () => {
-        input.value = name;
-        [...pills.children].forEach((c) => c.classList.remove('active'));
-        p.classList.add('active');
+  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('sets')]), 'cargando rutinas').then(([ses, sets]) => {
+    // Una entrada por rutina, la más reciente primero, con lo que propondría.
+    const vistas = [];
+    ses.slice()
+      .filter((x) => x.finalizada === true && x.routine_type)
+      .sort((a, b) => sessionTs(b) - sessionTs(a))
+      .forEach((x) => {
+        const key = normalizeKey(x.routine_type);
+        if (vistas.some((v) => v.key === key)) return;
+        vistas.push({ key, nombre: x.routine_type, sesion: x });
       });
-      pills.appendChild(p);
+
+    if (vistas.length === 0) {
+      // Primera vez de todas: no hay nada que elegir, se abre directo el input.
+      nuevaBtn.classList.add('hidden');
+      nuevaWrap.classList.remove('hidden');
+      setTimeout(() => input.focus(), 80);
+      return;
+    }
+
+    const card = el('div', { class: 'g-list-card' });
+    vistas.slice(0, 8).forEach((v) => {
+      const plan = autofillPlan(v.nombre, ses, sets);
+      const nEj = plan ? plan.ejercicios.length : 0;
+      const nSets = plan ? plan.ejercicios.reduce((t, e) => t + e.sets.length, 0) : 0;
+      const row = el('button', { class: 'g-list-row', type: 'button' }, [
+        el('div', {}, [
+          el('div', { class: 'g-list-name' }, [v.nombre]),
+          el('div', { class: 'g-list-sub' }, [
+            plan
+              ? nEj + (nEj === 1 ? ' ejercicio · ' : ' ejercicios · ') + nSets +
+                (nSets === 1 ? ' set · ' : ' sets · ') + fmtDateShort(v.sesion.fecha)
+              : 'Sin sets registrados · ' + fmtDateShort(v.sesion.fecha)
+          ])
+        ]),
+        el('span', { class: 'g-list-arrow' }, ['›'])
+      ]);
+      once(row, () => {
+        s.close();
+        return createSession(panel, v.nombre);
+      });
+      card.appendChild(row);
     });
-    attachSuggest(input, sugg, () => allNames, (n) => { input.value = n; }, normalizeKey);
+    lista.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:0;' }, ['Repetir un día']));
+    lista.appendChild(card);
   });
 
   s.open();
-  setTimeout(() => input.focus(), 80);
 }
 
 function createSession(panel, routineType) {
   // Contador persistente + máximo del historial: no se repite aunque borres
   // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
   return guard(
-    Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones')])
-      .then(([n, all]) => {
+    Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones'), dbGetAll('sets')])
+      .then(([n, all, allSets]) => {
         const num = nextWorkoutNumber(n, all);
+        const plan = autofillPlan(routineType, all, allSets);
         const now = Date.now();
         const sesion = {
           nombre: 'Workout #' + num + ' · ' + routineType,
@@ -372,7 +408,7 @@ function createSession(panel, routineType) {
           timestamp_inicio: now,
           finalizada: false,
           routine_type: routineType,
-          ej_orden: []
+          ej_orden: plan ? plan.ejercicios.map((e) => e.ejercicio_id) : []
         };
         return Promise.all([dbPut('sesiones', sesion), prefSet('contador_workouts', num)])
           .then(([id]) => {
@@ -380,7 +416,35 @@ function createSession(panel, routineType) {
             _ack = id;
             _openEj = new Set();
             _restOverrides = {};
-            renderActiveSession(panel, sesion);
+            if (!plan) { renderActiveSession(panel, sesion); return null; }
+
+            // Los sets del plan entran como PROPUESTOS (Pending con peso y reps
+            // reales). No cuentan para nada hasta que los registres, y los que
+            // no registres se borran al finalizar — igual que siempre.
+            const inserts = [];
+            let orden = 0;
+            plan.ejercicios.forEach((e) => {
+              // Ancla del ejercicio, por si borras todos sus sets propuestos y
+              // aun así quieres que la card siga en pantalla.
+              inserts.push(dbPut('sets', {
+                sesion_id: id, ejercicio_id: e.ejercicio_id,
+                peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: now
+              }));
+              e.sets.forEach((st) => {
+                orden += 1;
+                inserts.push(dbPut('sets', {
+                  sesion_id: id, ejercicio_id: e.ejercicio_id,
+                  peso: st.peso, reps: st.reps, orden,
+                  status: STATUS.PENDING, unidad: st.unidad, ts: now
+                }));
+              });
+            });
+            _openEj.add(plan.ejercicios[0].ejercicio_id);
+            return Promise.all(inserts).then(() => {
+              const nSets = plan.ejercicios.reduce((t, e) => t + e.sets.length, 0);
+              toast('Propuesta desde tu último ' + routineType + ': ' + nSets + ' sets');
+              renderActiveSession(panel, sesion);
+            });
           });
       }),
     'creando sesión'
@@ -719,7 +783,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
           });
         });
         Promise.all(inserts).then(() => {
-          toast(prev.sets.length + ' sets copiados como pendientes');
+          toast(prev.sets.length + ' sets propuestos');
           updateSets();
         });
       });
@@ -818,36 +882,47 @@ function openEditSetModal(set, num, onSaved) {
   s.open();
 }
 
+// Una fila de set tiene DOS estados, no tres etiquetas:
+//   · propuesto  — viene del autollenado, en gris, todavía no cuenta;
+//   · registrado — lo hiciste, en blanco, cuenta para PR y volumen.
+// Los chips "Hecho / Pendiente / Saltado" eran herencia de un template de Notion:
+// tres estados que Esteban ciclaba a mano y que la app puede deducir sola. Lo
+// que NO se puede quitar es la distinción: con la sesión autollenada, la
+// pantalla muestra sets que aún no has hecho, y contarlos convertiría tus PRs en
+// ficción. El estado sigue en la DB; lo que desapareció es administrarlo.
+//
+// Se registra con un BOTÓN DEDICADO, no tocando la fila: decisión de Esteban
+// (2026-08-12) porque toda la fila es un blanco enorme para el pulgar y un
+// registro accidental ensucia el historial en silencio.
 function buildSetRow(sesion, ej, set, num, onChange) {
-  const row = el('div', { class: 'g-set-row' });
+  const registrado = (set.status || STATUS.DONE) === STATUS.DONE;
+  const row = el('div', { class: 'g-set-row' + (registrado ? '' : ' g-set-propuesto') });
   row.appendChild(el('div', { class: 'g-set-n' }, ['Set ' + num]));
   const valores = el('button', { class: 'g-set-edit', type: 'button', title: 'Editar set' }, [
     el('div', { class: 'g-set-val' }, [el('b', {}, [fmtWeight(set.peso)]), el('span', {}, ['lbs'])]),
     el('div', { class: 'g-set-times' }, ['×']),
     el('div', { class: 'g-set-val' }, [el('b', {}, [String(set.reps)])])
   ]);
+  // Editar NO registra: cambiar un peso puede ser ajustar el plan antes de
+  // levantarlo. Registrar es siempre un acto explícito, en su propio botón.
   valores.addEventListener('click', () => openEditSetModal(set, num, onChange));
   row.appendChild(valores);
 
-  const status = set.status || STATUS.DONE;
-  const cfg = {
-    Pending: { icon: '○', label: 'Pendiente' },
-    Done: { icon: '✓', label: 'Hecho' },
-    Skipped: { icon: '✕', label: 'Saltado' }
-  }[status];
-  const chip = el('button', { class: 'g-chip g-chip-' + status, type: 'button' }, [
-    el('span', { style: 'font-weight:700;' }, [cfg.icon]), cfg.label
-  ]);
-  chip.addEventListener('click', () => {
-    const next = status === STATUS.PENDING ? STATUS.DONE
-      : status === STATUS.DONE ? STATUS.SKIPPED : STATUS.PENDING;
-    set.status = next;
+  const mark = el('button', {
+    class: 'g-set-mark' + (registrado ? ' on' : ''),
+    type: 'button',
+    'aria-pressed': registrado ? 'true' : 'false',
+    'aria-label': (registrado ? 'Quitar el registro del set ' : 'Registrar set ') + num,
+    title: registrado ? 'Registrado · toca para deshacer' : 'Registrar'
+  }, [ICON.check({ size: 17 })]);
+  mark.addEventListener('click', () => {
+    set.status = registrado ? STATUS.PENDING : STATUS.DONE;
     guard(dbPut('sets', set), 'actualizando set').then(() => {
-      if (next === STATUS.DONE) startRest(resolveRest(ej)); // completar un set pendiente también descansa
+      if (!registrado) startRest(resolveRest(ej)); // registrar arranca el descanso
       onChange();
     });
   });
-  row.appendChild(chip);
+  row.appendChild(mark);
 
   const del = el('button', { class: 'g-set-del', type: 'button', title: 'Eliminar set' }, ['×']);
   del.addEventListener('click', () => {
@@ -1241,26 +1316,50 @@ function confirmFinalize(sesion, panel) {
     dbGetAllBy('cardio', 'sesion_id', sesion.id)
   ]), 'preparando cierre').then(([sets, cardio]) => {
     const visible = visibleSets(sets);
-    const done = visible.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
-    const pending = visible.filter((s) => s.status === STATUS.PENDING).length;
-    const nEj = new Set(sets.map((s) => s.ejercicio_id)).size;
+    const registrados = visible.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE);
+    const sinRegistrar = visible.length - registrados.length;
     const dur = Date.now() - (sesion.timestamp_inicio || Date.now());
     const volLbs = Math.round(kgToLbs(volumeKg(visible)) || 0);
     const cardioMin = cardio.reduce((sum, c) => sum + (Number(c.duracion_min) || 0), 0);
+
+    // Ejercicios que se quedaron sin UN solo set registrado. Importa decirlo
+    // aquí y no después: al finalizar desaparecen de la sesión, y como el molde
+    // de la próxima vez ES esta sesión, tampoco se propondrán. Sin este aviso el
+    // plan se encogería solo, en silencio, y semanas después.
+    const conRegistro = new Set(registrados.map((s) => s.ejercicio_id));
+    const ejSinRegistro = [...new Set(visible.map((s) => s.ejercicio_id))]
+      .filter((id) => !conRegistro.has(id));
+    const nEj = conRegistro.size;
 
     const s = sheet('¿Finalizar sesión?');
     const summary = el('div', { class: 'g-confirm-summary' }, [
       confirmRow('Duración', fmtDuration(dur)),
       confirmRow('Ejercicios', String(nEj)),
-      confirmRow('Sets completados', done + ' / ' + visible.length),
+      confirmRow('Sets registrados', registrados.length + ' / ' + visible.length),
       confirmRow('Volumen total', fmtInt(volLbs) + ' lbs')
     ]);
     if (cardioMin > 0) summary.appendChild(confirmRow('Cardio', cardioMin + ' min'));
     s.modal.appendChild(summary);
-    if (pending > 0) {
+    if (sinRegistrar > 0) {
       s.modal.appendChild(el('div', { class: 'g-confirm-warn' }, [
-        pending + (pending === 1 ? ' set pendiente se eliminará' : ' sets pendientes se eliminarán') + ' al finalizar.'
+        sinRegistrar + (sinRegistrar === 1 ? ' set sin registrar se descartará.' : ' sets sin registrar se descartarán.')
       ]));
+    }
+    if (ejSinRegistro.length > 0) {
+      const aviso = el('div', { class: 'g-confirm-warn' });
+      s.modal.appendChild(aviso);
+      guard(dbGetAll('ejercicios'), 'nombres de ejercicios').then((ejs) => {
+        const ejMap = {};
+        ejs.forEach((e) => { ejMap[e.id] = e; });
+        const nombres = ejSinRegistro.map((id) => (ejMap[id] ? ejMap[id].nombre : 'un ejercicio'));
+        const uno = nombres.length === 1;
+        clear(aviso);
+        aviso.appendChild(document.createTextNode(
+          nombres.join(', ') + (uno ? ' no tiene' : ' no tienen') +
+          ' ningún set registrado, así que no ' + (uno ? 'entrará' : 'entrarán') +
+          ' en la propuesta de tu próximo ' + (sesion.routine_type || 'entrenamiento') + '.'
+        ));
+      });
     }
     const doneBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Finalizar y guardar']);
     once(doneBtn, () => {

@@ -38,7 +38,9 @@ en su **iPhone 11** desde GitHub Pages.
    `js/dom.js` (error visible en toast, nunca pantalla en blanco).
 5. **Solo sets `Done` cuentan** para PR, 1RM, volumen y gráficas (`js/stats.js`).
    Peso 0 con reps > 0 es válido (peso corporal). No "arreglar" esto filtrando
-   por peso > 0.
+   por peso > 0. Esta regla es MÁS importante desde el autollenado: la pantalla
+   muestra sets que todavía no has hecho (`Pending` = propuesto). Si algún día
+   cuentan, los PRs pasan a ser ficción. Ver §5.2.
 6. **Los cálculos viven en módulos puros** (`format.js`, `stats.js`,
    `importer.js`): sin DOM ni IndexedDB, para que sean testeables en Node.
    Lógica nueva de cálculo → módulo puro + test.
@@ -172,8 +174,12 @@ ejercicios { id (AI), nombre (índice unique), musculos [array nativo],
 sets       { id (AI), sesion_id (índice), ejercicio_id (índice),
              peso (kg SIEMPRE), reps, orden?, status, unidad? ('lbs'|'kg'), ts? }
              · status: Pending | Done | Skipped
+             · status: Pending = PROPUESTO (autollenado, aún no lo has hecho,
+               no cuenta para nada) · Done = REGISTRADO · Skipped = solo legacy,
+               la app ya no lo crea (no había ninguno en el histórico real)
              · placeholder técnico = Pending + peso 0 + reps 0 (ancla ejercicio↔sesión;
-               se eliminan TODOS los Pending al finalizar la sesión)
+               se eliminan TODOS los Pending al finalizar la sesión, propuestos
+               incluidos: lo que no registraste no pasó)
              · unidad: lo que Esteban tecleó (para recordar por-ejercicio su última unidad)
 cardio     { id (AI), sesion_id (índice), tipo (free-text), duracion_min,
              velocidad_kmh?, inclinacion?, orden?, ts? }
@@ -188,8 +194,16 @@ actualizar `importer.js` + tests + esta sección, en el mismo commit.
 
 ## 5. Decisiones de producto (confirmadas por Esteban 2026-07-28)
 
-- **Sin plantillas de rutina.** Lo evaluó y lo rechazó: prefiere armar cada
-  sesión ejercicio por ejercicio. No reintroducir.
+- **Autollenado desde la última sesión, NO plantillas** (revisado 2026-08-12).
+  La decisión original ("sin plantillas, armar cada sesión ejercicio por
+  ejercicio") queda superada, pero con un matiz que hay que respetar: Esteban
+  sigue sin querer **plantillas como entidad** — nada que crear, nombrar,
+  editar ni mantener. Lo que quiso es que la app **suponga** que repetirá el
+  mismo día: al empezar "Upper A" se proponen los ejercicios y sets de la
+  ÚLTIMA sesión finalizada llamada "Upper A", él modifica lo que quiera durante
+  el entrenamiento, y lo que registre se convierte solo en el molde de la
+  próxima. El template ES la sesión anterior. **No construyas un CRUD de
+  plantillas**: sería justo lo que rechazó. Ver §5.2 y `stats.js › autofillPlan`.
 - **Display lbs, input lbs/kg** por set (su gym mezcla equipos). El toggle
   recuerda la última unidad usada por ejercicio.
 - **Rest timer:** default 90s → configurable por ejercicio (persistente) o
@@ -243,8 +257,9 @@ si no se leen.**
    El defecto del diseño anterior era exactamente ese: el naranja estaba en el
    hero, las pastillas, la gráfica, el cronómetro, los enlaces, el badge de PR,
    los botones y el banner a la vez.
-5. **Verde y rojo NO son acento, son estado.** `--green` solo para "hecho",
-   `--red` solo para destructivo. Jamás decoran.
+5. **El rojo es el único color de la app y NO es acento.** Solo marca lo que
+   borra o cierra algo; jamás decora. El verde desapareció con los chips de
+   estado (§5.2): la app es blanco, negro, grises y un rojo.
 6. **44 px de área táctil, piso innegociable.** Se crece el ÁREA con padding y
    margen negativo, no el dibujo (ver `.g-set-del`, `.g-rest-skip`).
 7. **Radios concéntricos:** hijo = padre − separación. Usa la escala
@@ -262,6 +277,51 @@ material, y `styles.css` responde a las tres preferencias del sistema:
 `prefers-reduced-transparency` (el vidrio se vuelve sólido),
 `prefers-contrast` (sube texto y bordes) y `prefers-reduced-motion`. Si añades un
 componente de vidrio, añádelo también a la lista del primer bloque.
+
+### 5.2 Modelo de sets: propuesto vs registrado (leer antes de tocar `entrenar.js`)
+
+Cambio del 2026-08-12, pedido por Esteban con estas palabras: *"el verde de
+'hecho' me parece innecesario, yo sé cuándo un set está hecho; es una función
+heredada de un template de Notion obsoleto que no me gusta. También el de
+pendiente."*
+
+**Lo que se quitó:** los chips `Hecho / Pendiente / Saltado` y el ciclo de tres
+estados que él ciclaba a mano. `Skipped` ya no se crea nunca (no había ni uno en
+sus 578 sets históricos; solo sigue en `STATUS` por si un backup viejo lo trae).
+
+**Lo que NO se puede quitar, y por qué.** Con el autollenado, al empezar el
+entrenamiento la pantalla ya muestra sets que todavía no has hecho. Si la app
+cuenta todo lo que ve, un PR de 275×9 aparece por el simple hecho de abrir la
+app. La distinción sobrevive; lo que desapareció es **administrarla**:
+
+| | Propuesto | Registrado |
+|---|---|---|
+| `status` en la DB | `Pending` | `Done` |
+| De dónde sale | autollenado o "copiar sets" | lo tecleaste, o tocaste el botón |
+| Aspecto | fila apagada, números en terciario | fondo sólido, números en blanco |
+| ¿Cuenta para PR/volumen? | **no** | sí |
+| Al finalizar la sesión | se borra | se guarda |
+
+**Registrar es un BOTÓN DEDICADO por fila (`.g-set-mark`), no tocar la fila.**
+Decisión explícita de Esteban: *"mejor un botón dedicado a esto, más seguro y
+previene accidentes"*. La fila entera es un blanco enorme para el pulgar y un
+registro accidental contamina PRs y volumen sin que te enteres. **No lo
+conviertas en "toca la fila" por elegancia.**
+
+**Editar un set NO lo registra.** Cambiar un peso puede ser ajustar el plan
+antes de levantarlo. Registrar es siempre un acto explícito.
+
+**Consecuencia que hay que avisar, y se avisa.** Como el molde de la próxima vez
+ES esta sesión, un ejercicio que termines sin ningún set registrado desaparece
+de la propuesta de la semana que viene. Es lo que Esteban pidió (el plan se
+corrige solo), pero encogería el entrenamiento en silencio y semanas después
+— por eso el sheet de finalizar los nombra uno por uno. Si tocas ese aviso,
+mantenlo: sin él, el modo de falla es invisible.
+
+**Elegir la rutina, no escribirla.** El autollenado busca por `routine_type`
+normalizado (sin tildes ni mayúsculas), pero la UI hace **elegir de una lista**
+de días recientes. Escribir a mano permite que "Upper A" y "Upper A " sean días
+distintos y te quedes sin propuesta sin entender por qué.
 
 ## 6. Deploy (paso a paso)
 
@@ -378,6 +438,20 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     silencio** al restaurar un backup. No rompe nada visible, que es lo que la
     hace peligrosa. Hay un test que exige que la lista blanca cubra todas las
     claves que la app escribe: si añades una preferencia, ese test te lo dirá.
+28. **Quitar un control no es quitar el concepto.** Los chips de estado sobraban
+    como INTERFAZ (Esteban sabe si hizo un set), pero el dato que codificaban es
+    lo único que separa "esto lo levanté" de "esto propone la app". Cuando te
+    pidan eliminar algo, separa el control del invariante: casi siempre se puede
+    tirar el primero y deducir el segundo de un gesto que ya existe.
+29. **Un valor por defecto que se autopropaga necesita una salida visible.** El
+    molde de la próxima sesión es la sesión anterior, así que cualquier cosa que
+    se caiga hoy se cae para siempre. El aviso al finalizar, nombrando los
+    ejercicios que quedaron sin registrar, es lo único que impide que el plan se
+    encoja solo sin que nadie lo note.
+30. **Comparar texto libre por igualdad es un bug esperando fecha.** "Upper A" y
+    "upper a " son el mismo día para una persona y dos días distintos para un
+    `===`. Se normaliza SIEMPRE (`normalizeKey`) y, mejor aún, se hace elegir de
+    una lista en vez de escribir.
 
 ## 8. Pendientes / ideas evaluables
 
@@ -405,6 +479,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-12 | `(pending)` | **Modelo propuesto/registrado + autollenado del día.** Esteban pidió quitar los chips `Hecho / Pendiente / Saltado` ("herencia de un template de Notion obsoleto") y que la app **suponga que repetirá el mismo día**: al empezar "Upper A" se proponen los ejercicios y sets de la última sesión con ese nombre, él modifica durante el entrenamiento, y lo que registre se vuelve el molde de la próxima. **El template ES la sesión anterior** — no hay entidad nueva, ni CRUD de plantillas (§5.2 explica por qué eso sería justo lo que rechazó). Los chips se sustituyen por un **botón dedicado de registro por fila** (decisión suya: tocar la fila entera era un blanco demasiado grande para el pulgar y un registro accidental contamina PRs en silencio); un set propuesto se ve apagado y no cuenta para nada. Editar un set NO lo registra. El **verde desapareció de la app entera**: solo queda el rojo destructivo. La rutina se **elige de una lista** en vez de escribirse, porque "Upper A" y "Upper A " partirían el día en dos. El sheet de finalizar ahora **nombra los ejercicios sin ningún set registrado**, que al no guardarse tampoco entrarán en la propuesta de la próxima vez — sin ese aviso el plan se encogería solo y semanas después. `stats.js › autofillPlan` con 10 tests. Cero cambios de schema: un propuesto es un `Pending` con peso y reps reales, e `isCountable`/`isPlaceholder`/el borrado al finalizar ya hacían lo correcto. Verificado en Chromium el ciclo entero con el seed real: autollenado de 6 ejercicios/13 sets, registro y deshacer, avisos al finalizar, y la sesión siguiente proponiendo solo lo registrado. 0 errores de consola. 61/61 tests. `sw.js → gymtracker-20260812-3`. |
 | 2026-08-12 | `f43bf76` | **Rediseño "Vidrio Negro" + 3 funciones.** Esteban pidió una estética más limpia con negros y grises transparentes tipo Liquid Glass; eligió **acento platino `#EDEDF0`** sobre el naranja heredado tras ver las dos opciones maquetadas. `styles.css` reescrito sobre cuatro niveles de vidrio (blanco 4.5/7/10.5% + chrome `#101012` al 72%), rampa de texto de 4 niveles y halos radiales en `body::before` — **sin ellos el `backdrop-filter` no tiene qué muestrear y todo el vidrio se degrada a gris**. Reglas completas en §5.1. **Barra de pestañas movida ABAJO** y flotante: era navegación principal fuera del alcance del pulgar en un iPhone 11. Áreas táctiles de 44 px en todo (la "×" de borrar set medía 26, el cerrar de modales 28). Soporte de `prefers-reduced-transparency`, `prefers-contrast` y `prefers-reduced-motion`. Colores del SVG movidos de `setAttribute` en JS a clases CSS. **Funciones nuevas:** (1) **set fantasma** — el peso y las reps de la sesión anterior aparecen como placeholder y confirmar sin teclear los registra, el atajo que más tiempo ahorra según Hevy; (2) **calculadora de discos** (`js/plates.js`, módulo puro, 12 tests) con el peso de barra persistido en `bar_lbs`; (3) **sets por músculo de la semana** en Progresión, aprovechando los `musculos` que ya se guardaban y no se usaban. `suggestNextSet` y `setsPerMuscle` en `stats.js` con tests. `bar_lbs` añadida a `PREFS_IMPORTABLES` + test que exige que la lista blanca cubra toda clave que la app escriba. Verificado en Chromium con el seed real: fantasma que avanza set a set y se reexpresa en kg, registro de un toque, discos 185→45+25, caso no alcanzable, tarjeta de músculos y los 3 tabs. 0 errores de consola. 51/51 tests. `sw.js → gymtracker-20260812-2`. |
 | 2026-08-12 | `009d0ae` | **Revisión maestra #3: 10 defectos.** **Actualizaciones (crítico):** `controllerchange` seguía leyendo el `hadController` congelado del arranque — la mitad de la lección #18 que no se arregló. Una pestaña abierta desde la primera instalación aplicaba la versión nueva pero NUNCA recargaba: seguía corriendo el JS viejo en memoria, sin banner y sin síntoma visible. Ahora el flag se marca cuando aparece el primer controller. Además `forceUpdateCheck()` esperaba a `reg.waiting` cuando el worker podía estar aún en `installing`, y contestaba "Ya tienes la última versión" — mentira dicha justo en la pantalla de diagnóstico; ahora espera a que termine de instalar (timeout 10 s). **iOS:** el bloqueo de scroll del fondo con un sheet abierto nunca funcionó en iPhone (`body{overflow:hidden}` no hace nada en iOS Safari; se validó en Chrome de escritorio); ahora `position:fixed` + restauración de `scrollY`. **Sesión activa:** agregar un ejercicio que YA estaba en la sesión creaba un placeholder duplicado y lo mandaba al final del orden; ahora avisa y solo abre su card. Borrar un set (el "×" está pegado al chip de estado) es irreversible de un toque → toast con **Deshacer** de 6 s. **Enter** encadena peso → reps → guardar sin soltar el teclado. **Rendimiento:** `boot()` pintaba los TRES tabs (9 lecturas completas de IndexedDB antes de ver nada, encima del arranque en frío); ahora solo el visible. Cada card de ejercicio hacía su propio `dbGetAll('sesiones')` completo (8 ejercicios = 8 barridos de la tabla); ahora se carga una vez en `refreshExercises`. El tab Ejercicios pedía `ejercicios` y `sesiones` por duplicado (5 lecturas donde bastan 3). **Otros:** Progresión ocultaba la sección de cardio si no había ningún ejercicio; `switchTab` renderizaba sin try/catch; `index.html` sin `mobile-web-app-capable`. Verificado end-to-end en Chromium con el seed real: restauración, sesión completa, re-agregar ejercicio, Enter, deshacer, scroll lock, finalización y los 3 tabs. 0 errores de consola. 30/30 tests. `sw.js → gymtracker-20260812-1`. |
 | 2026-08-03 | `a40b727` | **Banner de actualización visible + 2 bugs del mecanismo.** Esteban confirmó que el banner llegó (días después) y pidió que fuera más grande: era una píldora gris de 13px encima del título, "casi imperceptible". Ahora es una tarjeta naranja de ancho completo, 16px bold, botón negro con área táctil de 44px y animación de entrada; el contenido baja mientras está visible para no quedar tapado. **Dos bugs reales cazados probándolo:** (1) el botón guardaba el `ServiceWorker` capturado al pintar el banner — si llegaba otro worker después, el capturado quedaba `redundant` y el `postMessage` no hacía nada (el botón se pulsaba y no pasaba nada); ahora lee `_reg.waiting` en el momento del clic, con recarga de respaldo a los 6 s. (2) `hadController` se congelaba al arrancar, así que una pestaña abierta desde la primera instalación nunca volvía a detectar actualizaciones; ahora se consulta el controller en el momento de decidir. Verificado en Chrome el ciclo limpio completo. 30/30 tests. `sw.js → gymtracker-20260803-1`. |

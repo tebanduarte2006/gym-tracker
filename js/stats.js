@@ -6,6 +6,11 @@
 // (Bug heredado de habitos-app: filtraba `!== Pending` y los Skipped
 // contaminaban los récords.)
 
+import { normalizeKey } from './format.js';
+
+// `SKIPPED` sigue existiendo solo para no romper un backup antiguo que lo traiga.
+// La app YA NO lo crea ni lo muestra: desde el 2026-08-12 un set solo puede
+// estar propuesto (Pending) o registrado (Done). Ver README §5.2.
 export const STATUS = { PENDING: 'Pending', DONE: 'Done', SKIPPED: 'Skipped' };
 
 // Un set "cuenta" si está hecho y tiene reps reales. peso 0 es válido
@@ -152,6 +157,64 @@ export function setsPerMuscle(sets, ejMap) {
     });
   });
   return [...acc.values()].sort((a, b) => b.sets - a.sets || a.musculo.localeCompare(b.musculo));
+}
+
+// ─── Autollenado desde la última sesión de la misma rutina ────────────────────
+// El "template" de un día NO es una entidad guardada: es literalmente la última
+// sesión finalizada con ese mismo `routine_type`. Lo que registras hoy es el
+// molde de la próxima, sin nada que mantener a mano.
+//
+// El nombre de rutina se compara normalizado (sin tildes, sin mayúsculas, sin
+// espacios sobrantes): "Upper A" y "upper a" son el mismo día. Aun así la UI
+// hace elegir de una lista en vez de escribir — un dedazo no debe partir un día
+// en dos y dejarte sin propuesta.
+//
+// Devuelve null si es la primera vez que haces esa rutina, o
+// { sesion, ejercicios: [{ ejercicio_id, sets: [{ peso, reps, unidad }] }] }
+// con los ejercicios en el orden de aquella sesión y SOLO sus sets registrados.
+export function autofillPlan(routineType, sesiones, sets) {
+  const key = normalizeKey(routineType);
+  if (!key) return null;
+
+  let pick = null;
+  (sesiones || []).forEach((s) => {
+    if (s.finalizada !== true) return;
+    if (normalizeKey(s.routine_type) !== key) return;
+    if (!pick || sessionTs(s) > sessionTs(pick)) pick = s;
+  });
+  if (!pick) return null;
+
+  // Solo lo que de verdad hiciste: un set propuesto que no registraste no
+  // debería volver a proponerse eternamente por inercia.
+  const mios = (sets || [])
+    .filter((s) => s.sesion_id === pick.id && isCountable(s))
+    .slice()
+    .sort((a, b) => (a.orden || a.id || 0) - (b.orden || b.id || 0));
+  if (mios.length === 0) return null;
+
+  const porEj = new Map();
+  const aparicion = [];
+  mios.forEach((s) => {
+    if (!porEj.has(s.ejercicio_id)) { porEj.set(s.ejercicio_id, []); aparicion.push(s.ejercicio_id); }
+    porEj.get(s.ejercicio_id).push(s);
+  });
+
+  const orden = Array.isArray(pick.ej_orden) && pick.ej_orden.length > 0
+    ? pick.ej_orden.filter((id) => porEj.has(id))
+    : [];
+  aparicion.forEach((id) => { if (!orden.includes(id)) orden.push(id); });
+
+  return {
+    sesion: pick,
+    ejercicios: orden.map((id) => ({
+      ejercicio_id: id,
+      sets: porEj.get(id).map((s) => ({
+        peso: Number(s.peso),
+        reps: Number(s.reps),
+        unidad: s.unidad || null
+      }))
+    }))
+  };
 }
 
 // Marca s._isPR (récord de peso en su momento) sobre filas cronológicas.

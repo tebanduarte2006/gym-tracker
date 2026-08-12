@@ -29,6 +29,7 @@ function makeIcon(opts) {
 export const ICON = {
   dumbbell: (o = {}) => makeIcon({ ...o, paths: ['M6.5 6v12M3 9v6M17.5 6v12M21 9v6M6.5 12h11'] }),
   chevronDown: (o = {}) => makeIcon({ ...o, paths: ['M6 9l6 6 6-6'] }),
+  check: (o = {}) => makeIcon({ ...o, stroke: o.stroke != null ? o.stroke : 2.4, paths: ['M5 12.5l4.5 4.5L19 7.5'] }),
   search: (o = {}) => makeIcon({
     ...o,
     paths: ['M16 16l4 4'],
