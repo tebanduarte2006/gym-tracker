@@ -376,8 +376,38 @@ agosto de 2026: un ejercicio nuevo se crea ya con la lista canónica.
 
 Sustituye los botones ↑ / ↓, que dejaban la fila de herramientas con cinco
 controles y convertían reordenar seis ejercicios en quince toques. Pulsación
-larga (420 ms) + arrastre, como el homescreen del iPhone. Cuatro cosas que
-parecen detalles y no lo son:
+larga (420 ms) + arrastre, como el homescreen del iPhone.
+
+**Al entrar en modo reordenar TODAS las tarjetas colapsan al nombre**
+(`.g-reordenando`). No es cosmético: arrastrar la tarjeta abierta (~315 px) por
+una pantalla de 896 px es mover un bloque que tapa media lista, y con alturas
+desiguales el hueco que deja nunca coincide con el que ocupa. Colapsadas miden
+todas ~53 px, la lista entera pasa de 610 px a 368 px —cabe de golpe en
+pantalla— y el gesto se vuelve exacto. Es lo que hace el homescreen del iPhone
+al entrar en modo de reorganización. `dragorder.js` mide **después** de aplicar
+la clase; medir antes guardaría la altura de la tarjeta abierta y todo el
+cálculo de huecos saldría mal.
+
+Ojo con la especificidad: `.g-ex-card.open .g-ex-body` son tres clases y ganaba,
+así que la tarjeta abierta seguía midiendo 315 px mientras las demás bajaban a
+53 — justo el desnivel que este modo existe para eliminar. Por eso la regla
+repite `.open` explícitamente.
+
+**Fluidez** (medido: 61 fps durante el arrastre, desfase 0 px entre el centro de
+la tarjeta y el dedo):
+- El `gap` se lee UNA vez en `medir()`. Llamar a `getComputedStyle` en cada
+  `pointermove` fuerza un recálculo de estilo por evento, y `pointermove` llega
+  más veces por segundo que frames hay: era la fuente principal de tirones.
+- Pintar va siempre dentro de un `requestAnimationFrame`, nunca directo desde el
+  evento.
+- `will-change: transform` en las tarjetas del modo reordenar, o el navegador
+  repinta la lista entera en cada frame.
+- Al colapsar, la tarjeta ya no está bajo el dedo: se calcula un ancla una sola
+  vez para centrarla en él, en lugar de dejarla desplazada todo el gesto.
+- El `scale` del "levantar" es propiedad independiente, **no**
+  `transform: scale()`, para que componga con el `translateY` sin pisarlo.
+
+Cuatro cosas más que parecen detalles y no lo son:
 
 1. **La pulsación larga se cancela si el dedo se mueve antes de tiempo.** El
    gesto de scroll y el de arrastrar nacen idénticos; sin ese umbral, cualquier
@@ -390,12 +420,23 @@ parecen detalles y no lo son:
 3. **La cabecera lleva `data-drag-handle`.** Es un `<button>` (abre y cierra el
    ejercicio) y sin esa marca la guarda que impide secuestrar controles no
    dejaba ni empezar el gesto.
+3b. **`pointermove` / `pointerup` viven en WINDOW, no en el contenedor.**
+   Colgados del contenedor había un fallo real: si el dedo salía de la lista
+   antes de que venciera la pulsación larga —hacia el cronómetro de arriba, por
+   ejemplo— el contenedor dejaba de recibir eventos, la cancelación por
+   movimiento nunca llegaba y el arrastre arrancaba igual con el dedo ya lejos.
+   En `window` se ve el gesto entero pase por donde pase.
 4. **Se traga el `click` posterior al arrastre.** El navegador lo dispara igual
    sobre el asa, y sin eso reordenar dejaba el ejercicio colapsado solo.
 
 El `gap` va en `.g-ex-list`, no como `margin-bottom` de la tarjeta: `dragorder.js`
 lo lee con `getComputedStyle` para calcular el hueco. Si lo devuelves a `margin`,
 el arrastre calcula mal.
+
+**Tarjeta colapsada = nombre + contador, nada más** (fuera del modo reordenar).
+La línea de músculos se muestra solo al abrir: "Cuádriceps · Isquiotibiales ·
+Glúteos · Aductores" se partía en dos líneas y hacía esa tarjeta más alta que las
+demás, que es justo lo que descoloca una lista que se escanea de un vistazo.
 
 **Coste conocido:** sin ↑ / ↓ no hay forma de reordenar con VoiceOver ni con
 teclado. Es el precio del gesto que pidió Esteban; si algún día importa, la
@@ -552,6 +593,20 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     destino de un arrastre acumulando alturas funciona con listas uniformes y
     falla en cuanto un elemento está expandido. Se compara la posición del
     puntero contra las bandas originales.
+36. **Un gesto se escucha en `window`, no en el elemento donde nace.** Solo el
+    `pointerdown` pertenece al contenedor; en cuanto el dedo puede salirse de él
+    —y siempre puede— los `pointermove` y `pointerup` colgados del contenedor
+    dejan de llegar y el gesto se queda a medias en un estado imposible.
+37. **La especificidad CSS decide, no el orden en que escribiste las reglas.**
+    `.g-reordenando .g-ex-body` (dos clases) no podía contra
+    `.g-ex-card.open .g-ex-body` (tres), así que el modo compacto colapsaba
+    todas las tarjetas MENOS la abierta — justo la que más falta hacía. Cuando
+    una regla "no se aplica", cuenta las clases antes de tocar nada más.
+38. **`getComputedStyle` dentro de un manejador de gesto es un freno.** Se
+    llamaba una vez por `pointermove`, y `pointermove` llega más veces por
+    segundo que frames hay: cada llamada fuerza un recálculo de estilo. Lo que
+    no cambia durante el gesto se mide UNA vez al empezarlo, y el pintado va
+    dentro de un `requestAnimationFrame`.
 
 ## 8. Pendientes / ideas evaluables
 
@@ -581,6 +636,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-12 | `(pending)` | **Arrastre fluido + tarjetas compactas.** Esteban aprobó los tres riesgos del PR con un matiz: que el arrastre fuera totalmente fluido, y sugirió tarjetas lo más pequeñas posible. Resultan ser el mismo problema. **Al entrar en modo reordenar todas las tarjetas colapsan al nombre** (§5.4): la lista pasa de 610 px a **368 px** y cabe entera en pantalla, todas miden lo mismo y el cálculo de huecos se vuelve exacto — arrastrar una tarjeta abierta de 315 px tapaba media pantalla y dejaba un hueco que nunca coincidía. Requirió repetir `.open` en el selector: `.g-ex-card.open .g-ex-body` ganaba por especificidad y la tarjeta abierta seguía sin colapsar. **Fluidez:** el `gap` se lee una vez en vez de un `getComputedStyle` por `pointermove` (la causa principal de tirones), el pintado va dentro de `requestAnimationFrame`, `will-change: transform` para que el navegador no repinte la lista entera por frame, y un ancla que centra la tarjeta bajo el dedo tras colapsar. Medido: **61 fps** durante el arrastre y **0 px** de desfase entre el centro de la tarjeta y el dedo. **Fuera del modo reordenar**, la tarjeta colapsada muestra solo nombre y contador: la línea de músculos se partía en dos y descuadraba la lista. Toast a 0.88 de opacidad — era el único vidrio que aparece sobre texto denso y se leía turbio. **Bug encontrado al verificar:** `pointermove`/`pointerup` colgaban del contenedor, así que si el dedo salía de la lista antes de vencer la pulsación larga (hacia el cronómetro) la cancelación no llegaba y el arrastre arrancaba igual; ahora van en `window`. Cinco casos límite verificados: salir de la lista, scroll corto, mantener quieto, soltar fuera y toque corto. 76/76 tests. 0 errores de consola. `sw.js → gymtracker-20260812-5`. |
 | 2026-08-12 | `0df7aa0` | **Taxonomía de músculos, arrastre para reordenar y flujo de inicio.** **Músculos (§5.3):** Esteban reportó "músculos raros y duplicados"; la auditoría encontró que el defecto no estaba en sus datos sino en el selector — la constante decía `Aductores` y sus datos `Aductor`, y como el selector añadía además los músculos descubiertos en la base, mostraba los dos a la vez. Peor: `Espalda` y `Dorsales` eran marcables a la vez, así que el volumen por músculo contaba **el mismo set dos veces**. Lista definitiva de **18 músculos** en `js/muscles.js`, un solo nivel de granularidad, agrupada por patrón de movimiento; el selector pasa a ser **lista cerrada** (sin buscador ni "Crear «X»", que es lo que dejó nacer los duplicados). Migración del historial **ofrecida con el diff a la vista** (17 ejercicios), con la regla de traducir y no inventar: `Espalda` en un remo sí significa dorsales y trapecios, pero añadirle bíceps habría triplicado ese volumen sin motivo. 14 tests, incluido uno sobre los 36 ejercicios reales que exige que nadie quede sin músculos ni con nombres fuera de la taxonomía. **Editar músculos DURANTE la rutina** desde la tarjeta del ejercicio. **Reordenar (§5.4):** los ↑ / ↓ los sustituye pulsación larga + arrastre estilo homescreen de iOS (`js/ui/dragorder.js`). **Inicio:** un solo campo que busca entre tus días y, si lo que escribes no existe, ofrece crearlo vacío. Verificado en Chromium: migración aplicada, selector de 18 en 4 grupos, filtrado de días, creación de día nuevo, arrastre que aterriza donde apunta el dedo (con una card abierta entre cerradas) y scroll que NO arrastra. 0 errores de consola. 76/76 tests. `sw.js → gymtracker-20260812-4`. |
 | 2026-08-12 | `5a5577d` | **Modelo propuesto/registrado + autollenado del día.** Esteban pidió quitar los chips `Hecho / Pendiente / Saltado` ("herencia de un template de Notion obsoleto") y que la app **suponga que repetirá el mismo día**: al empezar "Upper A" se proponen los ejercicios y sets de la última sesión con ese nombre, él modifica durante el entrenamiento, y lo que registre se vuelve el molde de la próxima. **El template ES la sesión anterior** — no hay entidad nueva, ni CRUD de plantillas (§5.2 explica por qué eso sería justo lo que rechazó). Los chips se sustituyen por un **botón dedicado de registro por fila** (decisión suya: tocar la fila entera era un blanco demasiado grande para el pulgar y un registro accidental contamina PRs en silencio); un set propuesto se ve apagado y no cuenta para nada. Editar un set NO lo registra. El **verde desapareció de la app entera**: solo queda el rojo destructivo. La rutina se **elige de una lista** en vez de escribirse, porque "Upper A" y "Upper A " partirían el día en dos. El sheet de finalizar ahora **nombra los ejercicios sin ningún set registrado**, que al no guardarse tampoco entrarán en la propuesta de la próxima vez — sin ese aviso el plan se encogería solo y semanas después. `stats.js › autofillPlan` con 10 tests. Cero cambios de schema: un propuesto es un `Pending` con peso y reps reales, e `isCountable`/`isPlaceholder`/el borrado al finalizar ya hacían lo correcto. Verificado en Chromium el ciclo entero con el seed real: autollenado de 6 ejercicios/13 sets, registro y deshacer, avisos al finalizar, y la sesión siguiente proponiendo solo lo registrado. 0 errores de consola. 61/61 tests. `sw.js → gymtracker-20260812-3`. |
 | 2026-08-12 | `f43bf76` | **Rediseño "Vidrio Negro" + 3 funciones.** Esteban pidió una estética más limpia con negros y grises transparentes tipo Liquid Glass; eligió **acento platino `#EDEDF0`** sobre el naranja heredado tras ver las dos opciones maquetadas. `styles.css` reescrito sobre cuatro niveles de vidrio (blanco 4.5/7/10.5% + chrome `#101012` al 72%), rampa de texto de 4 niveles y halos radiales en `body::before` — **sin ellos el `backdrop-filter` no tiene qué muestrear y todo el vidrio se degrada a gris**. Reglas completas en §5.1. **Barra de pestañas movida ABAJO** y flotante: era navegación principal fuera del alcance del pulgar en un iPhone 11. Áreas táctiles de 44 px en todo (la "×" de borrar set medía 26, el cerrar de modales 28). Soporte de `prefers-reduced-transparency`, `prefers-contrast` y `prefers-reduced-motion`. Colores del SVG movidos de `setAttribute` en JS a clases CSS. **Funciones nuevas:** (1) **set fantasma** — el peso y las reps de la sesión anterior aparecen como placeholder y confirmar sin teclear los registra, el atajo que más tiempo ahorra según Hevy; (2) **calculadora de discos** (`js/plates.js`, módulo puro, 12 tests) con el peso de barra persistido en `bar_lbs`; (3) **sets por músculo de la semana** en Progresión, aprovechando los `musculos` que ya se guardaban y no se usaban. `suggestNextSet` y `setsPerMuscle` en `stats.js` con tests. `bar_lbs` añadida a `PREFS_IMPORTABLES` + test que exige que la lista blanca cubra toda clave que la app escriba. Verificado en Chromium con el seed real: fantasma que avanza set a set y se reexpresa en kg, registro de un toque, discos 185→45+25, caso no alcanzable, tarjeta de músculos y los 3 tabs. 0 errores de consola. 51/51 tests. `sw.js → gymtracker-20260812-2`. |

@@ -291,10 +291,32 @@ body.g-modal-open {
   border-radius: var(--r-lg);
   overflow: hidden;
 }
-/* Mientras se arrastra, las demás tarjetas se apartan con una transición; la
-   levantada NO (seguiría al dedo con retraso y se sentiría de goma). */
-.g-reordenando .g-ex-card { transition: transform var(--base) var(--ease); }
+/* MODO REORDENAR — todas las tarjetas colapsan al nombre.
+   No es cosmético. Arrastrar la tarjeta abierta (~400 px) por una pantalla de
+   896 px significa mover un bloque que tapa media lista, y con alturas
+   desiguales el hueco que deja nunca coincide con el que ocupa. Colapsadas
+   miden todas lo mismo (~56 px), caben de golpe en pantalla y el gesto se
+   vuelve exacto — es lo que hace el homescreen del iPhone al entrar en modo de
+   reorganización. dragorder.js mide DESPUÉS de aplicar esta clase. */
 .g-reordenando { touch-action: none; }
+/* El segundo selector NO es redundante: `.g-ex-card.open .g-ex-body` tiene tres
+   clases y ganaba por especificidad, así que la tarjeta abierta seguía midiendo
+   315 px mientras las demás bajaban a 53 — exactamente el desnivel que este modo
+   existe para eliminar. Con `.open` explícito son cuatro clases y gana esta. */
+.g-reordenando .g-ex-body,
+.g-reordenando .g-ex-card.open .g-ex-body,
+.g-reordenando .g-ex-count,
+.g-reordenando .g-ex-chevron,
+.g-reordenando .g-ex-muscle { display: none; }
+.g-reordenando .g-ex-head { padding: 17px 18px; min-height: 0; }
+/* `will-change` promueve las tarjetas a su propia capa: sin esto el navegador
+   repinta la lista entera en cada frame del arrastre. */
+.g-reordenando .g-ex-card {
+  transition: transform var(--base) var(--ease);
+  will-change: transform;
+}
+/* La levantada NO lleva transición: seguiría al dedo con retraso y se sentiría
+   de goma. */
 .g-ex-card.g-arrastrando {
   transition: none;
   position: relative;
@@ -304,9 +326,17 @@ body.g-modal-open {
   background: var(--glass-3);
   animation: drag-lift .18s var(--ease) forwards;
 }
+/* `scale` es propiedad independiente, NO `transform: scale()`: así compone con
+   el translateY que dragorder.js escribe en `transform` sin pisarlo. */
 @keyframes drag-lift { to { scale: 1.03; } }
 /* Nada de selección de texto ni menú contextual con el dedo apoyado. */
 body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* Tarjeta colapsada: solo el nombre y el contador. Los músculos aparecen al
+   abrirla. Una lista de músculos larga ("Cuádriceps · Isquiotibiales · Glúteos
+   · Aductores") se partía en dos líneas y hacía esa tarjeta más alta que las
+   demás — justo lo que descoloca una lista que se escanea de un vistazo. */
+.g-ex-card:not(.open) .g-ex-muscle { display: none; }
 .g-ex-head {
   width: 100%;
   background: none; border: none;
@@ -1115,7 +1145,11 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   left: 50%;
   transform: translateX(-50%) translateY(16px);
   display: flex; align-items: center; gap: 14px;
-  background: var(--chrome);
+  /* Más opaco que `--chrome`: el toast es el único vidrio que aparece ENCIMA de
+     texto denso (la lista de ejercicios) y hay que poder leerlo de un vistazo
+     mientras dura. A 0.72 el nombre del ejercicio de debajo se transparentaba y
+     lo dejaba turbio. */
+  background: rgba(20,20,23,0.88);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   backdrop-filter: blur(28px) saturate(180%);
   color: var(--t1);

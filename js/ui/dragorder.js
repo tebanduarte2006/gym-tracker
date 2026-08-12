@@ -37,10 +37,14 @@ export function enableDragOrder(contenedor, opts = {}) {
   let temporizador = null;
   let arrastrando = false;
   let item = null;          // elemento que se arrastra
-  let hermanos = [];        // [{ el, alto, centroInicial }]
+  let hermanos = [];        // [{ el, alto, top, bottom }]
   let desde = 0;            // índice inicial
   let hasta = 0;            // índice destino actual
-  let yInicial = 0;
+  let yInicial = 0;         // dedo al empezar el arrastre (ya en modo compacto)
+  let yActual = 0;          // última posición conocida del dedo
+  let ancla = 0;            // corrección para que la tarjeta quede bajo el dedo
+  let gap = 0;              // separación entre tarjetas, medida UNA vez
+  let rafId = null;
   let pointerId = null;
 
   const itemDe = (target) => {
@@ -53,9 +57,15 @@ export function enableDragOrder(contenedor, opts = {}) {
   }
 
   function medir() {
-    // Se guardan las bandas verticales ORIGINALES de cada tarjeta. Siguen
-    // siendo válidas durante todo el gesto porque los hermanos se mueven con
-    // `transform` (no cambian de sitio real) y el scroll está bloqueado.
+    // El `gap` se lee AQUÍ y no en cada `pintar()`. Llamar a getComputedStyle
+    // en cada pointermove fuerza un recálculo de estilo por evento — y
+    // pointermove llega más veces por segundo que frames hay: era la fuente
+    // principal de tirones.
+    const estilo = getComputedStyle(contenedor);
+    gap = parseFloat(estilo.rowGap || estilo.gap || '0') || 0;
+    // Bandas verticales de cada tarjeta YA en modo compacto. Siguen siendo
+    // válidas todo el gesto porque los hermanos se mueven con `transform` (no
+    // cambian de sitio real) y el scroll está bloqueado.
     hermanos = [...contenedor.children]
       .filter((n) => n.hasAttribute && n.hasAttribute('data-drag-id'))
       .map((n) => {
@@ -67,22 +77,39 @@ export function enableDragOrder(contenedor, opts = {}) {
   }
 
   function entrarEnArrastre() {
-    arrastrando = true;
-    medir();
-    if (desde < 0) { arrastrando = false; return; }
+    // El orden importa: PRIMERO se marca el modo reordenar —que colapsa todas
+    // las tarjetas a la altura del nombre— y solo DESPUÉS se mide. Medir antes
+    // guardaría la altura de la tarjeta abierta (~400 px frente a ~56 px de las
+    // cerradas) y todo el cálculo de huecos saldría mal.
+    //
+    // Colapsar no es cosmético: arrastrar una tarjeta de 400 px por una pantalla
+    // de 896 px es mover un bloque que tapa media lista, y con alturas
+    // desiguales el hueco que deja nunca coincide con el que ocupa. En modo
+    // compacto todas miden lo mismo, caben de golpe en pantalla y el gesto se
+    // vuelve exacto — es lo que hace el homescreen del iPhone al entrar en modo
+    // de reorganización.
     contenedor.classList.add('g-reordenando');
+    medir();
+    if (desde < 0) { contenedor.classList.remove('g-reordenando'); return; }
+    arrastrando = true;
     item.classList.add('g-arrastrando');
-    // Separación entre elementos: se lee del gap real para que el hueco que deja
-    // el elemento levantado coincida con el que ocupaba.
+
+    // Tras colapsar, la lista se recompone y la tarjeta ya no está donde estaba
+    // el dedo. Se corrige de una vez para que quede centrada bajo él, en lugar
+    // de dejarla desplazada el resto del gesto.
+    const r = hermanos[desde];
+    yInicial = yActual;
+    ancla = yActual - (r.top + r.alto / 2);
+    pintar();
     onStart(item);
   }
 
   // Recoloca visualmente los hermanos para dejar el hueco en `hasta`.
-  function pintar(dy) {
-    const altoItem = hermanos[desde].alto;
-    const estilo = getComputedStyle(contenedor);
-    const gap = parseFloat(estilo.rowGap || estilo.gap || '0') || 0;
-    const paso = altoItem + gap;
+  // Se llama SIEMPRE desde un rAF: pointermove puede dispararse varias veces
+  // entre dos frames y escribir `transform` en cada una es trabajo tirado.
+  function pintar() {
+    const paso = hermanos[desde].alto + gap;
+    const dy = yActual - yInicial + ancla;
 
     hermanos.forEach((h, i) => {
       if (i === desde) {
@@ -95,6 +122,14 @@ export function enableDragOrder(contenedor, opts = {}) {
       if (desde < hasta && i > desde && i <= hasta) mover = -paso;
       else if (desde > hasta && i >= hasta && i < desde) mover = paso;
       h.el.style.transform = mover ? 'translateY(' + mover + 'px)' : '';
+    });
+  }
+
+  function pedirPintado() {
+    if (rafId != null) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      if (arrastrando) pintar();
     });
   }
 
@@ -128,6 +163,7 @@ export function enableDragOrder(contenedor, opts = {}) {
     item = candidato;
     pointerId = e.pointerId;
     yInicial = e.clientY;
+    yActual = e.clientY;
     limpiarTemporizador();
     temporizador = setTimeout(() => {
       temporizador = null;
@@ -137,6 +173,7 @@ export function enableDragOrder(contenedor, opts = {}) {
   }
 
   function onPointerMove(e) {
+    if (item == null || (pointerId != null && e.pointerId !== pointerId)) return;
     if (!arrastrando) {
       // Movimiento antes de que venza la pulsación larga = el usuario quería
       // scrollear. Se cancela y la página se comporta como siempre.
@@ -144,12 +181,13 @@ export function enableDragOrder(contenedor, opts = {}) {
         limpiarTemporizador();
         item = null;
       }
+      yActual = e.clientY;
       return;
     }
     e.preventDefault();
-    const dy = e.clientY - yInicial;
-    hasta = calcularDestino(e.clientY);
-    pintar(dy);
+    yActual = e.clientY;
+    hasta = calcularDestino(yActual);
+    pedirPintado();
   }
 
   // Tras un arrastre de verdad, el navegador dispara igualmente el `click` del
@@ -171,6 +209,7 @@ export function enableDragOrder(contenedor, opts = {}) {
     limpiarTemporizador();
     if (!arrastrando) { item = null; return; }
     arrastrando = false;
+    if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
     tragarSiguienteClick();
     contenedor.classList.remove('g-reordenando');
     if (item) item.classList.remove('g-arrastrando');
@@ -187,23 +226,33 @@ export function enableDragOrder(contenedor, opts = {}) {
     hermanos = [];
   }
 
-  function onPointerUp() { soltar(); }
-  function onPointerCancel() { soltar(); }
+  function onPointerUp(e) {
+    if (pointerId != null && e && e.pointerId !== pointerId) return;
+    soltar();
+  }
+  function onPointerCancel(e) { onPointerUp(e); }
 
+  // `pointerdown` va en el contenedor (es donde nace el gesto), pero move y up
+  // van en WINDOW. Colgarlos del contenedor tenía un fallo real: si el dedo se
+  // sale de la lista antes de que venza la pulsación larga —hacia el cronómetro
+  // de arriba, por ejemplo— el contenedor deja de recibir eventos, la
+  // cancelación por movimiento nunca llega y el arrastre arrancaba igual, con el
+  // dedo ya lejos. En window se ve el gesto entero pase por donde pase.
   // `passive: false` es imprescindible: sin él el navegador ignora el
   // preventDefault y la página scrollea bajo el dedo mientras arrastras.
   contenedor.addEventListener('pointerdown', onPointerDown);
-  contenedor.addEventListener('pointermove', onPointerMove, { passive: false });
-  contenedor.addEventListener('pointerup', onPointerUp);
-  contenedor.addEventListener('pointercancel', onPointerCancel);
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerCancel);
   // El menú contextual de una pulsación larga en iOS/Android taparía el gesto.
   contenedor.addEventListener('contextmenu', (e) => { if (arrastrando) e.preventDefault(); });
 
   return function disable() {
     limpiarTemporizador();
+    if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
     contenedor.removeEventListener('pointerdown', onPointerDown);
-    contenedor.removeEventListener('pointermove', onPointerMove);
-    contenedor.removeEventListener('pointerup', onPointerUp);
-    contenedor.removeEventListener('pointercancel', onPointerCancel);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerCancel);
   };
 }
