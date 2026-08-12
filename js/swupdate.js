@@ -8,7 +8,7 @@ import { dbGetAll } from './db.js';
 
 // Versión de la app que este JS cree ser. Debe coincidir con CACHE en sw.js.
 // Se muestra en Progresión → DATOS junto a la que sirve el SW de verdad.
-export const APP_VERSION = '20260803-1';
+export const APP_VERSION = '20260812-1';
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
 // Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
@@ -38,7 +38,13 @@ let _reg = null;
 export function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
-  const hadController = !!navigator.serviceWorker.controller;
+  // MUTABLE a propósito. Antes era `const` leído una sola vez al arrancar y
+  // esa foto congelada dejaba sorda para siempre a la pestaña abierta desde la
+  // primerísima instalación: al llegar una versión nueva se aplicaba
+  // (SKIP_WAITING) pero `controllerchange` veía `false` y NO recargaba, así que
+  // la pantalla seguía corriendo el JS viejo en memoria sin decir nada. Es el
+  // mismo error que la lección #18 del README, en la otra mitad del mecanismo.
+  let hadController = !!navigator.serviceWorker.controller;
 
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
     _reg = reg;
@@ -74,7 +80,12 @@ export function registerSW() {
 
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloaded) return;
+    // Primera vez que un worker toma control (clients.claim() de la instalación
+    // inicial): NO se recarga — esa recarga espuria duplicaba el arranque en
+    // frío. Pero sí se anota que a partir de ahora YA hay controller, para que
+    // el siguiente cambio (una versión nueva de verdad) sí recargue.
+    if (!hadController) { hadController = true; return; }
+    if (reloaded) return;
     reloaded = true;
     window.location.reload();
   });
@@ -113,14 +124,36 @@ export function swVersion() {
   });
 }
 
+// Espera a que un worker que está `installing` salga de ese estado.
+// `_reg.update()` puede resolver con la versión nueva TODAVÍA instalándose: en
+// ese instante `_reg.waiting` aún es null y el botón manual contestaba "Ya
+// tienes la última versión" — una mentira dicha justo en la pantalla que existe
+// para diagnosticar "no se actualizó". Con timeout: si la instalación se cuelga,
+// se responde igual en vez de dejar el botón bloqueado.
+function waitForInstalled(worker, timeoutMs) {
+  if (!worker || worker.state !== 'installing') return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      worker.removeEventListener('statechange', onState);
+      resolve();
+    };
+    const onState = () => { if (worker.state !== 'installing') finish(); };
+    const timer = setTimeout(finish, timeoutMs);
+    worker.addEventListener('statechange', onState);
+  });
+}
+
 // La usa el botón "Buscar actualización" del tab Progresión.
 export function forceUpdateCheck() {
   if (!_reg) return Promise.resolve('sin-sw');
-  return checkForUpdate(true).then(() => {
-    const w = _reg.waiting;
-    if (w) { w.postMessage('SKIP_WAITING'); return 'actualizando'; }
-    return 'al-dia';
-  });
+  return checkForUpdate(true)
+    .then(() => waitForInstalled(_reg.installing, 10000))
+    .then(() => {
+      const w = _reg.waiting;
+      if (w) { w.postMessage('SKIP_WAITING'); return 'actualizando'; }
+      return 'al-dia';
+    });
 }
 
 function showUpdateBanner(worker) {

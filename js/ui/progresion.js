@@ -69,9 +69,12 @@ export function renderProgresion(panel) {
       const sesMap = {};
       sesiones.forEach((s) => { sesMap[s.id] = s; });
 
+      // Sin ejercicios se avisa, pero NO se corta: antes este `return` se
+      // llevaba por delante la sección de cardio, así que un historial de puro
+      // cardio (o el recién importado, antes de crear ejercicios) se veía como
+      // una pantalla vacía sin explicación.
       if (ejercicios.length === 0) {
         listSlot.appendChild(el('div', { class: 'g-empty-card' }, ['Sin ejercicios. Crea uno desde la pestaña Ejercicios.']));
-        return;
       }
 
       const realSets = sets.filter((s) => {
@@ -118,7 +121,9 @@ export function renderProgresion(panel) {
         const card = el('div', { class: 'g-list-card' });
         withData.forEach((item) => card.appendChild(buildRow(panel, item.ej, item.pr, item.sesionCount)));
         listSlot.appendChild(card);
-      } else {
+      } else if (ejercicios.length > 0) {
+        // Si no hay NINGÚN ejercicio ya se avisó arriba: dos tarjetas vacías
+        // seguidas diciendo casi lo mismo solo confunden.
         listSlot.appendChild(el('div', { class: 'g-empty-card' }, ['Aún no hay ejercicios con historial.']));
       }
       if (noData.length > 0) {

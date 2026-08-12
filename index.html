@@ -7,6 +7,10 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- `apple-mobile-web-app-capable` está deprecado; el estándar es
+       `mobile-web-app-capable`. Se mandan los dos: iOS viejo sigue leyendo el
+       primero y sin el segundo Lighthouse marca la PWA como incompleta. -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Gym Tracker">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-180.png">

@@ -46,9 +46,17 @@ input { font-family: inherit; }
 
 #app { padding-top: max(env(safe-area-inset-top), 16px); padding-bottom: 60px; }
 
-/* Bloquea el scroll del fondo mientras hay un bottom sheet abierto: en iOS el
-   contenido de atrás se arrastraba bajo el modal. */
-body.g-modal-open { overflow: hidden; }
+/* Bloquea el scroll del fondo mientras hay un bottom sheet abierto.
+   `overflow:hidden` a secas NO sirve en iOS Safari (funciona en Chrome de
+   escritorio, que es lo que confundió la verificación anterior): hay que sacar
+   el body del flujo. `top` lo pone modals.js con el scroll guardado, y lo
+   restaura al cerrar el último sheet. */
+body.g-modal-open {
+  position: fixed;
+  left: 0; right: 0;
+  width: 100%;
+  overflow: hidden;
+}
 
 /* Esqueleto de arranque (vive en index.html; main.js lo reemplaza). Existe para
    que la PRIMERA pintura no sea una pantalla negra. Ver README §Arranque. */
@@ -779,6 +787,18 @@ body.g-modal-open { overflow: hidden; }
   max-width: calc(100vw - 40px);
 }
 .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast-msg { flex: 1; }
+.toast { display: flex; align-items: center; gap: 14px; }
+/* Botón de deshacer: área táctil de 44px sin engordar la píldora. */
+.toast-action {
+  background: none; border: none;
+  color: var(--accent);
+  font-size: 14px; font-weight: 700;
+  padding: 12px 4px;
+  margin: -12px 0;
+  flex-shrink: 0;
+  font-family: inherit;
+}
 
 /* Banner de actualización */
 /* Banner de actualización.

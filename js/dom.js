@@ -28,17 +28,34 @@ export function clear(node) {
 }
 
 let _toastTimer = null;
-export function toast(msg) {
+
+// `accion` opcional: { label, onAction }. Convierte el toast en el patrón de
+// deshacer de Apple — una acción destructiva de un solo toque (borrar un set en
+// mitad de una serie) no debería exigir un diálogo de confirmación, pero
+// tampoco puede ser irreversible por un roce con el pulgar.
+export function toast(msg, accion) {
   const prev = document.querySelector('.toast');
   if (prev) prev.remove();
   if (_toastTimer) clearTimeout(_toastTimer);
-  const t = el('div', { class: 'toast' }, [msg]);
-  document.body.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('visible'));
-  _toastTimer = setTimeout(() => {
+
+  const t = el('div', { class: 'toast' }, [el('span', { class: 'toast-msg' }, [msg])]);
+  const hide = () => {
+    if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
     t.classList.remove('visible');
     setTimeout(() => t.remove(), 300);
-  }, 2500);
+  };
+
+  let vida = 2500;
+  if (accion && accion.label && typeof accion.onAction === 'function') {
+    const btn = el('button', { class: 'toast-action', type: 'button' }, [accion.label]);
+    btn.addEventListener('click', () => { hide(); accion.onAction(); });
+    t.appendChild(btn);
+    vida = 6000; // hay que darle tiempo real de reaccionar y apuntar el dedo
+  }
+
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('visible'));
+  _toastTimer = setTimeout(hide, vida);
 }
 
 // Toda promesa de datos que alimente UI pasa por aquí: error visible, no

@@ -538,10 +538,20 @@ function openRestConfigModal(ej, onSaved) {
 // ─── Lista de ejercicios de la sesión ─────────────────────────────────────────
 function refreshExercises(sesion, listEl) {
   clear(listEl);
-  guard(Promise.all([dbGetAllBy('sets', 'sesion_id', sesion.id), dbGetAll('ejercicios')]), 'cargando ejercicios')
-    .then(([sets, ejercicios]) => {
+  // `sesiones` se carga UNA vez aquí y se pasa a las cards. Antes cada card
+  // hacía su propio dbGetAll('sesiones') completo dentro de loadLastSession:
+  // con 8 ejercicios en la sesión eran 8 barridos de la tabla entera para
+  // pintar una pantalla.
+  guard(Promise.all([
+    dbGetAllBy('sets', 'sesion_id', sesion.id),
+    dbGetAll('ejercicios'),
+    dbGetAll('sesiones')
+  ]), 'cargando ejercicios')
+    .then(([sets, ejercicios, sesiones]) => {
       const ejMap = {};
       ejercicios.forEach((e) => { ejMap[e.id] = e; });
+      const sesMap = {};
+      sesiones.forEach((s) => { sesMap[s.id] = s; });
 
       // Orden: sesion.ej_orden si existe; si no, primera aparición en sets.
       const seen = [];
@@ -562,7 +572,7 @@ function refreshExercises(sesion, listEl) {
       order.forEach((ejId, idx) => {
         const ej = ejMap[ejId];
         if (!ej) return;
-        listEl.appendChild(buildExerciseCard(sesion, ej, listEl, { idx, total: order.length, order }));
+        listEl.appendChild(buildExerciseCard(sesion, ej, listEl, { idx, total: order.length, order, sesMap }));
       });
     });
 }
@@ -670,7 +680,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   updateSets();
 
   // Última sesión: datos + botón copiar
-  loadLastSession(ej.id, sesion.id).then((prev) => {
+  loadLastSession(ej.id, sesion.id, pos && pos.sesMap).then((prev) => {
     clear(lastBody);
     if (!prev || prev.sets.length === 0) {
       lastBody.appendChild(el('div', { class: 'g-last-empty' }, ['N/A — sin registros previos']));
@@ -712,11 +722,18 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
 }
 
 // Última sesión FINALIZADA con sets reales de este ejercicio.
-function loadLastSession(ejercicioId, excludeSesionId) {
-  return guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ejercicioId), dbGetAll('sesiones')]), 'última sesión')
-    .then(([sets, sesiones]) => {
-      const sesionMap = {};
-      sesiones.forEach((s) => { sesionMap[s.id] = s; });
+// `sesMap` lo provee refreshExercises (una sola carga para todas las cards);
+// si no llega, se carga aquí como respaldo.
+function loadLastSession(ejercicioId, excludeSesionId, sesMap) {
+  const sesionesPromise = sesMap
+    ? Promise.resolve(sesMap)
+    : dbGetAll('sesiones').then((arr) => {
+        const m = {};
+        arr.forEach((s) => { m[s.id] = s; });
+        return m;
+      });
+  return guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ejercicioId), sesionesPromise]), 'última sesión')
+    .then(([sets, sesionMap]) => {
       const real = visibleSets(sets).filter((s) => {
         if (s.sesion_id === excludeSesionId) return false;
         const ses = sesionMap[s.sesion_id];
@@ -825,7 +842,20 @@ function buildSetRow(sesion, ej, set, num, onChange) {
 
   const del = el('button', { class: 'g-set-del', type: 'button', title: 'Eliminar set' }, ['×']);
   del.addEventListener('click', () => {
-    guard(dbDelete('sets', set.id), 'eliminando set').then(onChange);
+    // El "×" vive a un centímetro del chip de estado y se toca por error con el
+    // pulgar en pleno entrenamiento. Un diálogo de confirmación por cada set
+    // sería insoportable, así que se borra ya y se ofrece deshacer: el registro
+    // conserva su `id`, así que reponerlo lo devuelve a su sitio y a su orden.
+    const respaldo = { ...set };
+    guard(dbDelete('sets', set.id), 'eliminando set').then(() => {
+      onChange();
+      toast('Set eliminado', {
+        label: 'Deshacer',
+        onAction: () => {
+          guard(dbPut('sets', respaldo), 'restaurando set').then(onChange);
+        }
+      });
+    });
   });
   row.appendChild(del);
   return row;
@@ -877,6 +907,16 @@ function buildAddSetRow(sesion, ej, onAdded) {
   row.appendChild(toggle);
   row.appendChild(repsInput);
   row.appendChild(confirmBtn);
+
+  // Enter encadena peso → reps → guardar, sin soltar el teclado. Registrar un
+  // set exigía teclear, bajar a tocar "+" y volver a subir: es LA acción que se
+  // repite 25 veces por entrenamiento y era la más lenta de la app.
+  pesoInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); repsInput.focus(); }
+  });
+  repsInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+  });
 
   // Recordar la última unidad usada en este ejercicio (mejora pedida: hay
   // máquinas donde Esteban registra en kg).
@@ -945,20 +985,31 @@ function showAddExerciseModal(sesion, listEl) {
 }
 
 function attachExercise(sesion, ej, listEl) {
-  const jobs = [];
-  if (sesion.routine_type && ej.tipo !== sesion.routine_type) {
-    ej.tipo = sesion.routine_type;
-    jobs.push(dbPut('ejercicios', ej));
-  }
-  // Placeholder que ancla el ejercicio (se limpia al finalizar).
-  jobs.push(dbPut('sets', {
-    sesion_id: sesion.id, ejercicio_id: ej.id,
-    peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: Date.now()
-  }));
-  sesion.ej_orden = (sesion.ej_orden || []).filter((id) => id !== ej.id).concat([ej.id]);
-  jobs.push(dbPut('sesiones', sesion));
-  _openEj.add(ej.id);
-  guard(Promise.all(jobs), 'agregando ejercicio').then(() => refreshExercises(sesion, listEl));
+  // Agregar un ejercicio que YA está en la sesión creaba un segundo placeholder
+  // huérfano y —peor— lo mandaba al final del orden: bastaba tocarlo por error
+  // en el buscador para que el ejercicio en el que estabas trabajando saltara
+  // al fondo de la lista. Ahora se detecta y solo se abre su card.
+  guard(dbGetAllBy('sets', 'sesion_id', sesion.id), 'agregando ejercicio').then((sets) => {
+    _openEj.add(ej.id);
+    if (sets.some((s) => s.ejercicio_id === ej.id)) {
+      toast(ej.nombre + ' ya está en esta sesión');
+      refreshExercises(sesion, listEl);
+      return;
+    }
+    const jobs = [];
+    if (sesion.routine_type && ej.tipo !== sesion.routine_type) {
+      ej.tipo = sesion.routine_type;
+      jobs.push(dbPut('ejercicios', ej));
+    }
+    // Placeholder que ancla el ejercicio (se limpia al finalizar).
+    jobs.push(dbPut('sets', {
+      sesion_id: sesion.id, ejercicio_id: ej.id,
+      peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: Date.now()
+    }));
+    sesion.ej_orden = (sesion.ej_orden || []).filter((id) => id !== ej.id).concat([ej.id]);
+    jobs.push(dbPut('sesiones', sesion));
+    return Promise.all(jobs).then(() => refreshExercises(sesion, listEl));
+  });
 }
 
 // ─── Cardio ───────────────────────────────────────────────────────────────────

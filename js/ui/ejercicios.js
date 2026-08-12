@@ -50,13 +50,6 @@ export function renderEjercicios(panel) {
   wrap.appendChild(addBtn);
   panel.appendChild(wrap);
 
-  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sesiones')]), 'cargando directorio').then(([ejs, ses]) => {
-    const names = new Set();
-    ejs.forEach((e) => e.tipo && names.add(e.tipo));
-    ses.forEach((s) => s.routine_type && names.add(s.routine_type));
-    [...names].sort().forEach((t) => pills.appendChild(makePill(t, t)));
-  });
-
   // El directorio se carga UNA vez y se filtra en memoria. Antes cada tecla
   // disparaba dos dbGetAll completos (36 ejercicios + 559 sets y subiendo):
   // en el iPhone 11 eso se sentía como tirones al escribir.
@@ -69,8 +62,16 @@ export function renderEjercicios(panel) {
     _debounce = setTimeout(repaint, 120);
   });
 
+  // UNA sola carga para las pastillas y para la lista. Antes se disparaban dos
+  // Promise.all distintos que pedían `ejercicios` y `sesiones` por duplicado:
+  // cinco lecturas completas de la DB para pintar una pantalla que necesita tres.
   guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones')]), 'cargando ejercicios')
     .then(([ejercicios, allSets, sesiones]) => {
+      const names = new Set();
+      ejercicios.forEach((e) => e.tipo && names.add(e.tipo));
+      sesiones.forEach((s) => s.routine_type && names.add(s.routine_type));
+      [...names].sort().forEach((t) => pills.appendChild(makePill(t, t)));
+
       _cache = { ejercicios, allSets, sesiones };
       repaint();
     });

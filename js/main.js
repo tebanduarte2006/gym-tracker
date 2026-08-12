@@ -36,22 +36,31 @@ function boot() {
     content.appendChild(panel);
   });
 
-  // Un fallo pintando UN tab no puede tumbar el arranque: sin este try/catch,
-  // una excepción aquí abortaba el forEach y dejaba la app sin service worker
-  // (adiós actualizaciones) y sin la oferta de restaurar el historial.
-  TABS.forEach((tab) => {
-    try {
-      tab.render(panels[tab.id]);
-    } catch (err) {
-      console.error('[gym-tracker] render del tab', tab.id, err);
-      clear(panels[tab.id]);
-      panels[tab.id].appendChild(el('div', { class: 'g-empty-card' }, [
-        'Esta pestaña falló al cargar. Cierra y vuelve a abrir la app.'
-      ]));
-    }
-  });
+  // SOLO se pinta el tab visible. Antes se pintaban los tres al arrancar: nueve
+  // lecturas completas de IndexedDB (sesiones, sets, ejercicios, cardio…) antes
+  // de que se viera nada, en un iPhone 11 y encima del arranque en frío que ya
+  // costó tres arreglos (ver README §Arranque). Ejercicios y Progresión se
+  // pintan solos al tocarlos: `switchTab` ya re-renderiza en CADA cambio de
+  // pestaña, así que no hay nada que precalentar.
+  paintTab(TABS[0], panels[TABS[0].id]);
   registerSW();
   maybeOfferSeed(panels);
+}
+
+// Un fallo pintando UN tab no puede tumbar el arranque ni dejar la pestaña
+// mostrando el contenido de la anterior: sin este try/catch, una excepción
+// abortaba el arranque entero y dejaba la app sin service worker (adiós
+// actualizaciones) y sin la oferta de restaurar el historial.
+function paintTab(tab, panel) {
+  try {
+    tab.render(panel);
+  } catch (err) {
+    console.error('[gym-tracker] render del tab', tab.id, err);
+    clear(panel);
+    panel.appendChild(el('div', { class: 'g-empty-card' }, [
+      'Esta pestaña falló al cargar. Cierra y vuelve a abrir la app.'
+    ]));
+  }
 }
 
 function switchTab(activeId, panels) {
@@ -65,7 +74,7 @@ function switchTab(activeId, panels) {
     panels[tab.id].classList.toggle('active', isActive);
   });
   const tab = TABS.find((t) => t.id === activeId);
-  tab.render(panels[activeId]);
+  paintTab(tab, panels[activeId]);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
