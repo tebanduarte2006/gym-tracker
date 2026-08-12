@@ -16,7 +16,8 @@ import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
-import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber } from '../stats.js';
+import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber, suggestNextSet } from '../stats.js';
+import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON } from './icons.js';
@@ -461,7 +462,7 @@ export function suspendEntrenar() {
 // ─── Rest bar UI ──────────────────────────────────────────────────────────────
 function setupRestBar(bar) {
   clear(bar);
-  const icon = ICON.clock({ size: 16, color: 'var(--accent)' });
+  const icon = ICON.clock({ size: 16, color: 'var(--t2)' });
   const label = el('div', { class: 'g-rest-label' }, ['Descanso']);
   const time = el('div', { class: 'g-rest-time' }, ['']);
   const prog = el('div', { class: 'g-rest-progress' });
@@ -604,6 +605,9 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
     restBtn.textContent = '⏱ ' + resolveRest(ej) + 's';
   }));
   tools.appendChild(restBtn);
+  const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, ['🏋 Discos']);
+  platesBtn.addEventListener('click', () => openPlateModal(addRow.currentLbs()));
+  tools.appendChild(platesBtn);
   if (pos && pos.total > 1) {
     const up = el('button', { class: 'g-tool-btn', type: 'button', title: 'Subir' }, ['↑']);
     const down = el('button', { class: 'g-tool-btn', type: 'button', title: 'Bajar' }, ['↓']);
@@ -675,6 +679,9 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
       const done = mine.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
       countEl.textContent = done + '/' + mine.length;
       addRow.setNextOrden(mine.length > 0 ? Math.max(...mine.map((s) => s.orden || 0)) + 1 : 1);
+      // El fantasma avanza con la serie: tras registrar el set 2, propone lo que
+      // hiciste en el set 3 de la última sesión, no otra vez el 1.
+      addRow.setDone(mine.length);
     });
   }
   updateSets();
@@ -682,6 +689,8 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   // Última sesión: datos + botón copiar
   loadLastSession(ej.id, sesion.id, pos && pos.sesMap).then((prev) => {
     clear(lastBody);
+    // Alimenta el set fantasma de la fila de "agregar set".
+    addRow.setPrev(prev ? prev.sets : []);
     if (!prev || prev.sets.length === 0) {
       lastBody.appendChild(el('div', { class: 'g-last-empty' }, ['N/A — sin registros previos']));
       return;
@@ -864,6 +873,10 @@ function buildSetRow(sesion, ej, set, num, onChange) {
 function buildAddSetRow(sesion, ej, onAdded) {
   let unit = 'lbs';
   let nextOrden = 1;
+  // Set fantasma: sets de la última sesión finalizada + cuántos llevas hoy.
+  // Con los dos se sabe qué proponer (stats.js › suggestNextSet).
+  let prevSets = [];
+  let yaHechos = 0;
   const row = el('div', { class: 'g-add-set' });
   const pesoInput = el('input', {
     class: 'g-input-num', type: 'text', placeholder: 'Peso',
@@ -875,6 +888,7 @@ function buildAddSetRow(sesion, ej, onAdded) {
     unit = u;
     lbsBtn.classList.toggle('active', u === 'lbs');
     kgBtn.classList.toggle('active', u === 'kg');
+    paintGhost(); // la sugerencia se muestra en la unidad activa
   };
   lbsBtn.addEventListener('click', () => setUnit('lbs'));
   kgBtn.addEventListener('click', () => setUnit('kg'));
@@ -882,19 +896,47 @@ function buildAddSetRow(sesion, ej, onAdded) {
   const repsInput = el('input', {
     class: 'g-input-num', type: 'number', placeholder: 'Reps', step: '1', inputmode: 'numeric'
   });
+
+  // El fantasma va en el `placeholder`, NO en el `value`: si fuera un valor de
+  // verdad, registrar lo de la última vez sin querer sería un toque, y corregir
+  // un peso exigiría borrar antes de escribir. Como placeholder, teclear encima
+  // funciona igual que siempre y el atajo es opt-in.
+  function paintGhost() {
+    const sug = suggestNextSet(prevSets, yaHechos);
+    if (!sug) {
+      pesoInput.placeholder = 'Peso';
+      repsInput.placeholder = 'Reps';
+      return;
+    }
+    // Un decimal basta: es una pista para leer de reojo, no un valor exacto.
+    // 230 lbs son 104.326 kg y "104.326" en gris no se lee, se estorba.
+    const shown = unit === 'kg' ? Math.round(sug.peso * 10) / 10 : kgToLbs(sug.peso);
+    pesoInput.placeholder = shown == null ? 'Peso' : String(shown);
+    repsInput.placeholder = String(sug.reps);
+  }
+
   const confirmBtn = el('button', { class: 'g-confirm-set', type: 'button', title: 'Confirmar set' }, ['+']);
   once(confirmBtn, () => {
-    const inputVal = parseDecimal(pesoInput.value);
-    const reps = parseInt(repsInput.value, 10);
-    if (!(inputVal >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
-    const pesoKg = inputToKg(inputVal, unit);
+    const sug = suggestNextSet(prevSets, yaHechos);
+    const rawPeso = pesoInput.value.trim();
+    const rawReps = repsInput.value.trim();
+    // Campo vacío + fantasma = "repite lo de la última vez", de un solo toque.
+    // El peso se toma en kg DIRECTO de la sugerencia, sin pasar por lbs: ir y
+    // volver por el display arrastraría su redondeo a un decimal.
+    const pesoKg = rawPeso ? inputToKg(parseDecimal(rawPeso), unit) : (sug ? sug.peso : NaN);
+    const reps = rawReps ? parseInt(rawReps, 10) : (sug ? sug.reps : NaN);
+    if (!(pesoKg >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
     // Se incrementa YA, no cuando vuelva updateSets(): dos toques rápidos
     // creaban dos sets con el mismo `orden` y quedaban en orden aleatorio.
     const orden = nextOrden++;
     return guard(dbPut('sets', {
       sesion_id: sesion.id, ejercicio_id: ej.id,
       peso: pesoKg, reps, orden,
-      status: STATUS.DONE, unidad: unit, ts: Date.now()
+      // Si repitió el fantasma sin teclear, la unidad que tecleó fue la de aquel
+      // set, no la que está seleccionada ahora en el toggle.
+      status: STATUS.DONE,
+      unidad: rawPeso ? unit : ((sug && prevSets[Math.min(yaHechos, prevSets.length - 1)].unidad) || unit),
+      ts: Date.now()
     }), 'guardando set').then(() => {
       pesoInput.value = '';
       repsInput.value = '';
@@ -927,7 +969,104 @@ function buildAddSetRow(sesion, ej, onAdded) {
     }
   });
 
-  return { row, setNextOrden(n) { nextOrden = n; } };
+  return {
+    row,
+    setNextOrden(n) { nextOrden = n; },
+    // Cuántos sets llevas hoy en este ejercicio → qué set de la última sesión
+    // toca proponer. Lo llama updateSets() en cada render quirúrgico.
+    setDone(n) { yaHechos = n; paintGhost(); },
+    // Sets de la última sesión finalizada. Llega asíncrono desde la card.
+    setPrev(sets) { prevSets = Array.isArray(sets) ? sets : []; paintGhost(); },
+    // El peso que la calculadora de discos debe abrir por defecto: lo tecleado,
+    // o si no la sugerencia del fantasma.
+    currentLbs() {
+      const raw = pesoInput.value.trim();
+      if (raw) {
+        const kg = inputToKg(parseDecimal(raw), unit);
+        return isFinite(kg) ? kgToLbs(kg) : null;
+      }
+      const sug = suggestNextSet(prevSets, yaHechos);
+      return sug ? kgToLbs(sug.peso) : null;
+    }
+  };
+}
+
+// ─── Calculadora de discos ────────────────────────────────────────────────────
+// Qué poner a cada lado de la barra. Trabaja en libras porque los discos del
+// gimnasio están marcados en libras: el resultado se lee y se coge, sin
+// traducir. El peso de la barra se recuerda en preferencias.
+function openPlateModal(initialLbs) {
+  const s = sheet('Discos por lado');
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso total (lbs)']));
+  const pesoInput = el('input', {
+    class: 'g-modal-input', type: 'text', inputmode: 'decimal', autocomplete: 'off',
+    placeholder: 'Ej. 185', value: initialLbs != null ? String(Math.round(initialLbs)) : ''
+  });
+  s.modal.appendChild(pesoInput);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso de la barra (lbs)']));
+  const barInput = el('input', {
+    class: 'g-modal-input', type: 'number', inputmode: 'numeric', min: '0',
+    value: String(DEFAULT_BAR_LBS)
+  });
+  s.modal.appendChild(barInput);
+
+  const out = el('div', { style: 'margin-top:18px;' });
+  s.modal.appendChild(out);
+
+  function render() {
+    clear(out);
+    const target = parseDecimal(pesoInput.value);
+    const bar = parseDecimal(barInput.value);
+    const r = plateBreakdown(target, isFinite(bar) ? bar : DEFAULT_BAR_LBS);
+
+    if (r.error) {
+      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [r.error]));
+      return;
+    }
+    out.appendChild(el('div', { class: 'g-plate-total' }, [
+      String(r.totalLbs), el('span', {}, ['lbs en total'])
+    ]));
+
+    if (r.perSide.length === 0) {
+      out.appendChild(el('div', { class: 'g-plate-note' }, ['Solo la barra, sin discos.']));
+    } else {
+      const stack = el('div', { class: 'g-plate-stack' });
+      r.perSide.forEach((p) => {
+        stack.appendChild(el('div', { class: 'g-plate' }, [
+          p.cantidad > 1 ? p.cantidad + ' × ' + p.disco : String(p.disco)
+        ]));
+      });
+      out.appendChild(stack);
+      out.appendChild(el('div', { class: 'g-plate-note' }, [
+        'A cada lado: ' + r.perSide.map((p) => p.cantidad + '×' + p.disco).join(' + ') +
+        ' = ' + r.usedLbs + ' lbs.'
+      ]));
+    }
+    if (!r.exacto && r.restoLbs > 0) {
+      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [
+        'No se llega exacto: faltan ' + r.restoLbs + ' lbs por lado con los discos estándar.'
+      ]));
+    }
+  }
+
+  pesoInput.addEventListener('input', render);
+  barInput.addEventListener('input', render);
+  guard(prefGet('bar_lbs', DEFAULT_BAR_LBS), 'peso de barra').then((v) => {
+    barInput.value = String(v);
+    render();
+  });
+
+  const cerrar = el('button', { class: 'g-btn-primary', type: 'button' }, ['Listo']);
+  cerrar.addEventListener('click', () => {
+    const bar = parseInt(barInput.value, 10);
+    if (bar >= 0 && bar <= 200) prefSet('bar_lbs', bar);
+    s.close();
+  });
+  s.modal.appendChild(cerrar);
+  render();
+  s.open();
 }
 
 // ─── Agregar ejercicio a la sesión ────────────────────────────────────────────

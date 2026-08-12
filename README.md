@@ -62,7 +62,7 @@ en su **iPhone 11** desde GitHub Pages.
 
 ```
 index.html            Shell ESTÁTICO (título + tabs + esqueleto) + <script type="module">.
-styles.css            Design tokens Apple dark + clases g-*. Fuente: rediseño V3 de habitos-app, depurado.
+styles.css            Design tokens "Vidrio Negro" (Liquid Glass) + clases g-*. Ver §5.1 antes de tocarlo.
 manifest.json         PWA (es-CO, standalone, iconos 192/512/maskable).
 sw.js                 Service worker: cache-first versionado; responde 'VERSION' y 'SKIP_WAITING'.
 js/
@@ -71,7 +71,8 @@ js/
   db.js               IndexedDB: UNA conexión cacheada, índices usados de verdad, bulk import transaccional.
   dom.js              el() / clear() / toast() / guard().
   format.js           [PURO] unidades kg↔lbs, fechas es-CO, duraciones, normalización.
-  stats.js            [PURO] isCountable/isPlaceholder, PR peso/reps, Epley, volumen, filas por sesión.
+  stats.js            [PURO] isCountable/isPlaceholder, PR peso/reps, Epley, volumen, filas por sesión, set fantasma, sets por músculo.
+  plates.js           [PURO] calculadora de discos por lado (en libras; display, no almacenamiento).
   importer.js         [PURO] normaliza backups v2 (habitos-app, con toda su deuda) y v3 (nativo).
   audio.js            Beep Web Audio (iOS no soporta navigator.vibrate).
   wakelock.js         Screen Wake Lock durante sesión activa.
@@ -177,7 +178,9 @@ sets       { id (AI), sesion_id (índice), ejercicio_id (índice),
 cardio     { id (AI), sesion_id (índice), tipo (free-text), duracion_min,
              velocidad_kmh?, inclinacion?, orden?, ts? }
 preferencias { clave, valor }
-             · rest_default (90) · contador_workouts · seed_decidido
+             · rest_default (90) · contador_workouts · seed_decidido · bar_lbs (45)
+             · TODA clave nueva va también a PREFS_IMPORTABLES en importer.js,
+               o restaurar un backup la pierde en silencio (hay test que lo exige).
 ```
 
 **Cambios de schema:** subir `DB_VERSION`, migrar en `onupgradeneeded`,
@@ -206,12 +209,59 @@ actualizar `importer.js` + tests + esta sección, en el mismo commit.
   **No escribas en el README ni en la UI que el aviso suena con la pantalla
   bloqueada.**
 - **Cardio:** tipo free-text + duración min + velocidad/inclinación opcionales.
-- **Estética:** Apple dark + acento naranja `#FF9F0A`, heredada. No cambiarla.
+- **Estética:** rediseñada el 2026-08-12 a **"Vidrio Negro"** — negro real,
+  grises transparentes y material Liquid Glass de Apple, con acento **platino
+  `#EDEDF0`**. Esteban eligió platino sobre naranja explícitamente: la app es
+  blanco y negro, y el único color que sobrevive es el verde de "hecho" y el
+  rojo destructivo. **El naranja `#FF9F0A` heredado ya NO se usa en ninguna
+  parte** — si lo ves reaparecer, es una regresión. Reglas duras en §5.1.
 - **Ícono:** su imagen de mancuerna cartoon, sin distorsión. Fondo blanco.
 - **Mental/hábitos:** fuera del alcance para siempre. Esto es SOLO gym.
 - **Registro en el vault:** export mensual → un agente lo vuelca a
   `20 Areas/Salud/Gym/` del vault Ideaverse según
   `90 Sistema/Formato Registro Gym.md`. Ver ese doc antes de tocar el formato.
+
+### 5.1 Sistema de diseño "Vidrio Negro" (leer antes de tocar `styles.css`)
+
+Dirección aprobada por Esteban el 2026-08-12 tras ver una propuesta con las dos
+opciones de acento maquetadas. **Ocho reglas; las cinco primeras se rompen solas
+si no se leen.**
+
+1. **El vidrio es la capa de CONTROLES, nunca la de contenido.** Barras
+   flotantes, botones y el temporizador de descanso son vidrio. Los números de
+   las series van sobre superficie legible: un peso mal leído es el fallo más
+   caro que puede tener esta app.
+2. **Máximo DOS capas de vidrio apiladas**, la de arriba siempre más opaca.
+   Tres capas es niebla. Por eso el bottom sheet (`.g-modal`) es **sólido**
+   `#121214` y no vidrio: ya está sobre el desenfoque del overlay.
+3. **Sin fondo no hay vidrio.** Sobre negro absolutamente plano el
+   `backdrop-filter` no tiene nada que muestrear y todo se degrada a rectángulos
+   grises. Los halos radiales de `body::before` son lo que hace que el material
+   funcione — **no los borres "porque no se ven"**: se nota justo cuando faltan.
+4. **El acento sólido es para UNA acción por pantalla.** Fondo platino + texto
+   `--on-accent`. En cuanto hay dos, deja de significar "esto es lo principal".
+   El defecto del diseño anterior era exactamente ese: el naranja estaba en el
+   hero, las pastillas, la gráfica, el cronómetro, los enlaces, el badge de PR,
+   los botones y el banner a la vez.
+5. **Verde y rojo NO son acento, son estado.** `--green` solo para "hecho",
+   `--red` solo para destructivo. Jamás decoran.
+6. **44 px de área táctil, piso innegociable.** Se crece el ÁREA con padding y
+   margen negativo, no el dibujo (ver `.g-set-del`, `.g-rest-skip`).
+7. **Radios concéntricos:** hijo = padre − separación. Usa la escala
+   `--r-xs`…`--r-xl`, no números sueltos.
+8. **Inputs a 16px como mínimo.** Por debajo, iOS hace zoom automático al
+   enfocar el campo y descoloca la pantalla en pleno entrenamiento.
+
+**Los colores del SVG viven en `styles.css`**, no en atributos desde JS
+(`.g-chart-line`, `.g-chart-area`, `.g-chart-dot`, `.g-chart-grid`). El diseño
+anterior llevaba `#FF9F0A` escrito a mano en cuatro líneas de `progresion.js` y
+cualquier cambio de paleta las dejaba atrás.
+
+**Accesibilidad: no es opcional en Liquid Glass.** Apple lo trata como parte del
+material, y `styles.css` responde a las tres preferencias del sistema:
+`prefers-reduced-transparency` (el vidrio se vuelve sólido),
+`prefers-contrast` (sube texto y bordes) y `prefers-reduced-motion`. Si añades un
+componente de vidrio, añádelo también a la lista del primer bloque.
 
 ## 6. Deploy (paso a paso)
 
@@ -311,11 +361,32 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     ejercicios, 8 barridos de la tabla entera para pintar una pantalla. Si un
     dato es igual para todas las filas, se carga UNA vez arriba y se pasa hacia
     abajo.
+24. **Un color escrito a mano en JS sobrevive a todos los rediseños.**
+    `progresion.js` tenía `#FF9F0A` en cuatro `setAttribute` de SVG. Ningún
+    cambio de `styles.css` los alcanzaba, así que la app quedaba con una paleta
+    nueva y cuatro trazos del color viejo. Los colores viven en CSS; el JS pone
+    clases.
+25. **La sugerencia va en `placeholder`, no en `value`.** El set fantasma
+    tentaba a precargar el valor de verdad; con eso, registrar sin querer lo de
+    la última vez sería un toque y corregir un peso exigiría borrar antes de
+    escribir. Como placeholder el atajo es opt-in y teclear encima funciona
+    igual que siempre.
+26. **Aritmética de discos en enteros.** `2.5 + 2.5 + 2.5` en coma flotante deja
+    residuos de 1e-15 que convierten un resultado exacto en "sobra 0.0 lbs".
+    `plates.js` cuenta en unidades de 0.2 lb con enteros. Hay test.
+27. **Una preferencia nueva que no entra en `PREFS_IMPORTABLES` se pierde en
+    silencio** al restaurar un backup. No rompe nada visible, que es lo que la
+    hace peligrosa. Hay un test que exige que la lista blanca cubra todas las
+    claves que la app escribe: si añades una preferencia, ese test te lo dirá.
 
 ## 8. Pendientes / ideas evaluables
 
 - [ ] Preferencia para display en kg (hoy display fijo lbs; pedirá OK Esteban).
 - [ ] Gráfica de volumen por sesión además de peso máx.
+- [ ] Aviso de PR en el momento de registrar el set (evaluado 2026-08-12,
+      Esteban lo dejó fuera de este lote; el cálculo ya existe en `stats.js`).
+- [ ] Series de calentamiento aparte, superseries y RPE (evaluados 2026-08-12,
+      pendientes de decisión: los tres añaden un campo más por set).
 - [ ] Recordatorio de export mensual (toast si el último export > 30 días).
 - [ ] Editar sets de sesiones finalizadas (en la sesión ACTIVA ya se puede:
       tocar los valores del set abre el modal de corrección).
@@ -334,6 +405,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-12 | `(pending)` | **Rediseño "Vidrio Negro" + 3 funciones.** Esteban pidió una estética más limpia con negros y grises transparentes tipo Liquid Glass; eligió **acento platino `#EDEDF0`** sobre el naranja heredado tras ver las dos opciones maquetadas. `styles.css` reescrito sobre cuatro niveles de vidrio (blanco 4.5/7/10.5% + chrome `#101012` al 72%), rampa de texto de 4 niveles y halos radiales en `body::before` — **sin ellos el `backdrop-filter` no tiene qué muestrear y todo el vidrio se degrada a gris**. Reglas completas en §5.1. **Barra de pestañas movida ABAJO** y flotante: era navegación principal fuera del alcance del pulgar en un iPhone 11. Áreas táctiles de 44 px en todo (la "×" de borrar set medía 26, el cerrar de modales 28). Soporte de `prefers-reduced-transparency`, `prefers-contrast` y `prefers-reduced-motion`. Colores del SVG movidos de `setAttribute` en JS a clases CSS. **Funciones nuevas:** (1) **set fantasma** — el peso y las reps de la sesión anterior aparecen como placeholder y confirmar sin teclear los registra, el atajo que más tiempo ahorra según Hevy; (2) **calculadora de discos** (`js/plates.js`, módulo puro, 12 tests) con el peso de barra persistido en `bar_lbs`; (3) **sets por músculo de la semana** en Progresión, aprovechando los `musculos` que ya se guardaban y no se usaban. `suggestNextSet` y `setsPerMuscle` en `stats.js` con tests. `bar_lbs` añadida a `PREFS_IMPORTABLES` + test que exige que la lista blanca cubra toda clave que la app escriba. Verificado en Chromium con el seed real: fantasma que avanza set a set y se reexpresa en kg, registro de un toque, discos 185→45+25, caso no alcanzable, tarjeta de músculos y los 3 tabs. 0 errores de consola. 51/51 tests. `sw.js → gymtracker-20260812-2`. |
 | 2026-08-12 | `009d0ae` | **Revisión maestra #3: 10 defectos.** **Actualizaciones (crítico):** `controllerchange` seguía leyendo el `hadController` congelado del arranque — la mitad de la lección #18 que no se arregló. Una pestaña abierta desde la primera instalación aplicaba la versión nueva pero NUNCA recargaba: seguía corriendo el JS viejo en memoria, sin banner y sin síntoma visible. Ahora el flag se marca cuando aparece el primer controller. Además `forceUpdateCheck()` esperaba a `reg.waiting` cuando el worker podía estar aún en `installing`, y contestaba "Ya tienes la última versión" — mentira dicha justo en la pantalla de diagnóstico; ahora espera a que termine de instalar (timeout 10 s). **iOS:** el bloqueo de scroll del fondo con un sheet abierto nunca funcionó en iPhone (`body{overflow:hidden}` no hace nada en iOS Safari; se validó en Chrome de escritorio); ahora `position:fixed` + restauración de `scrollY`. **Sesión activa:** agregar un ejercicio que YA estaba en la sesión creaba un placeholder duplicado y lo mandaba al final del orden; ahora avisa y solo abre su card. Borrar un set (el "×" está pegado al chip de estado) es irreversible de un toque → toast con **Deshacer** de 6 s. **Enter** encadena peso → reps → guardar sin soltar el teclado. **Rendimiento:** `boot()` pintaba los TRES tabs (9 lecturas completas de IndexedDB antes de ver nada, encima del arranque en frío); ahora solo el visible. Cada card de ejercicio hacía su propio `dbGetAll('sesiones')` completo (8 ejercicios = 8 barridos de la tabla); ahora se carga una vez en `refreshExercises`. El tab Ejercicios pedía `ejercicios` y `sesiones` por duplicado (5 lecturas donde bastan 3). **Otros:** Progresión ocultaba la sección de cardio si no había ningún ejercicio; `switchTab` renderizaba sin try/catch; `index.html` sin `mobile-web-app-capable`. Verificado end-to-end en Chromium con el seed real: restauración, sesión completa, re-agregar ejercicio, Enter, deshacer, scroll lock, finalización y los 3 tabs. 0 errores de consola. 30/30 tests. `sw.js → gymtracker-20260812-1`. |
 | 2026-08-03 | `a40b727` | **Banner de actualización visible + 2 bugs del mecanismo.** Esteban confirmó que el banner llegó (días después) y pidió que fuera más grande: era una píldora gris de 13px encima del título, "casi imperceptible". Ahora es una tarjeta naranja de ancho completo, 16px bold, botón negro con área táctil de 44px y animación de entrada; el contenido baja mientras está visible para no quedar tapado. **Dos bugs reales cazados probándolo:** (1) el botón guardaba el `ServiceWorker` capturado al pintar el banner — si llegaba otro worker después, el capturado quedaba `redundant` y el `postMessage` no hacía nada (el botón se pulsaba y no pasaba nada); ahora lee `_reg.waiting` en el momento del clic, con recarga de respaldo a los 6 s. (2) `hadController` se congelaba al arrancar, así que una pestaña abierta desde la primera instalación nunca volvía a detectar actualizaciones; ahora se consulta el controller en el momento de decidir. Verificado en Chrome el ciclo limpio completo. 30/30 tests. `sw.js → gymtracker-20260803-1`. |
 | 2026-08-02 | `bd45cc5` | **Actualizaciones: el banner nunca salió en el iPhone.** Esteban abrió la PWA tras el deploy anterior y no vio el aviso ni cerrándola del multitarea varias veces. Causa: `registerSW()` solo enganchaba `updatefound`, pero cuando `register()` resuelve el navegador **ya puede haber instalado** la versión nueva — el evento ya se disparó y el worker se queda en `waiting` invisible para siempre. Ahora se miran los tres estados (`waiting`, `installing`, `updatefound`). Además: **auto-activación** si no hay sesión de gym a medias (no depender de que vea un banner; entrenando sí pregunta), **versión visible** en Progresión → DATOS contrastando `APP_VERSION` con la constante `CACHE` que el SW responde por `postMessage`, y botón **"Buscar actualización"** manual como salida de emergencia. Lógica movida a `js/swupdate.js` (evita el import circular con Progresión). Verificado en Chrome los 4 caminos: banner sin recargar, banner que vuelve tras recargar, auto-actualización silenciosa sin sesión activa, y banner (sin recarga) con sesión a medias. 30/30 tests. `sw.js → gymtracker-20260802-2`. |

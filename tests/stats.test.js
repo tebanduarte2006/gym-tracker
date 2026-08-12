@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isCountable, isPlaceholder, visibleSets, weightPR, repsPR,
-  epley1RM, volumeKg, sessionRows, markRunningPRs, nextWorkoutNumber
+  epley1RM, volumeKg, sessionRows, markRunningPRs, nextWorkoutNumber,
+  suggestNextSet, setsPerMuscle
 } from '../js/stats.js';
 
 const done = (peso, reps, extra = {}) => ({ peso, reps, status: 'Done', ...extra });
@@ -90,4 +91,85 @@ test('markRunningPRs marca récords en orden cronológico', () => {
   assert.equal(s2._isPR, true);
   assert.equal(s3._isPR, false);
   assert.equal(rows.length, 2);
+});
+
+// ─── Set fantasma ─────────────────────────────────────────────────────────────
+test('suggestNextSet propone el set correspondiente de la sesión anterior', () => {
+  const prev = [
+    { peso: 60, reps: 10, status: 'Done' },
+    { peso: 70, reps: 8, status: 'Done' },
+    { peso: 70, reps: 6, status: 'Done' }
+  ];
+  assert.deepEqual(suggestNextSet(prev, 0), { peso: 60, reps: 10 });
+  assert.deepEqual(suggestNextSet(prev, 1), { peso: 70, reps: 8 });
+  assert.deepEqual(suggestNextSet(prev, 2), { peso: 70, reps: 6 });
+});
+
+test('suggestNextSet repite el último set si esta vez haces más series', () => {
+  const prev = [{ peso: 60, reps: 10, status: 'Done' }, { peso: 70, reps: 8, status: 'Done' }];
+  assert.deepEqual(suggestNextSet(prev, 5), { peso: 70, reps: 8 });
+});
+
+test('suggestNextSet devuelve null sin historial', () => {
+  assert.equal(suggestNextSet([], 0), null);
+  assert.equal(suggestNextSet(null, 0), null);
+  assert.equal(suggestNextSet(undefined, 3), null);
+});
+
+test('suggestNextSet acepta peso 0 (peso corporal) pero no reps 0', () => {
+  assert.deepEqual(suggestNextSet([{ peso: 0, reps: 12 }], 0), { peso: 0, reps: 12 });
+  assert.equal(suggestNextSet([{ peso: 50, reps: 0 }], 0), null);
+});
+
+// ─── Volumen por grupo muscular ───────────────────────────────────────────────
+test('setsPerMuscle cuenta un set para CADA músculo del ejercicio', () => {
+  const ejMap = {
+    1: { id: 1, nombre: 'Bench', musculos: ['Pecho', 'Tríceps'] },
+    2: { id: 2, nombre: 'Curl', musculos: ['Bíceps'] }
+  };
+  const sets = [
+    { ejercicio_id: 1, peso: 60, reps: 10, status: 'Done' },
+    { ejercicio_id: 1, peso: 60, reps: 8, status: 'Done' },
+    { ejercicio_id: 2, peso: 20, reps: 12, status: 'Done' }
+  ];
+  const r = setsPerMuscle(sets, ejMap);
+  const byName = Object.fromEntries(r.map((x) => [x.musculo, x]));
+  assert.equal(byName['Pecho'].sets, 2);
+  assert.equal(byName['Tríceps'].sets, 2, 'el mismo set cuenta para los dos músculos');
+  assert.equal(byName['Bíceps'].sets, 1);
+  assert.equal(byName['Pecho'].volumenKg, 60 * 10 + 60 * 8);
+});
+
+test('setsPerMuscle ignora sets que no están Done', () => {
+  const ejMap = { 1: { id: 1, musculos: ['Pecho'] } };
+  const sets = [
+    { ejercicio_id: 1, peso: 60, reps: 10, status: 'Done' },
+    { ejercicio_id: 1, peso: 60, reps: 10, status: 'Skipped' },
+    { ejercicio_id: 1, peso: 60, reps: 10, status: 'Pending' }
+  ];
+  const r = setsPerMuscle(sets, ejMap);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].sets, 1);
+});
+
+test('setsPerMuscle agrupa como "Sin músculo" lo que no tiene músculos', () => {
+  const ejMap = { 1: { id: 1, musculos: [] }, 2: { id: 2 } };
+  const sets = [
+    { ejercicio_id: 1, peso: 10, reps: 5, status: 'Done' },
+    { ejercicio_id: 2, peso: 10, reps: 5, status: 'Done' },
+    { ejercicio_id: 99, peso: 10, reps: 5, status: 'Done' }
+  ];
+  const r = setsPerMuscle(sets, ejMap);
+  assert.deepEqual(r.map((x) => x.musculo), ['Sin músculo']);
+  assert.equal(r[0].sets, 3);
+});
+
+test('setsPerMuscle ordena de más a menos sets', () => {
+  const ejMap = { 1: { id: 1, musculos: ['Pierna'] }, 2: { id: 2, musculos: ['Hombro'] } };
+  const sets = [
+    { ejercicio_id: 2, peso: 10, reps: 5, status: 'Done' },
+    { ejercicio_id: 1, peso: 10, reps: 5, status: 'Done' },
+    { ejercicio_id: 1, peso: 10, reps: 5, status: 'Done' }
+  ];
+  assert.deepEqual(setsPerMuscle(sets, ejMap).map((x) => x.musculo), ['Pierna', 'Hombro']);
 });

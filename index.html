@@ -38,11 +38,6 @@
        pantalla negra al abrir. Ver README §Arranque. -->
   <div id="app">
     <h1 class="g-screen-title">Gym Tracker</h1>
-    <div class="main-tabs">
-      <button class="main-tab active" id="tab-btn-entrenar" type="button">Entrenar</button>
-      <button class="main-tab" id="tab-btn-ejercicios" type="button">Ejercicios</button>
-      <button class="main-tab" id="tab-btn-progresion" type="button">Progresión</button>
-    </div>
     <div id="tab-content">
       <div class="g-boot-skeleton" aria-hidden="true">
         <div class="g-boot-bar"></div>
@@ -50,6 +45,15 @@
         <div class="g-boot-bar short"></div>
       </div>
     </div>
+    <!-- La barra de pestañas va al FINAL del documento y flota abajo (CSS
+         `position:fixed`). Estaba arriba del título: en un iPhone 11 sostenido
+         con una mano el pulgar no llega a la navegación principal de la app.
+         Sigue siendo estática por la razón de siempre (arranque en frío). -->
+    <nav class="main-tabs" aria-label="Secciones">
+      <button class="main-tab active" id="tab-btn-entrenar" type="button">Entrenar</button>
+      <button class="main-tab" id="tab-btn-ejercicios" type="button">Ejercicios</button>
+      <button class="main-tab" id="tab-btn-progresion" type="button">Progresión</button>
+    </nav>
   </div>
   <script type="module" src="js/main.js"></script>
 </body>

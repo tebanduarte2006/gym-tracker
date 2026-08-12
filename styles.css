@@ -1,50 +1,117 @@
-/* ─── Gym Tracker — Apple HIG dark (heredado de habitos-app, depurado) ──────── */
+/* ─── Gym Tracker — "Vidrio Negro" ──────────────────────────────────────────
+   Dirección visual: negro real + grises transparentes + material Liquid Glass
+   de Apple. Acento PLATINO (#EDEDF0): la app es estrictamente blanco/negro y
+   el único color que sobrevive es el verde de "hecho" y el rojo destructivo.
+   Aprobado por Esteban el 2026-08-12. Reglas completas en README §5.
+
+   Las cuatro que más se rompen si no se leen:
+   1. El vidrio es la capa de CONTROLES, nunca la de contenido. Los números de
+      las series van sobre superficie legible, no sobre desenfoque.
+   2. Máximo DOS capas de vidrio apiladas, la de arriba siempre más opaca.
+      Tres capas es niebla.
+   3. Sin fondo no hay vidrio: sobre negro plano el backdrop-filter no tiene
+      nada que muestrear y produce un rectángulo gris. Por eso existe
+      `body::before` — NO lo borres "porque no se ve".
+   4. El acento sólido (fondo platino, texto negro) es para UNA acción por
+      pantalla. En cuanto hay dos, deja de significar "esto es lo principal". */
+
 :root {
-  --accent: #FF9F0A;
-  --accent-dim: rgba(255,159,10,0.14);
-  --accent-border: rgba(255,159,10,0.28);
-  --red: #FF453A;
-  --green: #30D158;
-  --info: #0A84FF;
+  /* Fondo real */
+  --void: #000000;
 
-  --bg0: #000000;
-  --bg1: #0E0E10;
-  --bg2: #1C1C1E;
-  --bg3: #2C2C2E;
-  --bg4: #3A3A3C;
+  /* Vidrios: opacidad de blanco, por eso funcionan sobre cualquier contenido */
+  --glass-1: rgba(255,255,255,0.045);   /* tarjetas base */
+  --glass-2: rgba(255,255,255,0.070);   /* elementos dentro de una tarjeta */
+  --glass-3: rgba(255,255,255,0.105);   /* control activo / seleccionado */
+  --chrome:  rgba(16,16,18,0.72);       /* barras que flotan sobre contenido */
 
-  --t1: #FFFFFF;
+  /* Luz especular y bordes: lo que separa "vidrio" de "rectángulo gris" */
+  --rim-top: rgba(255,255,255,0.14);
+  --rim-hair: rgba(255,255,255,0.09);
+  --lift: 0 8px 32px rgba(0,0,0,0.55);
+  --lift-sm: 0 2px 12px rgba(0,0,0,0.40);
+
+  /* Texto — rampa de 4 niveles de Apple */
+  --t1: rgba(255,255,255,0.96);
   --t2: rgba(255,255,255,0.62);
   --t3: rgba(255,255,255,0.38);
+  --t4: rgba(255,255,255,0.24);   /* solo texto fantasma, jamás información */
 
-  --sep: rgba(255,255,255,0.08);
+  --sep: rgba(255,255,255,0.09);
 
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
+  /* Acento platino */
+  --accent: #EDEDF0;
+  --accent-soft: rgba(237,237,240,0.12);
+  --accent-line: rgba(237,237,240,0.26);
+  --on-accent: #0A0A0B;
+
+  /* Semánticos — NO son acento, son estado */
+  --green: #30D158;
+  --green-soft: rgba(48,209,88,0.18);
+  --red: #FF453A;
+  --red-soft: rgba(255,69,58,0.16);
+
+  /* Radios concéntricos: hijo = padre − separación */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
   --r-xl: 28px;
   --pill: 980px;
 
+  /* Movimiento */
+  --ease: cubic-bezier(.32,.72,0,1);
+  --fast: .18s;
+  --base: .26s;
+
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   --font-num: -apple-system, "SF Pro Rounded", "SF Pro Display", system-ui, sans-serif;
+
+  /* Alto de la barra de pestañas flotante (la usa el padding de #app) */
+  --tabbar-h: 60px;
 }
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
 html, body {
   margin: 0; padding: 0;
-  background: var(--bg0);
+  background: var(--void);
   color: var(--t1);
   font-family: var(--font);
   font-size: 17px;
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/* AMBIENTE. No es decoración: es lo único que el backdrop-filter tiene para
+   muestrear. Sobre un negro absolutamente plano todo el vidrio de esta hoja se
+   degrada a gris opaco y el rediseño entero deja de leerse. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 50% at 50% -6%, rgba(255,255,255,0.055), transparent 62%),
+    radial-gradient(70% 40% at 88% 18%, rgba(255,255,255,0.030), transparent 60%),
+    radial-gradient(85% 45% at 6% 82%, rgba(255,255,255,0.035), transparent 62%);
+}
+
 button { font-family: inherit; cursor: pointer; }
 input, button, textarea { -webkit-tap-highlight-color: transparent; }
 input { font-family: inherit; }
 .hidden { display: none !important; }
 
-#app { padding-top: max(env(safe-area-inset-top), 16px); padding-bottom: 60px; }
+/* Foco visible: la app se usa con el pulgar, pero el teclado externo del iPad y
+   la navegación por VoiceOver necesitan saber dónde están. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+#app {
+  padding-top: max(env(safe-area-inset-top), 16px);
+  /* Deja aire para la barra de pestañas flotante del fondo. */
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 28px);
+}
 
 /* Bloquea el scroll del fondo mientras hay un bottom sheet abierto.
    `overflow:hidden` a secas NO sirve en iOS Safari (funciona en Chrome de
@@ -60,178 +127,231 @@ body.g-modal-open {
 
 /* Esqueleto de arranque (vive en index.html; main.js lo reemplaza). Existe para
    que la PRIMERA pintura no sea una pantalla negra. Ver README §Arranque. */
-.g-boot-skeleton { padding: 8px 20px; }
+.g-boot-skeleton { padding: 8px 16px; }
 .g-boot-bar {
-  height: 72px;
+  height: 76px;
   border-radius: var(--r-lg);
-  background: var(--bg2);
-  margin-bottom: 12px;
-  animation: boot-pulse 1.4s ease-in-out infinite;
+  background: var(--glass-1);
+  box-shadow: inset 0 1px 0 var(--rim-top), 0 0 0 0.5px var(--rim-hair);
+  margin-bottom: 10px;
+  animation: boot-pulse 1.6s ease-in-out infinite;
 }
-.g-boot-bar.short { height: 48px; opacity: 0.6; }
-@keyframes boot-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+.g-boot-bar.short { height: 52px; opacity: 0.6; }
+@keyframes boot-pulse { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }
 
-/* ─── Título + tabs ─────────────────────────────────────────────────────────── */
+/* ─── Título ────────────────────────────────────────────────────────────────
+   Baja de 34px a 30px: a 34 ocupaba un quinto de la pantalla del iPhone 11 sin
+   aportar nada — el contenido manda. */
 .g-screen-title {
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 700;
-  letter-spacing: -0.6px;
-  margin: 0 0 16px;
+  letter-spacing: -0.028em;
+  margin: 0 0 14px;
   padding: 0 20px;
   color: var(--t1);
 }
+
+/* ─── Barra de pestañas FLOTANTE (abajo) ────────────────────────────────────
+   Estaba arriba del todo: en un iPhone 11 sostenido con una mano el pulgar no
+   llega, y es la navegación principal de la app. Apple HIG manda navegación
+   primaria abajo; Strong y Hevy hacen lo mismo. Vive estática en index.html
+   (ver README §Arranque) — si cambias los ids, cambia TABS en js/main.js. */
 .main-tabs {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: max(env(safe-area-inset-bottom), 10px);
+  z-index: 60;
   display: flex;
-  gap: 24px;
-  border-bottom: 0.5px solid var(--sep);
-  margin: 0 20px 4px;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--pill);
+  background: var(--chrome);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--rim-top),
+    0 0 0 0.5px var(--rim-hair),
+    var(--lift);
 }
 .main-tab {
-  background: none; border: none;
-  padding: 10px 0;
-  font-size: 15px; font-weight: 600;
-  color: var(--t2);
-  position: relative;
-  transition: color .15s;
+  flex: 1;
+  background: none;
+  border: none;
+  min-height: 44px;              /* área táctil mínima de Apple HIG */
+  padding: 10px 6px;
+  border-radius: var(--pill);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--t3);
   white-space: nowrap;
+  transition: color var(--fast), background var(--base) var(--ease);
 }
-.main-tab.active { color: var(--t1); }
-.main-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -0.5px; left: 0; right: 0;
-  height: 2px; border-radius: 2px;
-  background: var(--accent);
+.main-tab.active {
+  background: var(--glass-3);
+  color: var(--t1);
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
+.main-tab:active { opacity: .7; }
+
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* ─── Entrenar ──────────────────────────────────────────────────────────────── */
-.g-train, .g-start { padding: 20px 16px 32px; }
+/* ─── Superficies ───────────────────────────────────────────────────────────
+   `g-surface` es EL patrón de tarjeta. Todo lo que sea una tarjeta lo usa; no
+   inventes fondos sueltos o el rediseño se desalinea solo. */
+.g-surface,
+.g-session-card, .g-ex-card, .g-recent-card, .g-empty-card,
+.g-list-card, .g-chart-card, .g-info-item, .g-session-row,
+.g-add-exercise, .g-secondary-btn, .g-search-wrap {
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
+  box-shadow:
+    inset 0 1px 0 var(--rim-top),
+    0 0 0 0.5px var(--rim-hair);
+}
+
+/* ─── Entrenar ──────────────────────────────────────────────────────────────*/
+.g-train, .g-start { padding: 16px 16px 24px; }
+
 .g-session-card {
-  background: var(--bg2);
   border-radius: var(--r-lg);
   padding: 18px 20px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
-.g-session-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.g-session-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .g-session-rt {
-  font-size: 11px; font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 1.4px;
+  font-size: 10.5px; font-weight: 800;
+  color: var(--t3);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
-.g-session-name { font-size: 17px; font-weight: 600; color: var(--t1); }
+.g-session-name { font-size: 16px; font-weight: 600; color: var(--t1); letter-spacing: -0.01em; }
 .g-session-timer-wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.g-session-timer-label { font-size: 11px; font-weight: 700; color: var(--t3); letter-spacing: 1.2px; margin-bottom: 4px; }
+.g-session-timer-label { font-size: 10.5px; font-weight: 700; color: var(--t3); letter-spacing: 1.2px; margin-bottom: 2px; }
 .g-session-timer {
   font-family: var(--font-num);
-  font-size: 44px; font-weight: 700;
-  letter-spacing: -1.5px;
+  font-size: 46px; font-weight: 700;
+  letter-spacing: -0.045em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--t1);
 }
 
 /* Rest timer.
    STICKY a propósito: antes iba en el flujo normal, arriba del todo, así que
    en cuanto bajabas al 2º o 3er ejercicio el descanso quedaba fuera de
-   pantalla — justo cuando lo estás mirando. No lo vuelvas a poner estático. */
+   pantalla — justo cuando lo estás mirando. No lo vuelvas a poner estático.
+   Usa `chrome` (más opaco) porque flota sobre contenido cualquiera. */
 .g-rest-bar {
   position: sticky;
-  top: max(env(safe-area-inset-top), 4px);
+  top: max(env(safe-area-inset-top), 6px);
   z-index: 50;
   margin: 0 0 12px;
-  padding: 10px 14px;
-  display: flex; align-items: center; gap: 10px;
-  background: #241a06;
-  border: 1px solid var(--accent-border);
+  padding: 11px 14px;
+  display: flex; align-items: center; gap: 11px;
   border-radius: var(--r-md);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--chrome);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--rim-top),
+    0 0 0 0.5px var(--rim-hair),
+    var(--lift-sm);
 }
 .g-rest-label { font-size: 13px; font-weight: 600; color: var(--t1); }
 .g-rest-time {
   font-family: var(--font-num);
   font-size: 17px; font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
-  min-width: 36px;
+  letter-spacing: -0.02em;
+  color: var(--t1);
+  min-width: 38px;
   text-align: right;
 }
-.g-rest-progress { flex: 1; height: 4px; background: rgba(255,255,255,0.10); border-radius: 4px; overflow: hidden; }
+.g-rest-progress { flex: 1; height: 4px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; }
 .g-rest-progress-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width .25s linear; }
-.g-rest-skip { background: transparent; border: none; color: var(--t2); font-size: 13px; font-weight: 600; padding: 4px 8px; }
+.g-rest-skip {
+  background: transparent; border: none;
+  color: var(--t2);
+  font-size: 13px; font-weight: 600;
+  padding: 12px 6px; margin: -12px -2px;   /* 44px táctiles sin engordar el dibujo */
+}
 
 /* Exercise card */
 .g-ex-card {
-  background: var(--bg2);
   border-radius: var(--r-lg);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   overflow: hidden;
 }
 .g-ex-head {
   width: 100%;
   background: none; border: none;
-  padding: 16px 18px;
+  padding: 15px 18px;
+  min-height: 44px;
   display: flex; align-items: center; justify-content: space-between;
   color: var(--t1);
   text-align: left;
 }
-.g-ex-name { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; }
-.g-ex-muscle { font-size: 13px; color: var(--t2); margin-top: 2px; }
+.g-ex-name { font-size: 16px; font-weight: 620; letter-spacing: -0.012em; }
+.g-ex-muscle { font-size: 13px; color: var(--t2); margin-top: 1px; }
 .g-ex-head-right { display: flex; align-items: center; gap: 10px; }
 .g-ex-count {
   font-family: var(--font-num);
-  font-size: 15px; font-weight: 600;
+  font-size: 14px; font-weight: 600;
   color: var(--t2);
   font-variant-numeric: tabular-nums;
 }
-.g-ex-chevron { width: 18px; height: 18px; color: var(--t3); transition: transform .2s; }
+.g-ex-chevron { width: 18px; height: 18px; color: var(--t3); transition: transform var(--base) var(--ease); }
 .g-ex-card.open .g-ex-chevron { transform: rotate(180deg); }
-.g-ex-body { padding: 0 18px 18px; border-top: 0.5px solid var(--sep); display: none; }
+.g-ex-body { padding: 0 14px 14px; box-shadow: inset 0 0.5px 0 var(--sep); display: none; }
 .g-ex-card.open .g-ex-body { display: block; }
 .g-ex-tools {
   display: flex; justify-content: flex-end; gap: 4px;
-  padding: 8px 0 2px;
+  padding: 8px 0 4px;
 }
 .g-tool-btn {
-  background: var(--bg3); border: none;
+  background: var(--glass-2); border: none;
   color: var(--t2);
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-xs);
   font-size: 13px; font-weight: 600;
-  min-height: 30px;
+  min-height: 40px;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+  transition: background var(--fast);
 }
+.g-tool-btn:active { background: var(--glass-3); }
 
 /* Última sesión */
 .g-last-toggle {
   background: none; border: none;
   color: var(--t2);
   font-size: 13px;
-  padding: 12px 0;
+  padding: 12px 4px;
+  min-height: 44px;
   display: flex; align-items: center; gap: 6px;
   width: 100%;
   text-align: left;
 }
-.g-last-chev { transition: transform .15s; display: inline-block; width: 14px; font-weight: 600; color: var(--t3); }
+.g-last-chev { transition: transform var(--fast) var(--ease); display: inline-block; width: 14px; font-weight: 600; color: var(--t3); }
 .g-last-toggle.open .g-last-chev { transform: rotate(90deg); }
 .g-last-date { color: var(--t3); }
 .g-last-body {
-  background: var(--bg3);
+  background: var(--glass-2);
   border-radius: var(--r-sm);
   padding: 10px 12px;
   margin-bottom: 10px;
   display: none;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 .g-ex-card.last-open .g-last-body { display: block; }
 .g-last-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--t2); }
-.g-last-row b { color: var(--t1); font-family: var(--font-num); font-weight: 700; }
+.g-last-row b { color: var(--t1); font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; }
 .g-last-empty { font-size: 13px; color: var(--t3); text-align: center; padding: 6px 0; }
 .g-last-header {
-  font-size: 11px; color: var(--t3);
-  letter-spacing: 0.5px;
+  font-size: 10.5px; color: var(--t3);
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   margin-bottom: 6px;
   font-weight: 700;
@@ -240,33 +360,35 @@ body.g-modal-open {
   width: 100%;
   margin-top: 8px;
   background: none;
-  border: 1px dashed var(--accent-border);
-  border-radius: 8px;
-  padding: 8px;
-  color: var(--accent);
+  border: 1px dashed var(--accent-line);
+  border-radius: var(--r-xs);
+  padding: 11px;
+  min-height: 44px;
+  color: var(--t1);
   font-size: 13px; font-weight: 600;
 }
 
 /* Sets */
-.g-sets-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.g-sets-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .g-set-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg3);
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px 8px 12px;
+  background: var(--glass-2);
   border-radius: var(--r-sm);
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
-.g-set-n { font-size: 12px; font-weight: 600; color: var(--t2); width: 42px; flex-shrink: 0; }
+.g-set-n { font-size: 12px; font-weight: 600; color: var(--t3); width: 40px; flex-shrink: 0; }
 .g-set-info { font-size: 14px; color: var(--t1); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .g-set-val { font-family: var(--font-num); font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; }
-.g-set-val b { font-size: 17px; font-weight: 700; color: var(--t1); }
+.g-set-val b { font-size: 17px; font-weight: 700; color: var(--t1); letter-spacing: -0.02em; }
 .g-set-val span { font-size: 11px; font-weight: 500; color: var(--t3); margin-left: 2px; }
-.g-set-times { color: var(--t3); font-size: 13px; margin: 0 2px; }
+.g-set-times { color: var(--t3); font-size: 13px; margin: 0 3px; }
 /* Zona táctil para corregir un set ya guardado (peso/reps). */
 .g-set-edit {
   display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: none; padding: 4px 6px;
-  margin: -4px -2px;
-  border-radius: var(--r-sm);
+  background: none; border: none;
+  padding: 11px 8px; margin: -11px -4px;   /* 44px reales */
+  border-radius: var(--r-xs);
   color: inherit;
 }
 .g-set-edit:active { background: rgba(255,255,255,0.08); }
@@ -274,113 +396,147 @@ body.g-modal-open {
   margin-left: auto;
   border: none;
   border-radius: var(--pill);
-  padding: 4px 10px;
-  font-size: 11px; font-weight: 600;
-  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 11px;
+  font-size: 11px; font-weight: 650;
+  display: inline-flex; align-items: center; gap: 5px;
   white-space: nowrap;
+  min-height: 32px;
+  transition: background var(--fast);
 }
-.g-chip-Pending { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.65); }
-.g-chip-Done    { background: rgba(48,209,88,0.20);  color: var(--green); }
-.g-chip-Skipped { background: rgba(255,69,58,0.20);  color: var(--red); }
+.g-chip-Pending { background: rgba(255,255,255,0.10); color: var(--t2); }
+.g-chip-Done    { background: var(--green-soft);  color: var(--green); }
+.g-chip-Skipped { background: var(--red-soft);    color: var(--red); }
 .g-set-del {
   background: none; border: none;
   color: var(--t3);
-  font-size: 18px;
-  padding: 0 4px;
-  margin-left: 4px;
+  font-size: 19px;
   line-height: 1;
+  /* Medía 26px: se toca por error con el pulgar. Ahora 44 sin crecer el dibujo. */
+  width: 44px; height: 44px;
+  margin: -11px -8px -11px 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
+.g-set-del:active { color: var(--red); }
 
 /* Add set */
 .g-add-set { display: flex; gap: 6px; align-items: center; padding-top: 4px; }
 .g-input-num {
   flex: 1;
-  background: var(--bg3);
+  background: var(--glass-2);
   border: none;
   border-radius: var(--r-sm);
-  padding: 10px;
+  padding: 12px 8px;
+  min-height: 44px;
   color: var(--t1);
-  font-size: 15px;
+  font-size: 16px;   /* < 16px hace que iOS haga zoom al enfocar el campo */
   font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
   text-align: center;
   min-width: 0;
   outline: none;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
-.g-input-num::placeholder { color: var(--t3); }
-.g-unit-toggle { display: flex; background: var(--bg3); border-radius: var(--r-sm); padding: 2px; flex-shrink: 0; }
+/* Set fantasma: la sugerencia de la sesión anterior. Cuaternario a propósito —
+   tiene que leerse como "esto no está escrito todavía", no como un valor real. */
+.g-input-num::placeholder { color: var(--t4); }
+.g-unit-toggle {
+  display: flex;
+  background: var(--glass-2);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+}
 .g-unit-toggle button {
   background: none; border: none;
-  padding: 6px 8px;
-  color: var(--t2);
-  font-size: 11px; font-weight: 600;
-  border-radius: 8px;
-  min-height: 28px;
+  padding: 8px 9px;
+  color: var(--t3);
+  font-size: 11px; font-weight: 650;
+  border-radius: var(--r-xs);
+  min-height: 38px;
+  transition: background var(--fast), color var(--fast);
 }
-.g-unit-toggle button.active { background: var(--bg4); color: var(--t1); }
+.g-unit-toggle button.active { background: var(--glass-3); color: var(--t1); }
 .g-confirm-set {
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   border-radius: var(--r-sm);
   border: none;
   background: var(--accent);
-  color: #000;
+  color: var(--on-accent);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  font-size: 18px; font-weight: 700;
+  font-size: 21px; font-weight: 700;
+  transition: transform var(--fast) var(--ease), opacity var(--fast);
 }
+.g-confirm-set:active { transform: scale(.94); opacity: .85; }
 
 /* Botones grandes */
 .g-add-exercise {
   width: 100%;
-  background: var(--bg2);
   border: none;
   border-radius: var(--r-lg);
-  padding: 16px;
+  padding: 15px;
   color: var(--t1);
-  font-size: 15px; font-weight: 500;
+  font-size: 15px; font-weight: 550;
   display: flex; align-items: center; justify-content: center;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
+/* Finalizar: destructiva de tono, no de fondo. Un bloque rojo sólido de ancho
+   completo grita más que el botón de empezar, que es la acción principal. */
 .g-finalize {
   width: 100%;
-  background: rgba(255,69,58,0.10);
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
   border: none;
   border-radius: var(--r-lg);
-  padding: 16px;
-  font-size: 15px; font-weight: 600;
+  padding: 15px;
+  font-size: 15px; font-weight: 620;
   color: var(--red);
   display: flex; align-items: center; justify-content: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 6px;
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.08);
 }
+/* Acción principal SÓLIDA: una por pantalla. Si aparece una segunda, el acento
+   deja de significar "esto es lo principal". */
 .g-start-cta {
   width: 100%;
   background: var(--accent);
-  color: #000;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--r-lg);
-  padding: 16px;
+  padding: 17px;
   font-size: 17px; font-weight: 700;
+  letter-spacing: -0.015em;
   margin-top: 16px;
+  box-shadow: var(--lift-sm);
+  transition: transform var(--fast) var(--ease), opacity var(--fast);
 }
+.g-start-cta:active { transform: scale(.985); opacity: .9; }
 
 /* Listas / cards */
 .g-head-row { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
 .g-link-btn {
   background: none; border: 0;
-  color: var(--accent);
-  font-size: 13px; font-weight: 600;
-  padding: 4px 0;
+  color: var(--t1);
+  font-size: 13px; font-weight: 620;
+  padding: 12px 0; margin: -12px 0;
+  min-height: 44px;
 }
 .g-recent-list { display: flex; flex-direction: column; gap: 8px; }
 .g-recent-card {
-  background: var(--bg2);
   border-radius: var(--r-md);
   padding: 14px 16px;
+  min-height: 44px;
   display: flex; justify-content: space-between; align-items: center;
   cursor: pointer;
+  transition: background var(--fast);
 }
-.g-recent-name { font-size: 15px; font-weight: 600; color: var(--t1); }
+.g-recent-card:active { background: var(--glass-2); }
+.g-recent-name { font-size: 15px; font-weight: 600; color: var(--t1); letter-spacing: -0.01em; }
 .g-recent-sub { font-size: 13px; color: var(--t2); margin-top: 2px; }
 .g-recent-meta {
   font-family: var(--font-num);
@@ -388,26 +544,31 @@ body.g-modal-open {
   font-variant-numeric: tabular-nums;
 }
 .g-empty-card {
-  background: var(--bg2);
   border-radius: var(--r-md);
   padding: 24px;
   text-align: center;
   color: var(--t3);
   font-size: 14px;
+  line-height: 1.5;
 }
 .g-actions-col { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
 
 /* Directorio / Progresión */
-.g-lib { padding: 16px 16px 32px; }
-.g-prog { padding: 12px 16px 32px; }
+.g-lib { padding: 14px 16px 24px; }
+.g-prog { padding: 10px 16px 24px; }
 .g-search-wrap {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--bg2);
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 9px;
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  min-height: 44px;
+  margin-bottom: 12px;
 }
-.g-search { background: none; border: none; outline: none; color: var(--t1); font-size: 15px; flex: 1; min-width: 0; }
+.g-search {
+  background: none; border: none; outline: none;
+  color: var(--t1);
+  font-size: 16px;   /* evita el zoom automático de iOS al enfocar */
+  flex: 1; min-width: 0;
+}
 .g-search::placeholder { color: var(--t3); }
 .g-search-icon { width: 17px; height: 17px; color: var(--t3); flex-shrink: 0; }
 .g-pills {
@@ -420,39 +581,44 @@ body.g-modal-open {
 .g-pills::-webkit-scrollbar { display: none; }
 .g-pill {
   flex-shrink: 0;
-  background: var(--bg2);
+  background: var(--glass-2);
   border: none;
-  padding: 7px 14px;
+  padding: 9px 15px;
+  min-height: 38px;
   border-radius: var(--pill);
   color: var(--t2);
-  font-size: 13px; font-weight: 600;
-  min-height: 30px;
+  font-size: 13px; font-weight: 620;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+  transition: background var(--fast), color var(--fast);
 }
-.g-pill.active { background: var(--accent); color: #000; }
+.g-pill.active { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .g-section-label {
-  font-size: 12px; font-weight: 700;
+  font-size: 11px; font-weight: 750;
   color: var(--t3);
-  letter-spacing: 0.8px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  padding: 18px 4px 10px;
+  padding: 20px 4px 10px;
 }
 .g-section-label.dim { opacity: 0.6; }
-.g-list-card { background: var(--bg2); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 4px; }
+.g-list-card { border-radius: var(--r-lg); overflow: hidden; margin-bottom: 4px; }
 .g-list-card.dim { opacity: 0.45; }
 .g-list-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px;
   padding: 14px 16px;
-  border-bottom: 0.5px solid var(--sep);
+  min-height: 44px;
+  box-shadow: inset 0 -0.5px 0 var(--sep);
   cursor: pointer;
-  background: none; border-left: none; border-right: none; border-top: none;
+  background: none; border: none;
   width: 100%;
   text-align: left;
   color: var(--t1);
   font-family: inherit;
+  transition: background var(--fast);
 }
-.g-list-row:last-child { border-bottom: none; }
-.g-list-name { font-size: 16px; font-weight: 500; color: var(--t1); }
+.g-list-row:last-child { box-shadow: none; }
+.g-list-row:active { background: var(--glass-2); }
+.g-list-name { font-size: 16px; font-weight: 550; color: var(--t1); letter-spacing: -0.012em; }
 .g-list-sub { font-size: 13px; color: var(--t2); margin-top: 2px; }
 .g-list-right { display: flex; align-items: center; gap: 8px; }
 .g-list-pr {
@@ -461,222 +627,300 @@ body.g-modal-open {
   color: var(--t2);
   font-variant-numeric: tabular-nums;
 }
-.g-list-arrow { color: var(--t3); font-size: 18px; font-weight: 300; line-height: 1; }
+.g-list-arrow { color: var(--t3); font-size: 19px; font-weight: 300; line-height: 1; }
 .g-add-cta {
   width: 100%;
   background: none;
-  border: 1.5px dashed var(--accent-border);
+  border: 1px dashed var(--accent-line);
   border-radius: var(--r-lg);
-  padding: 14px;
-  color: var(--accent);
-  font-size: 15px; font-weight: 600;
+  padding: 15px;
+  color: var(--t1);
+  font-size: 15px; font-weight: 620;
   display: flex; align-items: center; justify-content: center;
   gap: 6px;
   margin-top: 16px;
 }
 
-/* Hero / PR card */
+/* Hero / PR card.
+   Único sitio donde el vidrio lleva un gradiente por encima: es la pantalla que
+   celebra un récord y necesita separarse del resto de tarjetas. */
 .g-prog-hero, .g-pr-card {
-  padding: 18px 20px;
-  background: linear-gradient(135deg, rgba(255,159,10,0.18), rgba(255,159,10,0.04));
-  border: 1px solid var(--accent-border);
+  padding: 20px 22px;
+  background:
+    linear-gradient(160deg, var(--accent-soft), rgba(255,255,255,0.02)),
+    var(--glass-1);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
   border-radius: var(--r-xl);
+  box-shadow:
+    inset 0 1px 0 var(--rim-top),
+    0 0 0 0.5px var(--accent-line),
+    var(--lift);
 }
 .g-prog-hero { margin: 4px 0 16px; }
-.g-pr-card { margin: 0 16px 20px; }
+.g-pr-card { margin: 0 16px 18px; }
 .g-prog-hero-label, .g-pr-card-label {
-  font-size: 11px; font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 1.2px;
+  font-size: 10.5px; font-weight: 800;
+  color: var(--t2);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
-.g-prog-hero-name { font-size: 17px; font-weight: 600; color: var(--t1); margin-top: 6px; letter-spacing: -0.2px; }
-.g-prog-hero-num, .g-pr-card-value { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; font-family: var(--font-num); }
+.g-prog-hero-name { font-size: 16px; font-weight: 620; color: var(--t1); margin-top: 6px; letter-spacing: -0.012em; }
+.g-prog-hero-num, .g-pr-card-value { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; font-family: var(--font-num); }
 .g-prog-hero-big, .g-pr-num {
-  font-size: 48px; font-weight: 700;
-  letter-spacing: -1.2px;
-  color: var(--accent);
+  font-size: 52px; font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+  color: var(--t1);
   font-variant-numeric: tabular-nums;
 }
-.g-pr-num { color: var(--t1); }
-.g-prog-hero-unit, .g-pr-unit { font-size: 16px; font-weight: 600; color: var(--t2); }
-.g-prog-hero-sub { font-size: 12px; color: var(--t2); margin-top: 4px; letter-spacing: 0.2px; }
+.g-prog-hero-unit, .g-pr-unit { font-size: 15px; font-weight: 600; color: var(--t2); }
+.g-prog-hero-sub { font-size: 12px; color: var(--t3); margin-top: 4px; }
 .g-pr-card-meta {
   font-size: 12px; color: var(--t2);
-  letter-spacing: 0.2px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  padding-top: 8px;
-  margin-top: 10px;
+  box-shadow: inset 0 0.5px 0 var(--sep);
+  padding-top: 10px;
+  margin-top: 12px;
 }
-.g-prog-spark { display: block; width: 100%; height: 48px; margin-top: 10px; }
+.g-prog-spark { display: block; width: 100%; height: 52px; margin-top: 12px; }
 .g-prog-hero-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--t3); letter-spacing: 0.4px; margin-top: 2px; }
 
+/* Volumen por grupo muscular (Progresión) */
+.g-muscle-card { border-radius: var(--r-lg); padding: 16px 18px; }
+.g-muscle-row { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; }
+.g-muscle-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.g-muscle-name { font-size: 14px; font-weight: 600; color: var(--t1); letter-spacing: -0.01em; }
+.g-muscle-count {
+  font-family: var(--font-num);
+  font-size: 13px; font-weight: 600;
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.g-muscle-track { height: 5px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.g-muscle-fill { height: 100%; border-radius: 5px; background: var(--accent); opacity: .85; }
+.g-muscle-foot { font-size: 12px; color: var(--t3); padding-top: 10px; margin-top: 6px; box-shadow: inset 0 0.5px 0 var(--sep); }
+
+/* Calculadora de discos */
+.g-plate-total {
+  font-family: var(--font-num);
+  font-size: 40px; font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--t1);
+  line-height: 1.1;
+}
+.g-plate-total span { font-size: 15px; font-weight: 600; color: var(--t2); margin-left: 6px; letter-spacing: 0; }
+.g-plate-stack { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+.g-plate {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 700;
+  padding: 10px 14px;
+  min-height: 44px;
+  display: inline-flex; align-items: center;
+  border-radius: var(--r-sm);
+  background: var(--glass-3);
+  color: var(--t1);
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+}
+.g-plate-note { font-size: 13px; color: var(--t3); line-height: 1.5; margin-top: 10px; }
+.g-plate-warn { color: var(--red); }
+
 /* Detalle */
-.g-detail-screen { padding-bottom: 32px; }
+.g-detail-screen { padding-bottom: 24px; }
 .g-back-inline {
   display: inline-flex; align-items: center;
   background: transparent; border: none;
-  color: var(--accent);
+  color: var(--t1);
   font-size: 17px; font-weight: 500;
-  padding: 8px 16px 4px;
-  margin-bottom: 4px;
-  letter-spacing: -0.2px;
+  padding: 10px 16px;
+  min-height: 44px;
+  margin-bottom: 2px;
+  letter-spacing: -0.015em;
 }
-.g-back-inline::before { content: '‹'; font-size: 26px; font-weight: 300; margin-right: 4px; line-height: 1; }
-.g-detail-title { font-size: 32px; font-weight: 700; letter-spacing: -0.6px; margin: 4px 20px 2px; color: var(--t1); }
+.g-back-inline::before { content: '‹'; font-size: 26px; font-weight: 300; margin-right: 5px; line-height: 1; }
+.g-detail-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 2px 20px 2px; color: var(--t1); }
 .g-detail-sub { font-size: 14px; color: var(--t2); margin: 0 20px 16px; }
-.g-info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 0 16px 16px; }
-.g-info-item { background: var(--bg2); border-radius: var(--r-md); padding: 12px 14px; }
-.g-info-label { font-size: 11px; font-weight: 700; color: var(--t3); letter-spacing: 0.8px; text-transform: uppercase; }
-.g-info-value { font-size: 17px; font-weight: 700; color: var(--t1); margin-top: 4px; letter-spacing: -0.2px; }
+.g-info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0 16px 16px; }
+.g-info-item { border-radius: var(--r-md); padding: 12px 13px; }
+.g-info-label { font-size: 10.5px; font-weight: 750; color: var(--t3); letter-spacing: 0.8px; text-transform: uppercase; }
+.g-info-value { font-size: 16px; font-weight: 700; color: var(--t1); margin-top: 4px; letter-spacing: -0.015em; }
 .g-edit-muscles {
-  margin: 0 16px 20px;
-  padding: 12px 14px;
+  margin: 0 16px 10px;
+  padding: 13px 14px;
+  min-height: 44px;
   background: transparent;
-  border: 1px dashed var(--accent-border);
+  border: 1px dashed var(--accent-line);
   border-radius: var(--r-md);
-  color: var(--accent);
+  color: var(--t1);
   font-size: 14px; font-weight: 600;
   width: calc(100% - 32px);
   display: inline-flex; align-items: center; justify-content: center;
   gap: 6px;
 }
 
-/* Chart */
-.g-chart-card { margin: 0 16px 12px; padding: 16px 14px 12px; background: var(--bg2); border-radius: var(--r-lg); }
+/* Chart.
+   Los colores del SVG viven AQUÍ, no en atributos desde JS: así el acento se
+   cambia en un único sitio. Antes progresion.js llevaba "#FF9F0A" escrito a
+   mano en cuatro líneas y cualquier cambio de paleta las dejaba atrás. */
+.g-chart-card { margin: 0 16px 12px; padding: 16px 14px 12px; border-radius: var(--r-lg); }
 .g-chart-card svg { width: 100%; height: 120px; display: block; }
+.g-chart-line { stroke: var(--accent); }
+.g-chart-area { fill: var(--accent-soft); }
+.g-chart-dot { fill: var(--accent); }
+.g-chart-grid { stroke: rgba(255,255,255,0.07); }
 .g-chart-axis {
   display: flex; justify-content: space-between;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 11px; color: var(--t3);
-  letter-spacing: 0.3px;
   font-variant-numeric: tabular-nums;
 }
 .g-chart-axis-mid { color: var(--t2); }
 
 /* Sesiones expandibles (Progresión detalle) */
-.g-session-row { background: var(--bg2); border-radius: var(--r-md); margin-bottom: 8px; }
+.g-session-row { border-radius: var(--r-md); margin-bottom: 8px; }
 .g-session-row[open] .g-session-summary .g-session-chev { transform: rotate(180deg); }
 .g-session-summary {
   list-style: none;
   cursor: pointer;
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 16px;
+  min-height: 44px;
 }
 .g-session-summary::-webkit-details-marker { display: none; }
-.g-session-chev { transition: transform .2s; color: var(--t3); font-size: 16px; }
-.g-session-sets { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.g-session-chev { transition: transform var(--base) var(--ease); color: var(--t3); font-size: 16px; }
+.g-session-sets { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 6px; }
 .g-session-set-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px;
-  background: var(--bg3);
+  padding: 9px 12px;
+  background: var(--glass-2);
   border-radius: var(--r-sm);
   font-size: 14px;
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 .g-pr-badge {
   margin-left: auto;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: var(--pill);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.3px;
-  background: var(--accent-dim);
-  color: var(--accent);
+  font-size: 11px; font-weight: 750;
+  background: var(--glass-3);
+  color: var(--t1);
 }
 
 /* Export/import */
-.g-export-row { display: flex; gap: 8px; margin-top: 16px; }
+.g-export-row { display: flex; gap: 8px; margin-top: 14px; }
 .g-secondary-btn {
   flex: 1;
-  background: var(--bg2);
   border: none;
   border-radius: var(--r-lg);
   padding: 14px;
+  min-height: 44px;
   color: var(--t1);
-  font-size: 14px; font-weight: 500;
+  font-size: 14px; font-weight: 550;
 }
 
-/* ─── Modales (bottom sheet) ────────────────────────────────────────────────── */
+/* ─── Modales (bottom sheet) ────────────────────────────────────────────────*/
 .g-modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
   display: flex; align-items: flex-end;
   z-index: 100;
-  animation: overlay-in .2s ease;
+  animation: overlay-in var(--fast) ease;
 }
 @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 .g-modal {
   width: 100%;
-  background: var(--bg2);
-  border-radius: 20px 20px 0 0;
+  /* El sheet NO es vidrio: lleva contenido y campos de texto. Vidrio sobre el
+     desenfoque del overlay serían dos capas translúcidas apiladas — niebla. */
+  background: #121214;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding: 8px 20px max(env(safe-area-inset-bottom), 28px);
   max-height: 90vh;
   max-height: 90dvh;
   overflow-y: auto;
-  animation: modal-in .25s ease;
+  box-shadow: inset 0 1px 0 var(--rim-top), 0 -8px 40px rgba(0,0,0,0.6);
+  animation: modal-in var(--base) var(--ease);
 }
 @keyframes modal-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
-.g-modal-handle { width: 40px; height: 5px; border-radius: 3px; background: var(--bg4); margin: 0 auto 16px; }
-.g-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.g-modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; color: var(--t1); }
+.g-modal-handle { width: 38px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); margin: 8px auto 16px; }
+.g-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.g-modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: var(--t1); }
 .g-modal-close {
-  background: var(--bg3);
+  background: var(--glass-2);
   border: none;
   color: var(--t2);
-  width: 28px; height: 28px;
+  /* Medía 28px. El dibujo sigue siendo un círculo pequeño; el área es 44. */
+  width: 32px; height: 32px;
+  padding: 0;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 14px;
   line-height: 1;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 6px transparent;
+  outline-offset: 6px;
 }
 .g-modal-sub {
-  font-size: 12px; font-weight: 700;
+  font-size: 11px; font-weight: 750;
   color: var(--t3);
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  margin: 12px 0 8px;
+  margin: 14px 0 8px;
 }
 .g-modal-input {
   width: 100%;
-  background: var(--bg3);
+  background: var(--glass-2);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   padding: 14px 16px;
+  min-height: 48px;
   color: var(--t1);
   font-size: 17px;
   outline: none;
   font-family: inherit;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
-.g-modal-body { font-size: 14px; color: var(--t2); line-height: 1.5; margin-bottom: 16px; }
+.g-modal-input::placeholder { color: var(--t3); }
+.g-modal-body { font-size: 14px; color: var(--t2); line-height: 1.55; margin-bottom: 16px; }
 .g-btn-primary {
   width: 100%;
   border: none;
   border-radius: var(--r-md);
   padding: 16px;
+  min-height: 50px;
   background: var(--accent);
-  color: #000;
+  color: var(--on-accent);
   font-size: 17px; font-weight: 700;
-  margin-top: 8px;
+  letter-spacing: -0.015em;
+  margin-top: 10px;
   font-family: inherit;
+  transition: transform var(--fast) var(--ease), opacity var(--fast);
 }
+.g-btn-primary:active { transform: scale(.985); opacity: .9; }
+.g-btn-primary:disabled { opacity: .5; }
 .g-btn-secondary {
   width: 100%;
   margin-top: 8px;
-  padding: 14px;
-  background: var(--bg3);
+  padding: 15px;
+  min-height: 48px;
+  background: var(--glass-2);
   color: var(--t1);
   border: none;
   border-radius: var(--r-md);
   font-size: 16px; font-weight: 600;
   font-family: inherit;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 .g-btn-destructive {
   width: 100%;
   margin-top: 6px;
-  padding: 14px;
+  padding: 15px;
+  min-height: 48px;
   background: transparent;
   color: var(--red);
   border: none;
@@ -687,49 +931,60 @@ body.g-modal-open {
 
 /* Sugerencias */
 .g-suggest {
-  background: var(--bg3);
-  border-radius: 12px;
+  background: var(--glass-2);
+  border-radius: var(--r-sm);
   margin-top: 8px;
   overflow: hidden;
   max-height: 240px;
   overflow-y: auto;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 .g-suggest-row {
   width: 100%;
   background: none;
   border: none;
-  padding: 12px 14px;
+  padding: 13px 14px;
+  min-height: 44px;
   color: var(--t1);
   font-size: 15px;
   text-align: left;
   display: flex; align-items: flex-start; gap: 8px; flex-direction: column;
-  border-bottom: 0.5px solid var(--sep);
+  box-shadow: inset 0 -0.5px 0 var(--sep);
   font-family: inherit;
 }
-.g-suggest-row:last-child { border-bottom: none; }
+.g-suggest-row:last-child { box-shadow: none; }
+.g-suggest-row:active { background: var(--glass-3); }
 .g-suggest-row .g-suggest-meta { font-size: 12px; color: var(--t3); margin-top: 2px; }
-.g-suggest-row .g-suggest-create { color: var(--accent); font-weight: 600; }
+.g-suggest-row .g-suggest-create { color: var(--t1); font-weight: 620; }
 .g-suggest-empty { padding: 14px; font-size: 13px; color: var(--t3); text-align: center; }
 
 /* Muscle chips */
 .g-muscle-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; min-height: 22px; }
 .g-muscle-chip-selected {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 10px;
+  padding: 9px 13px;
+  min-height: 40px;
   border-radius: var(--pill);
-  border: 1px solid var(--accent-border);
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-size: 13px; font-weight: 600;
+  border: none;
+  background: var(--glass-3);
+  color: var(--t1);
+  font-size: 13px; font-weight: 620;
   font-family: inherit;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 
 /* Resume / confirm */
-.g-resume-summary { background: var(--bg3); border-radius: var(--r-md); padding: 16px; margin-bottom: 16px; }
+.g-resume-summary {
+  background: var(--glass-2);
+  border-radius: var(--r-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+}
 .g-resume-meta {
-  font-size: 12px; font-weight: 700;
+  font-size: 11px; font-weight: 750;
   color: var(--t3);
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
   margin-bottom: 12px;
   text-transform: uppercase;
 }
@@ -738,19 +993,26 @@ body.g-modal-open {
 .g-resume-num {
   font-family: var(--font-num);
   font-size: 26px; font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.035em;
   color: var(--t1);
   font-variant-numeric: tabular-nums;
 }
-.g-resume-unit { font-size: 11px; color: var(--t2); letter-spacing: 0.3px; }
-.g-confirm-summary { background: var(--bg3); border-radius: var(--r-md); padding: 4px 16px; margin-bottom: 12px; }
+.g-resume-unit { font-size: 11px; color: var(--t2); }
+.g-confirm-summary {
+  background: var(--glass-2);
+  border-radius: var(--r-md);
+  padding: 2px 16px;
+  margin-bottom: 12px;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
+}
 .g-confirm-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 0;
-  border-bottom: 0.5px solid var(--sep);
+  gap: 12px;
+  padding: 13px 0;
+  box-shadow: inset 0 -0.5px 0 var(--sep);
   font-size: 15px;
 }
-.g-confirm-row:last-child { border-bottom: none; }
+.g-confirm-row:last-child { box-shadow: none; }
 .g-confirm-row span { color: var(--t2); }
 .g-confirm-row b {
   font-family: var(--font-num);
@@ -760,68 +1022,75 @@ body.g-modal-open {
 }
 .g-confirm-warn {
   font-size: 13px;
-  color: var(--accent);
-  background: var(--accent-dim);
-  padding: 10px 14px;
+  color: var(--t1);
+  background: var(--glass-3);
+  padding: 12px 14px;
   border-radius: var(--r-sm);
   margin-bottom: 16px;
+  line-height: 1.5;
+  box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
 
 /* Toast */
 .toast {
   position: fixed;
-  bottom: max(env(safe-area-inset-bottom), 24px);
+  /* Sube por encima de la barra de pestañas flotante. */
+  bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 22px);
   left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: var(--bg3);
+  transform: translateX(-50%) translateY(16px);
+  display: flex; align-items: center; gap: 14px;
+  background: var(--chrome);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
   color: var(--t1);
-  padding: 12px 20px;
+  padding: 13px 20px;
   border-radius: var(--pill);
   font-size: 14px;
   font-weight: 500;
   opacity: 0;
-  transition: opacity .25s ease, transform .25s ease;
+  transition: opacity var(--base) ease, transform var(--base) var(--ease);
   z-index: 200;
-  border: 0.5px solid var(--sep);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  max-width: calc(100vw - 40px);
+  box-shadow:
+    inset 0 1px 0 var(--rim-top),
+    0 0 0 0.5px var(--rim-hair),
+    var(--lift);
+  max-width: calc(100vw - 32px);
 }
 .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast-msg { flex: 1; }
-.toast { display: flex; align-items: center; gap: 14px; }
 /* Botón de deshacer: área táctil de 44px sin engordar la píldora. */
 .toast-action {
   background: none; border: none;
   color: var(--accent);
   font-size: 14px; font-weight: 700;
-  padding: 12px 4px;
-  margin: -12px 0;
+  padding: 13px 4px;
+  margin: -13px 0;
   flex-shrink: 0;
   font-family: inherit;
 }
 
-/* Banner de actualización */
-/* Banner de actualización.
+/* ─── Banner de actualización ───────────────────────────────────────────────
    Iba como una píldora gris de 13px encima del título: Esteban lo describió
    como "casi imperceptible" y tiene razón — es el único aviso de que hay
-   versión nueva y competía con el fondo. Ahora es una tarjeta naranja de ancho
-   completo, con el color de acento de la marca, texto en bold y un botón con
-   área táctil de verdad. Si vuelve a encogerse, se vuelve invisible otra vez. */
+   versión nueva. Con la paleta platino ya no puede gritar con color, así que
+   grita con jerarquía: superficie sólida clara sobre una app que es toda negra,
+   ancho completo, 16px bold y un botón negro. Si vuelve a encogerse o a
+   volverse translúcido, se vuelve invisible otra vez. */
 .update-banner {
   position: fixed;
   top: max(env(safe-area-inset-top), 10px);
   left: 12px; right: 12px;
   display: flex; align-items: center; gap: 12px;
-  background: linear-gradient(180deg, #FFB340 0%, var(--accent) 100%);
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--accent) 100%);
   border: none;
   border-radius: var(--r-lg);
   padding: 16px 16px 16px 18px;
-  color: #000;
+  color: var(--on-accent);
   font-size: 16px; font-weight: 700;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.015em;
   z-index: 300;
-  box-shadow: 0 10px 34px rgba(255,159,10,0.42), 0 2px 10px rgba(0,0,0,0.55);
-  animation: update-banner-in .32s cubic-bezier(.2,.9,.3,1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.5);
+  animation: update-banner-in .34s var(--ease);
 }
 .update-banner > span { flex: 1; line-height: 1.25; }
 @keyframes update-banner-in {
@@ -835,7 +1104,7 @@ body.g-modal-open {
   border-radius: var(--pill);
   padding: 12px 20px;
   font-size: 15px; font-weight: 700;
-  min-height: 44px;          /* área táctil mínima de Apple HIG */
+  min-height: 44px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -843,10 +1112,10 @@ body.g-modal-open {
 /* Mientras el banner está arriba, el contenido baja para no quedar tapado. */
 body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) + 84px); }
 
-/* Touch targets */
+/* Touch targets — red de seguridad. Ver README §5: 44px es piso, no objetivo. */
 .g-btn-primary, .g-btn-secondary, .g-btn-destructive,
 .g-add-exercise, .g-finalize, .g-confirm-set,
-.g-start-cta, .g-add-cta { min-height: 44px; }
+.g-start-cta, .g-add-cta, .main-tab { min-height: 44px; }
 
 /* Versión de la app (Progresión → DATOS). Diagnóstico de actualizaciones. */
 .g-version-line {
@@ -854,4 +1123,47 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
   color: var(--t3);
   text-align: center;
   padding: 14px 20px 8px;
+}
+
+/* ─── Accesibilidad ─────────────────────────────────────────────────────────
+   Liquid Glass responde a las preferencias del sistema o no es Liquid Glass:
+   Apple lo trata como parte del material, no como un extra. */
+
+/* "Reducir transparencia": el vidrio se vuelve sólido. Sin esto, alguien que
+   activa el ajuste por dificultad de lectura se queda con una app ilegible. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-1: #121214;
+    --glass-2: #1C1C1F;
+    --glass-3: #26262A;
+    --chrome:  #0E0E10;
+  }
+  body::before { display: none; }
+  .g-surface, .g-session-card, .g-ex-card, .g-recent-card, .g-empty-card,
+  .g-list-card, .g-chart-card, .g-info-item, .g-session-row,
+  .g-add-exercise, .g-secondary-btn, .g-search-wrap,
+  .g-prog-hero, .g-pr-card, .g-rest-bar, .main-tabs, .toast, .g-modal-overlay {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .g-modal-overlay { background: rgba(0,0,0,0.85); }
+}
+
+/* "Aumentar contraste": bordes y texto suben, el gris medio desaparece. */
+@media (prefers-contrast: more) {
+  :root {
+    --t2: rgba(255,255,255,0.80);
+    --t3: rgba(255,255,255,0.60);
+    --rim-hair: rgba(255,255,255,0.24);
+    --rim-top: rgba(255,255,255,0.28);
+    --sep: rgba(255,255,255,0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
 }

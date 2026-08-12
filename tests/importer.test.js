@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { normalizeBackup, buildExport, EXPORT_VERSION } from '../js/importer.js';
+import { normalizeBackup, buildExport, EXPORT_VERSION, PREFS_IMPORTABLES } from '../js/importer.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -93,11 +93,21 @@ test('preferencias: solo pasan las claves de la lista blanca', () => {
     preferencias: [
       { clave: 'rest_default', valor: 75 },
       { clave: 'clave_inventada', valor: 'x' },
-      { clave: 'seed_decidido', valor: true }
+      { clave: 'seed_decidido', valor: true },
+      { clave: 'bar_lbs', valor: 35 }
     ]
   });
-  assert.deepEqual(r.preferencias.map((p) => p.clave), ['rest_default', 'seed_decidido']);
+  assert.deepEqual(r.preferencias.map((p) => p.clave), ['rest_default', 'seed_decidido', 'bar_lbs']);
   assert.ok(r.warnings.some((w) => /desconocida/.test(w)));
+});
+
+// Cada preferencia NUEVA tiene que entrar aquí en el mismo commit que la crea:
+// olvidarla no rompe nada visible, solo hace que restaurar un backup la pierda
+// en silencio — el modo de falla que ya se comió las preferencias enteras.
+test('la lista blanca de preferencias cubre todas las claves que la app escribe', () => {
+  ['rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs'].forEach((k) => {
+    assert.ok(PREFS_IMPORTABLES.has(k), 'falta ' + k + ' en PREFS_IMPORTABLES');
+  });
 });
 
 test('backup sin preferencias: lista vacía, nunca undefined', () => {

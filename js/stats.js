@@ -108,6 +108,52 @@ export function nextWorkoutNumber(prefCounter, sesiones) {
   return max + 1;
 }
 
+// ─── Set fantasma (sugerencia de la sesión anterior) ──────────────────────────
+// Qué proponer para el próximo set: el set nº (ya registrados + 1) de la última
+// sesión de ese ejercicio. Si aquella sesión tuvo menos series, se repite la
+// última — que es lo razonable: si sigues añadiendo series, la referencia útil
+// es la última que hiciste, no "nada".
+// `prevSets` viene YA ordenado por `orden`. Devuelve { peso (kg), reps } o null.
+export function suggestNextSet(prevSets, yaRegistrados) {
+  if (!Array.isArray(prevSets) || prevSets.length === 0) return null;
+  const n = Number(yaRegistrados);
+  const idx = Math.min(isFinite(n) && n > 0 ? n : 0, prevSets.length - 1);
+  const s = prevSets[idx];
+  if (!s) return null;
+  const peso = Number(s.peso);
+  const reps = Number(s.reps);
+  // peso 0 es válido (peso corporal); reps 0 no propone nada útil.
+  if (!isFinite(peso) || peso < 0 || !(reps > 0)) return null;
+  return { peso, reps };
+}
+
+// ─── Volumen por grupo muscular ───────────────────────────────────────────────
+// Un ejercicio con varios músculos suma UN set a cada uno, sin repartir
+// fracciones: un press de banca sí trabaja pecho Y tríceps en esa misma serie,
+// y es como lo cuentan Hevy y Boostcamp. Por eso el total de sets por músculo
+// puede superar el número real de series — es una medida de estímulo, no una
+// partición. Solo entran sets Done (regla dura del módulo).
+// `ejMap`: id → ejercicio. Devuelve [{ musculo, sets, volumenKg }] desc.
+export function setsPerMuscle(sets, ejMap) {
+  const acc = new Map();
+  sets.filter(isCountable).forEach((s) => {
+    const ej = ejMap ? ejMap[s.ejercicio_id] : null;
+    const lista = ej && Array.isArray(ej.musculos) && ej.musculos.length > 0
+      ? ej.musculos.filter(Boolean)
+      : [];
+    const musculos = lista.length > 0 ? lista : ['Sin músculo'];
+    const vol = Number(s.peso) * Number(s.reps);
+    musculos.forEach((m) => {
+      const clave = String(m);
+      const cur = acc.get(clave) || { musculo: clave, sets: 0, volumenKg: 0 };
+      cur.sets += 1;
+      cur.volumenKg += vol;
+      acc.set(clave, cur);
+    });
+  });
+  return [...acc.values()].sort((a, b) => b.sets - a.sets || a.musculo.localeCompare(b.musculo));
+}
+
 // Marca s._isPR (récord de peso en su momento) sobre filas cronológicas.
 export function markRunningPRs(rows) {
   let runningMax = 0;
