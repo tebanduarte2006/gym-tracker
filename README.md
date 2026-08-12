@@ -73,8 +73,9 @@ js/
   db.js               IndexedDB: UNA conexión cacheada, índices usados de verdad, bulk import transaccional.
   dom.js              el() / clear() / toast() / guard().
   format.js           [PURO] unidades kg↔lbs, fechas es-CO, duraciones, normalización.
-  stats.js            [PURO] isCountable/isPlaceholder, PR peso/reps, Epley, volumen, filas por sesión, set fantasma, sets por músculo.
+  stats.js            [PURO] isCountable/isPlaceholder, PR peso/reps, Epley, volumen, filas por sesión, set fantasma, sets por músculo, autollenado.
   plates.js           [PURO] calculadora de discos por lado (en libras; display, no almacenamiento).
+  muscles.js          [PURO] taxonomía de 18 músculos + migración del etiquetado viejo. Ver §5.3.
   importer.js         [PURO] normaliza backups v2 (habitos-app, con toda su deuda) y v3 (nativo).
   audio.js            Beep Web Audio (iOS no soporta navigator.vibrate).
   wakelock.js         Screen Wake Lock durante sesión activa.
@@ -84,6 +85,7 @@ js/
   ui/progresion.js    Tab 3: hero semanal, PR doble, chart SVG, cardio, export/import.
   ui/modals.js        Bottom sheets, confirmaciones, autocomplete.
   ui/icons.js         Iconos SVG inline.
+  ui/dragorder.js     Reordenar por pulsación larga + arrastre (homescreen de iOS).
 tests/                node --test. format/stats/importer + validación del seed real.
 scripts/check-syntax.mjs   npm run check.
 data/seed.json        Backup real de habitos-app (2026-07-28). Primera apertura con DB vacía lo ofrece restaurar.
@@ -185,6 +187,7 @@ cardio     { id (AI), sesion_id (índice), tipo (free-text), duracion_min,
              velocidad_kmh?, inclinacion?, orden?, ts? }
 preferencias { clave, valor }
              · rest_default (90) · contador_workouts · seed_decidido · bar_lbs (45)
+             · musculos_migrados (bool): ya se ofreció la migración de §5.3
              · TODA clave nueva va también a PREFS_IMPORTABLES en importer.js,
                o restaurar un backup la pierde en silencio (hay test que lo exige).
 ```
@@ -323,6 +326,81 @@ normalizado (sin tildes ni mayúsculas), pero la UI hace **elegir de una lista**
 de días recientes. Escribir a mano permite que "Upper A" y "Upper A " sean días
 distintos y te quedes sin propuesta sin entender por qué.
 
+### 5.3 Taxonomía de músculos (leer antes de tocar `js/muscles.js`)
+
+Esteban reportó (2026-08-12) "muchos ejercicios con músculos raros, mismo
+músculo duplicado" y pidió una lista real y definitiva. La auditoría de sus 36
+ejercicios encontró tres defectos, y ninguno estaba en sus datos: estaban en la
+lista que ofrecía el selector.
+
+1. **Número inconsistente.** La constante decía `Aductores` y sus datos decían
+   `Aductor`; igual con `Abductor(es)` y `Trapecio(s)`. El selector añadía a la
+   lista fija los músculos que descubría en la base, así que mostraba **los dos
+   a la vez**: dos filas casi idénticas que parecen un error de la app.
+2. **Granularidad mezclada.** `Espalda` convivía con `Dorsales`; `Hombros` con
+   `Hombro frontal`; `Piernas` con `Cuádriceps`; `Core` con `Abdominales`. Poder
+   marcar la región Y su parte hace que **el volumen por músculo cuente el mismo
+   set dos veces** y que dos filas del informe digan lo mismo.
+3. **Etiquetas vagas.** 11 ejercicios estaban marcados solo como `Espalda` u
+   `Hombros`, que para decidir qué entrenar no dice nada.
+
+**La lista definitiva: 18 músculos, un solo nivel de granularidad.** Se separa un
+músculo de su vecino SOLO si esa separación cambia una decisión de entrenamiento
+— por eso los deltoides van por sus tres cabezas (la trampa clásica es machacar
+el frontal y no tocar el posterior) pero el pecho no se parte en superior e
+inferior: eso es ángulo, no músculo, y obligaría a adivinar en cada ejercicio.
+
+| Empuje | Tirón | Core | Pierna |
+|---|---|---|---|
+| Pecho · Deltoides frontal · Deltoides lateral · Tríceps | Dorsales · Trapecios · Deltoides posterior · Bíceps · Antebrazos | Abdominales · Oblicuos · Lumbares | Cuádriceps · Isquiotibiales · Glúteos · Aductores · Abductores · Gemelos |
+
+**El selector es una LISTA CERRADA.** Ya no hay buscador ni "Crear «X»", y ya no
+se añaden los músculos descubiertos en la base: eso es exactamente lo que dejó
+nacer `Aductor` junto a `Aductores`. Con 18 caben todos en pantalla agrupados.
+Si falta un músculo de verdad, se añade a `js/muscles.js` y **solo ahí**.
+
+**La migración se OFRECE, no se aplica sola** (`main.js › maybeOfferMuscleMigration`).
+Reescribe el etiquetado de todo su historial, y eso es suyo: el sheet enseña
+ejercicio por ejercicio el antes y el después, y si dice que no se recuerda en
+`musculos_migrados` y no se vuelve a preguntar.
+
+**Regla de la migración: traducir, no inventar.** `Espalda` en un remo sí quiere
+decir dorsales y trapecios — eso es traducir lo que la etiqueta ya significaba.
+Añadirle `Bíceps` sería una decisión de entrenamiento disfrazada de limpieza de
+datos, y le triplicaría el volumen de bíceps sin que entienda por qué. Lo que no
+se puede traducir sin adivinar se queda como está y se marca para que lo ajuste
+él. La tabla `POR_EJERCICIO` es de **una sola vez**, para sus 36 ejercicios de
+agosto de 2026: un ejercicio nuevo se crea ya con la lista canónica.
+
+### 5.4 Reordenar arrastrando (`js/ui/dragorder.js`)
+
+Sustituye los botones ↑ / ↓, que dejaban la fila de herramientas con cinco
+controles y convertían reordenar seis ejercicios en quince toques. Pulsación
+larga (420 ms) + arrastre, como el homescreen del iPhone. Cuatro cosas que
+parecen detalles y no lo son:
+
+1. **La pulsación larga se cancela si el dedo se mueve antes de tiempo.** El
+   gesto de scroll y el de arrastrar nacen idénticos; sin ese umbral, cualquier
+   scroll que empiece sobre una tarjeta acabaría arrastrándola.
+2. **El destino se calcula con la posición del DEDO**, no acumulando
+   desplazamiento. La primera versión sumaba alturas y fallaba justo en el caso
+   normal: durante el entrenamiento hay una tarjeta abierta (~400 px) entre
+   varias cerradas (~90 px), y arrastrar la abierta la dejaba dos posiciones más
+   abajo de donde apuntaba el dedo.
+3. **La cabecera lleva `data-drag-handle`.** Es un `<button>` (abre y cierra el
+   ejercicio) y sin esa marca la guarda que impide secuestrar controles no
+   dejaba ni empezar el gesto.
+4. **Se traga el `click` posterior al arrastre.** El navegador lo dispara igual
+   sobre el asa, y sin eso reordenar dejaba el ejercicio colapsado solo.
+
+El `gap` va en `.g-ex-list`, no como `margin-bottom` de la tarjeta: `dragorder.js`
+lo lee con `getComputedStyle` para calcular el hueco. Si lo devuelves a `margin`,
+el arrastre calcula mal.
+
+**Coste conocido:** sin ↑ / ↓ no hay forma de reordenar con VoiceOver ni con
+teclado. Es el precio del gesto que pidió Esteban; si algún día importa, la
+salida es un modo "reordenar" explícito, no devolver los botones a la fila.
+
 ## 6. Deploy (paso a paso)
 
 ```bash
@@ -452,6 +530,28 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     "upper a " son el mismo día para una persona y dos días distintos para un
     `===`. Se normaliza SIEMPRE (`normalizeKey`) y, mejor aún, se hace elegir de
     una lista en vez de escribir.
+31. **Una lista de opciones "abierta" se contamina sola.** El selector de
+    músculos permitía crear entradas nuevas Y añadía las que descubría en la
+    base: bastó que la constante dijera `Aductores` y un dato dijera `Aductor`
+    para que el usuario viera dos opciones idénticas y no entendiera cuál elegir.
+    Un vocabulario controlado se define en UN sitio y se cierra.
+32. **Mezclar una región con sus partes en la misma lista es doble conteo.**
+    `Espalda` y `Dorsales` marcables a la vez hacían que un set sumara dos veces
+    en el volumen por músculo. Una taxonomía tiene UN nivel de granularidad, o no
+    es una taxonomía.
+33. **Migrar datos no es adivinar datos.** Traducir `Espalda` de un remo a
+    dorsales y trapecios es traducir lo que la etiqueta ya significaba; añadirle
+    bíceps habría sido una decisión de entrenamiento disfrazada de limpieza. Lo
+    que no se puede traducir sin inventar se deja marcado para que lo decida el
+    dueño de los datos — y la migración se OFRECE con el diff a la vista, nunca
+    se aplica sola.
+34. **Un gesto largo y un scroll nacen iguales.** Solo se distinguen por lo que
+    pasa en los primeros 400 ms. Si tu pulsación larga no se cancela al primer
+    movimiento del dedo, has roto el scroll de esa pantalla.
+35. **Con alturas variables, el dedo es la única referencia fiable.** Calcular el
+    destino de un arrastre acumulando alturas funciona con listas uniformes y
+    falla en cuanto un elemento está expandido. Se compara la posición del
+    puntero contra las bandas originales.
 
 ## 8. Pendientes / ideas evaluables
 
@@ -471,6 +571,8 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
       la lista y la regla es "cambios quirúrgicos, cero refactors de paso").
 - [ ] Sin historial del navegador: el gesto "atrás" del iPhone sale de la app en
       vez de volver de un detalle. Requeriría la History API.
+- [ ] Reordenar accesible: el arrastre por pulsación larga no es operable con
+      VoiceOver ni teclado (§5.4). Salida: un modo "reordenar" explícito.
 
 ## 9. Historial de cambios estructurales
 
@@ -479,6 +581,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-12 | `(pending)` | **Taxonomía de músculos, arrastre para reordenar y flujo de inicio.** **Músculos (§5.3):** Esteban reportó "músculos raros y duplicados"; la auditoría encontró que el defecto no estaba en sus datos sino en el selector — la constante decía `Aductores` y sus datos `Aductor`, y como el selector añadía además los músculos descubiertos en la base, mostraba los dos a la vez. Peor: `Espalda` y `Dorsales` eran marcables a la vez, así que el volumen por músculo contaba **el mismo set dos veces**. Lista definitiva de **18 músculos** en `js/muscles.js`, un solo nivel de granularidad, agrupada por patrón de movimiento; el selector pasa a ser **lista cerrada** (sin buscador ni "Crear «X»", que es lo que dejó nacer los duplicados). Migración del historial **ofrecida con el diff a la vista** (17 ejercicios), con la regla de traducir y no inventar: `Espalda` en un remo sí significa dorsales y trapecios, pero añadirle bíceps habría triplicado ese volumen sin motivo. 14 tests, incluido uno sobre los 36 ejercicios reales que exige que nadie quede sin músculos ni con nombres fuera de la taxonomía. **Editar músculos DURANTE la rutina** desde la tarjeta del ejercicio. **Reordenar (§5.4):** los ↑ / ↓ los sustituye pulsación larga + arrastre estilo homescreen de iOS (`js/ui/dragorder.js`). **Inicio:** un solo campo que busca entre tus días y, si lo que escribes no existe, ofrece crearlo vacío. Verificado en Chromium: migración aplicada, selector de 18 en 4 grupos, filtrado de días, creación de día nuevo, arrastre que aterriza donde apunta el dedo (con una card abierta entre cerradas) y scroll que NO arrastra. 0 errores de consola. 76/76 tests. `sw.js → gymtracker-20260812-4`. |
 | 2026-08-12 | `5a5577d` | **Modelo propuesto/registrado + autollenado del día.** Esteban pidió quitar los chips `Hecho / Pendiente / Saltado` ("herencia de un template de Notion obsoleto") y que la app **suponga que repetirá el mismo día**: al empezar "Upper A" se proponen los ejercicios y sets de la última sesión con ese nombre, él modifica durante el entrenamiento, y lo que registre se vuelve el molde de la próxima. **El template ES la sesión anterior** — no hay entidad nueva, ni CRUD de plantillas (§5.2 explica por qué eso sería justo lo que rechazó). Los chips se sustituyen por un **botón dedicado de registro por fila** (decisión suya: tocar la fila entera era un blanco demasiado grande para el pulgar y un registro accidental contamina PRs en silencio); un set propuesto se ve apagado y no cuenta para nada. Editar un set NO lo registra. El **verde desapareció de la app entera**: solo queda el rojo destructivo. La rutina se **elige de una lista** en vez de escribirse, porque "Upper A" y "Upper A " partirían el día en dos. El sheet de finalizar ahora **nombra los ejercicios sin ningún set registrado**, que al no guardarse tampoco entrarán en la propuesta de la próxima vez — sin ese aviso el plan se encogería solo y semanas después. `stats.js › autofillPlan` con 10 tests. Cero cambios de schema: un propuesto es un `Pending` con peso y reps reales, e `isCountable`/`isPlaceholder`/el borrado al finalizar ya hacían lo correcto. Verificado en Chromium el ciclo entero con el seed real: autollenado de 6 ejercicios/13 sets, registro y deshacer, avisos al finalizar, y la sesión siguiente proponiendo solo lo registrado. 0 errores de consola. 61/61 tests. `sw.js → gymtracker-20260812-3`. |
 | 2026-08-12 | `f43bf76` | **Rediseño "Vidrio Negro" + 3 funciones.** Esteban pidió una estética más limpia con negros y grises transparentes tipo Liquid Glass; eligió **acento platino `#EDEDF0`** sobre el naranja heredado tras ver las dos opciones maquetadas. `styles.css` reescrito sobre cuatro niveles de vidrio (blanco 4.5/7/10.5% + chrome `#101012` al 72%), rampa de texto de 4 niveles y halos radiales en `body::before` — **sin ellos el `backdrop-filter` no tiene qué muestrear y todo el vidrio se degrada a gris**. Reglas completas en §5.1. **Barra de pestañas movida ABAJO** y flotante: era navegación principal fuera del alcance del pulgar en un iPhone 11. Áreas táctiles de 44 px en todo (la "×" de borrar set medía 26, el cerrar de modales 28). Soporte de `prefers-reduced-transparency`, `prefers-contrast` y `prefers-reduced-motion`. Colores del SVG movidos de `setAttribute` en JS a clases CSS. **Funciones nuevas:** (1) **set fantasma** — el peso y las reps de la sesión anterior aparecen como placeholder y confirmar sin teclear los registra, el atajo que más tiempo ahorra según Hevy; (2) **calculadora de discos** (`js/plates.js`, módulo puro, 12 tests) con el peso de barra persistido en `bar_lbs`; (3) **sets por músculo de la semana** en Progresión, aprovechando los `musculos` que ya se guardaban y no se usaban. `suggestNextSet` y `setsPerMuscle` en `stats.js` con tests. `bar_lbs` añadida a `PREFS_IMPORTABLES` + test que exige que la lista blanca cubra toda clave que la app escriba. Verificado en Chromium con el seed real: fantasma que avanza set a set y se reexpresa en kg, registro de un toque, discos 185→45+25, caso no alcanzable, tarjeta de músculos y los 3 tabs. 0 errores de consola. 51/51 tests. `sw.js → gymtracker-20260812-2`. |
 | 2026-08-12 | `009d0ae` | **Revisión maestra #3: 10 defectos.** **Actualizaciones (crítico):** `controllerchange` seguía leyendo el `hadController` congelado del arranque — la mitad de la lección #18 que no se arregló. Una pestaña abierta desde la primera instalación aplicaba la versión nueva pero NUNCA recargaba: seguía corriendo el JS viejo en memoria, sin banner y sin síntoma visible. Ahora el flag se marca cuando aparece el primer controller. Además `forceUpdateCheck()` esperaba a `reg.waiting` cuando el worker podía estar aún en `installing`, y contestaba "Ya tienes la última versión" — mentira dicha justo en la pantalla de diagnóstico; ahora espera a que termine de instalar (timeout 10 s). **iOS:** el bloqueo de scroll del fondo con un sheet abierto nunca funcionó en iPhone (`body{overflow:hidden}` no hace nada en iOS Safari; se validó en Chrome de escritorio); ahora `position:fixed` + restauración de `scrollY`. **Sesión activa:** agregar un ejercicio que YA estaba en la sesión creaba un placeholder duplicado y lo mandaba al final del orden; ahora avisa y solo abre su card. Borrar un set (el "×" está pegado al chip de estado) es irreversible de un toque → toast con **Deshacer** de 6 s. **Enter** encadena peso → reps → guardar sin soltar el teclado. **Rendimiento:** `boot()` pintaba los TRES tabs (9 lecturas completas de IndexedDB antes de ver nada, encima del arranque en frío); ahora solo el visible. Cada card de ejercicio hacía su propio `dbGetAll('sesiones')` completo (8 ejercicios = 8 barridos de la tabla); ahora se carga una vez en `refreshExercises`. El tab Ejercicios pedía `ejercicios` y `sesiones` por duplicado (5 lecturas donde bastan 3). **Otros:** Progresión ocultaba la sección de cardio si no había ningún ejercicio; `switchTab` renderizaba sin try/catch; `index.html` sin `mobile-web-app-capable`. Verificado end-to-end en Chromium con el seed real: restauración, sesión completa, re-agregar ejercicio, Enter, deshacer, scroll lock, finalización y los 3 tabs. 0 errores de consola. 30/30 tests. `sw.js → gymtracker-20260812-1`. |

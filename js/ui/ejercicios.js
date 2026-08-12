@@ -6,16 +6,7 @@ import { fmtWeight, fmtDateLong, normalizeKey } from '../format.js';
 import { weightPR, isCountable, sessionTs } from '../stats.js';
 import { ICON } from './icons.js';
 import { sheet, confirmAction, attachSuggest, once } from './modals.js';
-
-const MUSCLE_GROUPS = [
-  'Pecho', 'Pecho superior', 'Pecho inferior',
-  'Espalda', 'Dorsales', 'Trapecio', 'Romboides', 'Lumbar',
-  'Hombros', 'Hombro frontal', 'Hombro lateral', 'Hombro posterior',
-  'Bíceps', 'Tríceps', 'Antebrazo',
-  'Core', 'Abdominales', 'Oblicuos',
-  'Piernas', 'Cuádriceps', 'Isquiotibiales', 'Gemelos', 'Aductores', 'Abductores', 'Tibial',
-  'Glúteos', 'Cuello'
-];
+import { MUSCLE_GROUPS, MUSCLES, canonicalMuscle } from '../muscles.js';
 
 const _filter = { type: null, search: '' };
 
@@ -327,91 +318,51 @@ function openRestModal(ej, onSaved) {
 }
 
 // ─── Muscle picker (reutilizable) ─────────────────────────────────────────────
+// LISTA CERRADA a propósito. Antes había un buscador con "Crear «X»" y además se
+// añadían al vuelo los músculos descubiertos en la base: así nacieron 'Aductor'
+// junto a 'Aductores' y 'Trapecio' junto a 'Trapecios', dos filas casi idénticas
+// en el selector que Esteban reportó como músculos duplicados y raros. Con 18
+// músculos caben todos en pantalla agrupados y no hace falta ni buscar ni crear.
+// Si de verdad falta un músculo, se añade a `js/muscles.js` — y solo ahí.
 export function buildMusclePicker(opts = {}) {
-  const selected = {};
-  (opts.initialSelected || []).filter(Boolean).forEach((m) => { selected[m] = true; });
-
-  const wrap = el('div', {});
-  const chips = el('div', { class: 'g-muscle-chips' });
-  wrap.appendChild(chips);
-  const searchWrap = el('div', { class: 'g-search-wrap', style: 'margin-top:8px;' });
-  searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
-  const input = el('input', { class: 'g-search', type: 'text', placeholder: 'Buscar o crear músculo…', autocomplete: 'off' });
-  searchWrap.appendChild(input);
-  wrap.appendChild(searchWrap);
-  const sugg = el('div', { class: 'g-suggest' });
-  wrap.appendChild(sugg);
-
-  let allMuscles = MUSCLE_GROUPS.slice();
-  Object.keys(selected).forEach((m) => {
-    if (!allMuscles.some((x) => normalizeKey(x) === normalizeKey(m))) allMuscles.push(m);
+  const selected = new Set();
+  (opts.initialSelected || []).filter(Boolean).forEach((m) => {
+    // Lo que venga del historial se traduce a la taxonomía al vuelo, para que
+    // abrir el editor de un ejercicio viejo no muestre nombres que ya no existen.
+    const c = canonicalMuscle(m);
+    if (c) selected.add(c);
   });
 
-  function renderChips() {
-    clear(chips);
-    Object.keys(selected).forEach((m) => {
-      const chip = el('button', { type: 'button', class: 'g-muscle-chip-selected' }, [m + ' ✕']);
-      chip.addEventListener('click', () => {
-        delete selected[m];
-        renderChips();
-        renderSugg(input.value);
-      });
-      chips.appendChild(chip);
-    });
-  }
+  const wrap = el('div', { class: 'g-muscle-picker' });
+  const onChange = typeof opts.onChange === 'function' ? opts.onChange : null;
+  const botones = new Map();
 
-  function renderSugg(term) {
-    clear(sugg);
-    const t = (term || '').trim();
-    const tKey = normalizeKey(t);
-    const filtered = allMuscles.filter((m) => {
-      if (selected[m]) return false;
-      if (!t) return true;
-      return normalizeKey(m).indexOf(tKey) >= 0;
-    });
-    filtered.slice(0, 12).forEach((m) => {
-      const item = el('button', { class: 'g-suggest-row', type: 'button' }, ['+ ' + m]);
-      item.addEventListener('click', () => {
-        selected[m] = true;
-        input.value = '';
-        renderChips();
-        renderSugg('');
+  MUSCLE_GROUPS.forEach((g) => {
+    wrap.appendChild(el('div', { class: 'g-muscle-group-label' }, [g.grupo]));
+    const fila = el('div', { class: 'g-muscle-chips' });
+    g.musculos.forEach((m) => {
+      const b = el('button', {
+        type: 'button',
+        class: 'g-muscle-chip' + (selected.has(m) ? ' on' : ''),
+        'aria-pressed': selected.has(m) ? 'true' : 'false'
+      }, [m]);
+      b.addEventListener('click', () => {
+        if (selected.has(m)) selected.delete(m); else selected.add(m);
+        b.classList.toggle('on', selected.has(m));
+        b.setAttribute('aria-pressed', selected.has(m) ? 'true' : 'false');
+        if (onChange) onChange(getSelected());
       });
-      sugg.appendChild(item);
+      botones.set(m, b);
+      fila.appendChild(b);
     });
-    if (t && !allMuscles.some((m) => normalizeKey(m) === tKey) && !selected[t]) {
-      const createItem = el('button', { class: 'g-suggest-row', type: 'button' }, [
-        el('span', { class: 'g-suggest-create' }, ['+ Crear "' + t + '"'])
-      ]);
-      createItem.addEventListener('click', () => {
-        selected[t] = true;
-        allMuscles.push(t);
-        allMuscles.sort((a, b) => a.localeCompare(b));
-        input.value = '';
-        renderChips();
-        renderSugg('');
-      });
-      sugg.appendChild(createItem);
-    }
-  }
-
-  guard(dbGetAll('ejercicios'), 'músculos descubiertos').then((all) => {
-    const seen = {};
-    allMuscles.forEach((m) => { seen[normalizeKey(m)] = true; });
-    all.forEach((e) => {
-      (e.musculos || []).forEach((m) => {
-        const key = normalizeKey(m);
-        if (m && !seen[key]) { seen[key] = true; allMuscles.push(m); }
-      });
-    });
-    allMuscles.sort((a, b) => a.localeCompare(b));
-    renderSugg(input.value);
+    wrap.appendChild(fila);
   });
 
-  input.addEventListener('input', () => renderSugg(input.value));
-  renderChips();
+  // Orden estable por la taxonomía, no por orden de toque: dos ejercicios con
+  // los mismos músculos deben mostrarlos siempre igual.
+  const getSelected = () => MUSCLES.filter((m) => selected.has(m));
 
-  return { container: wrap, getSelected: () => Object.keys(selected) };
+  return { container: wrap, getSelected };
 }
 
 // ─── Crear ejercicio (compartido con Entrenar) ────────────────────────────────
@@ -479,25 +430,26 @@ export function showNewExerciseModal(onCreated, defaultRoutine) {
   setTimeout(() => nameInput.focus(), 80);
 }
 
-function openEditMusclesModal(ej, onSaved) {
+// Exportado: durante la rutina también se pueden cambiar los músculos de un
+// ejercicio, sin salir del entrenamiento (pedido de Esteban 2026-08-12).
+export function openEditMusclesModal(ej, onSaved) {
   const s = sheet('Editar músculos');
   s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:0;' }, [ej.nombre]));
   const picker = buildMusclePicker({ initialSelected: ej.musculos || [] });
   s.modal.appendChild(picker.container);
+  s.modal.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:14px;' }, [
+    'Los músculos son del ejercicio, no de la sesión: cambiarlos recalcula el volumen por músculo de tu historial.'
+  ]));
   const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar cambios']);
-  save.addEventListener('click', () => {
+  once(save, () => {
     const muscles = picker.getSelected();
-    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return; }
-    confirmAction('Confirmar',
-      'Cambiar los músculos de "' + ej.nombre + '"? Afecta también las sesiones pasadas.',
-      () => {
-        ej.musculos = muscles;
-        guard(dbPut('ejercicios', ej), 'guardando músculos').then(() => {
-          s.close();
-          toast('Músculos actualizados');
-          if (onSaved) onSaved(ej);
-        });
-      });
+    if (muscles.length === 0) { toast('Selecciona al menos un músculo'); return null; }
+    ej.musculos = muscles;
+    return guard(dbPut('ejercicios', ej), 'guardando músculos').then(() => {
+      s.close();
+      toast('Músculos actualizados');
+      if (onSaved) onSaved(ej);
+    });
   });
   s.modal.appendChild(save);
   s.open();

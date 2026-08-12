@@ -24,7 +24,8 @@ import { startRest, stopRest, restActive, restState, bindRestUI } from '../restt
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON } from './icons.js';
 import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
-import { showNewExerciseModal } from './ejercicios.js';
+import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
+import { enableDragOrder } from './dragorder.js';
 
 const DEFAULT_REST = 90;
 
@@ -33,6 +34,7 @@ let _sessionTimerId = null;
 let _openEj = new Set();            // cards abiertas (persiste entre refreshes)
 let _restOverrides = {};            // ejId → sec, solo esta sesión (en memoria)
 let _restDefault = DEFAULT_REST;
+let _dragOff = null;              // desactivador del arrastre del render actual
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 export function renderEntrenar(panel) {
@@ -314,82 +316,102 @@ function promptResume(panel, activa) {
 // de romper y además ahorra teclear en el gimnasio.)
 function showStartModal(panel) {
   const s = sheet('¿Qué entrenas hoy?');
+
+  // Un solo campo que hace de buscador Y de nombre para un día nuevo. Escribir
+  // filtra tus días; si lo que escribes no existe, la última fila ofrece
+  // crearlo. Así elegir un día conocido es exacto (imposible que "Upper A" y
+  // "Upper A " se conviertan en dos días y te dejen sin propuesta) y crear uno
+  // nuevo no cuesta un paso extra.
+  const input = el('input', {
+    class: 'g-modal-input', type: 'text', autocomplete: 'off',
+    placeholder: 'Busca un día o escribe uno nuevo…'
+  });
+  s.modal.appendChild(input);
   const lista = el('div', {});
   s.modal.appendChild(lista);
 
-  // Rutina nueva: plegada, para que no compita con lo que se usa el 95% de las
-  // veces, que es repetir un día que ya existe.
-  const nuevaWrap = el('div', { class: 'hidden', style: 'margin-top:6px;' });
-  const input = el('input', {
-    class: 'g-modal-input', type: 'text',
-    placeholder: 'Ej. Upper A, Push, Leg Day…', autocomplete: 'off'
-  });
-  nuevaWrap.appendChild(input);
-  const startBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Comenzar entrenamiento']);
-  once(startBtn, () => {
-    const name = input.value.trim();
-    if (!name) { toast('Escribe un nombre para la rutina'); return null; }
+  // NO se enfoca el campo al abrir: el teclado taparía la lista de días, que es
+  // lo que se usa el 95% de las veces.
+  let dias = [];
+  const arrancar = (nombre) => {
     s.close();
-    return createSession(panel, name);
-  });
-  nuevaWrap.appendChild(startBtn);
+    return createSession(panel, nombre);
+  };
 
-  const nuevaBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['+ Rutina nueva']);
-  nuevaBtn.addEventListener('click', () => {
-    nuevaBtn.classList.add('hidden');
-    nuevaWrap.classList.remove('hidden');
-    setTimeout(() => input.focus(), 60);
+  function pintar() {
+    clear(lista);
+    const termino = input.value.trim();
+    const clave = normalizeKey(termino);
+    const filtrados = clave ? dias.filter((d) => d.key.indexOf(clave) >= 0) : dias;
+
+    if (filtrados.length > 0) {
+      lista.appendChild(el('div', { class: 'g-modal-sub' }, ['Repetir un día']));
+      const card = el('div', { class: 'g-list-card' });
+      filtrados.slice(0, 8).forEach((d) => {
+        const row = el('button', { class: 'g-list-row', type: 'button' }, [
+          el('div', {}, [
+            el('div', { class: 'g-list-name' }, [d.nombre]),
+            el('div', { class: 'g-list-sub' }, [d.detalle])
+          ]),
+          el('span', { class: 'g-list-arrow' }, ['›'])
+        ]);
+        once(row, () => arrancar(d.nombre));
+        card.appendChild(row);
+      });
+      lista.appendChild(card);
+    }
+
+    // Día nuevo: solo si lo escrito no es exactamente uno que ya existe.
+    if (clave && !dias.some((d) => d.key === clave)) {
+      lista.appendChild(el('div', { class: 'g-modal-sub' }, ['Día nuevo']));
+      const crear = el('button', { class: 'g-btn-primary', type: 'button', style: 'margin-top:0;' }, [
+        'Empezar "' + termino + '" desde cero'
+      ]);
+      once(crear, () => arrancar(termino));
+      lista.appendChild(crear);
+      lista.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:10px;' }, [
+        'Arranca vacío. Lo que registres hoy será la propuesta de la próxima vez.'
+      ]));
+    } else if (filtrados.length === 0) {
+      lista.appendChild(el('div', { class: 'g-empty-card' }, [
+        'Escribe el nombre de tu primer día — por ejemplo Upper A, Push o Legs.'
+      ]));
+    }
+  }
+
+  input.addEventListener('input', pintar);
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const termino = input.value.trim();
+    if (termino) arrancar(termino);
   });
-  s.modal.appendChild(nuevaBtn);
-  s.modal.appendChild(nuevaWrap);
 
   guard(Promise.all([dbGetAll('sesiones'), dbGetAll('sets')]), 'cargando rutinas').then(([ses, sets]) => {
-    // Una entrada por rutina, la más reciente primero, con lo que propondría.
-    const vistas = [];
+    const vistos = new Set();
     ses.slice()
       .filter((x) => x.finalizada === true && x.routine_type)
       .sort((a, b) => sessionTs(b) - sessionTs(a))
       .forEach((x) => {
         const key = normalizeKey(x.routine_type);
-        if (vistas.some((v) => v.key === key)) return;
-        vistas.push({ key, nombre: x.routine_type, sesion: x });
+        if (vistos.has(key)) return;
+        vistos.add(key);
+        const plan = autofillPlan(x.routine_type, ses, sets);
+        const nEj = plan ? plan.ejercicios.length : 0;
+        const nSets = plan ? plan.ejercicios.reduce((t, e) => t + e.sets.length, 0) : 0;
+        dias.push({
+          key,
+          nombre: x.routine_type,
+          detalle: plan
+            ? nEj + (nEj === 1 ? ' ejercicio · ' : ' ejercicios · ') + nSets +
+              (nSets === 1 ? ' set · ' : ' sets · ') + fmtDateShort(x.fecha)
+            : 'Sin sets registrados · ' + fmtDateShort(x.fecha)
+        });
       });
-
-    if (vistas.length === 0) {
-      // Primera vez de todas: no hay nada que elegir, se abre directo el input.
-      nuevaBtn.classList.add('hidden');
-      nuevaWrap.classList.remove('hidden');
-      setTimeout(() => input.focus(), 80);
-      return;
-    }
-
-    const card = el('div', { class: 'g-list-card' });
-    vistas.slice(0, 8).forEach((v) => {
-      const plan = autofillPlan(v.nombre, ses, sets);
-      const nEj = plan ? plan.ejercicios.length : 0;
-      const nSets = plan ? plan.ejercicios.reduce((t, e) => t + e.sets.length, 0) : 0;
-      const row = el('button', { class: 'g-list-row', type: 'button' }, [
-        el('div', {}, [
-          el('div', { class: 'g-list-name' }, [v.nombre]),
-          el('div', { class: 'g-list-sub' }, [
-            plan
-              ? nEj + (nEj === 1 ? ' ejercicio · ' : ' ejercicios · ') + nSets +
-                (nSets === 1 ? ' set · ' : ' sets · ') + fmtDateShort(v.sesion.fecha)
-              : 'Sin sets registrados · ' + fmtDateShort(v.sesion.fecha)
-          ])
-        ]),
-        el('span', { class: 'g-list-arrow' }, ['›'])
-      ]);
-      once(row, () => {
-        s.close();
-        return createSession(panel, v.nombre);
-      });
-      card.appendChild(row);
-    });
-    lista.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:0;' }, ['Repetir un día']));
-    lista.appendChild(card);
+    pintar();
   });
 
+  pintar();
   s.open();
 }
 
@@ -477,8 +499,9 @@ function renderActiveSession(panel, sesion) {
   wrap.appendChild(restBar);
   setupRestBar(restBar);
 
-  // Ejercicios
-  const exList = el('div', {});
+  // Ejercicios. `g-ex-list` le da el gap que dragorder.js lee para calcular
+  // el hueco que deja la card levantada.
+  const exList = el('div', { class: 'g-ex-list' });
   wrap.appendChild(exList);
   refreshExercises(sesion, exList);
 
@@ -639,17 +662,43 @@ function refreshExercises(sesion, listEl) {
         if (!ej) return;
         listEl.appendChild(buildExerciseCard(sesion, ej, listEl, { idx, total: order.length, order, sesMap }));
       });
+
+      // Reordenar con pulsación larga + arrastre, como el homescreen del
+      // iPhone. Se engancha DESPUÉS de pintar y una sola vez por render: el
+      // listener vive en el contenedor, no en cada card.
+      if (_dragOff) { _dragOff(); _dragOff = null; }
+      if (order.length > 1) {
+        _dragOff = enableDragOrder(listEl, {
+          onStart: () => { document.body.classList.add('g-drag-activo'); },
+          onEnd: () => { document.body.classList.remove('g-drag-activo'); },
+          onDrop: (ids) => {
+            sesion.ej_orden = ids.map(Number);
+            guard(dbPut('sesiones', sesion), 'reordenando').then(() => {
+              toast('Orden guardado');
+              refreshExercises(sesion, listEl);
+            });
+          }
+        });
+      }
     });
 }
 
 function buildExerciseCard(sesion, ej, listEl, pos) {
-  const card = el('div', { class: 'g-ex-card' + (_openEj.has(ej.id) ? ' open' : '') });
+  const card = el('div', {
+    class: 'g-ex-card' + (_openEj.has(ej.id) ? ' open' : ''),
+    'data-drag-id': String(ej.id)
+  });
 
   // Header
-  const head = el('button', { class: 'g-ex-head', type: 'button' });
+  // `data-drag-handle`: la cabecera es el asa del arrastre (como el icono en el
+  // homescreen del iPhone). Es un <button> —abre y cierra el ejercicio— y sin
+  // esta marca dragorder.js la trataría como un control cualquiera y no dejaría
+  // empezar el gesto encima.
+  const head = el('button', { class: 'g-ex-head', type: 'button', 'data-drag-handle': '' });
+  const musculoEl = el('div', { class: 'g-ex-muscle' }, [(ej.musculos || []).join(' · ') || 'sin músculo']);
   head.appendChild(el('div', {}, [
     el('div', { class: 'g-ex-name' }, [ej.nombre]),
-    el('div', { class: 'g-ex-muscle' }, [(ej.musculos || []).join(' · ') || 'sin músculo'])
+    musculoEl
   ]));
   const countEl = el('div', { class: 'g-ex-count' }, ['']);
   const chev = ICON.chevronDown({ size: 18, class: 'g-ex-chevron' });
@@ -672,23 +721,16 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, ['🏋 Discos']);
   platesBtn.addEventListener('click', () => openPlateModal(addRow.currentLbs()));
   tools.appendChild(platesBtn);
-  if (pos && pos.total > 1) {
-    const up = el('button', { class: 'g-tool-btn', type: 'button', title: 'Subir' }, ['↑']);
-    const down = el('button', { class: 'g-tool-btn', type: 'button', title: 'Bajar' }, ['↓']);
-    const move = (delta) => {
-      const order = pos.order.slice();
-      const i = order.indexOf(ej.id);
-      const j = i + delta;
-      if (j < 0 || j >= order.length) return;
-      [order[i], order[j]] = [order[j], order[i]];
-      sesion.ej_orden = order;
-      guard(dbPut('sesiones', sesion), 'reordenando').then(() => refreshExercises(sesion, listEl));
-    };
-    up.addEventListener('click', () => move(-1));
-    down.addEventListener('click', () => move(1));
-    tools.appendChild(up);
-    tools.appendChild(down);
-  }
+  // Los ↑ / ↓ que vivían aquí los sustituye el arrastre por pulsación larga
+  // (dragorder.js), como el homescreen del iPhone. Dejaban la fila con cinco
+  // botones y reordenar seis ejercicios eran quince toques.
+  const musclesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Músculos' }, ['Músculos']);
+  musclesBtn.addEventListener('click', () => {
+    openEditMusclesModal(ej, (upd) => {
+      musculoEl.textContent = (upd.musculos || []).join(' · ') || 'sin músculo';
+    });
+  });
+  tools.appendChild(musclesBtn);
   const delEx = el('button', { class: 'g-tool-btn', type: 'button', title: 'Quitar ejercicio' }, ['🗑']);
   delEx.addEventListener('click', () => {
     confirmAction('Quitar ejercicio', '¿Quitar "' + ej.nombre + '" y sus sets de esta sesión?', () => {

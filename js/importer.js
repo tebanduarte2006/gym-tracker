@@ -25,7 +25,9 @@ export const EXPORT_VERSION = 3;
 // `bar_lbs`: peso de la barra de la calculadora de discos. Si no estuviera
 // aquí, restaurar un backup en otro teléfono lo perdería en silencio — que es
 // exactamente el bug que ya costó las preferencias enteras una vez.
-export const PREFS_IMPORTABLES = new Set(['rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs']);
+export const PREFS_IMPORTABLES = new Set([
+  'rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs', 'musculos_migrados'
+]);
 
 function parseMuscles(raw) {
   if (!raw) return [];

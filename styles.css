@@ -279,12 +279,34 @@ body.g-modal-open {
   padding: 12px 6px; margin: -12px -2px;   /* 44px táctiles sin engordar el dibujo */
 }
 
+/* ─── Lista de ejercicios + reordenar arrastrando ───────────────────────────
+   El gap va en el contenedor y NO como margin de la card: dragorder.js lo lee
+   con getComputedStyle para calcular el hueco que deja la tarjeta levantada.
+   Si vuelves a poner `margin-bottom` en `.g-ex-card`, el arrastre calcula mal
+   la posición de destino. */
+.g-ex-list { display: flex; flex-direction: column; gap: 10px; }
+
 /* Exercise card */
 .g-ex-card {
   border-radius: var(--r-lg);
-  margin-bottom: 10px;
   overflow: hidden;
 }
+/* Mientras se arrastra, las demás tarjetas se apartan con una transición; la
+   levantada NO (seguiría al dedo con retraso y se sentiría de goma). */
+.g-reordenando .g-ex-card { transition: transform var(--base) var(--ease); }
+.g-reordenando { touch-action: none; }
+.g-ex-card.g-arrastrando {
+  transition: none;
+  position: relative;
+  z-index: 10;
+  transform-origin: center;
+  box-shadow: inset 0 1px 0 var(--rim-top), 0 0 0 0.5px var(--accent-line), 0 18px 44px rgba(0,0,0,0.75);
+  background: var(--glass-3);
+  animation: drag-lift .18s var(--ease) forwards;
+}
+@keyframes drag-lift { to { scale: 1.03; } }
+/* Nada de selección de texto ni menú contextual con el dedo apoyado. */
+body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .g-ex-head {
   width: 100%;
   background: none; border: none;
@@ -993,19 +1015,38 @@ body.g-modal-open {
 .g-suggest-row .g-suggest-create { color: var(--t1); font-weight: 620; }
 .g-suggest-empty { padding: 14px; font-size: 13px; color: var(--t3); text-align: center; }
 
-/* Muscle chips */
-.g-muscle-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; min-height: 22px; }
-.g-muscle-chip-selected {
-  display: inline-flex; align-items: center; gap: 6px;
+/* ─── Selector de músculos ──────────────────────────────────────────────────
+   Lista CERRADA de 18, agrupada por patrón de movimiento. Antes era un buscador
+   con "Crear «X»" que dejaba nacer 'Aductor' junto a 'Aductores': dos filas casi
+   idénticas que parecían un error. Con 18 caben todos a la vista y se tocan
+   directamente — ni buscar ni crear. Taxonomía en js/muscles.js. */
+.g-muscle-picker { margin-bottom: 4px; }
+.g-muscle-group-label {
+  font-size: 10.5px; font-weight: 750;
+  color: var(--t3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 14px 0 7px;
+}
+.g-muscle-group-label:first-child { margin-top: 12px; }
+.g-muscle-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-muscle-chip {
   padding: 9px 13px;
   min-height: 40px;
   border-radius: var(--pill);
   border: none;
-  background: var(--glass-3);
-  color: var(--t1);
-  font-size: 13px; font-weight: 620;
+  background: var(--glass-2);
+  color: var(--t2);
+  font-size: 13px; font-weight: 600;
   font-family: inherit;
   box-shadow: inset 0 0.5px 0 var(--rim-top);
+  transition: background var(--fast), color var(--fast);
+}
+.g-muscle-chip.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 650;
+  box-shadow: none;
 }
 
 /* Resume / confirm */
