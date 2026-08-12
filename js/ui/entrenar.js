@@ -16,12 +16,17 @@ import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
-import { STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber } from '../stats.js';
+import {
+  STATUS, visibleSets, volumeKg, sessionTs, suggestNextSet, autofillPlan,
+  sessionName, weekSummary
+} from '../stats.js';
+import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON } from './icons.js';
 import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
-import { showNewExerciseModal } from './ejercicios.js';
+import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
+import { enableDragOrder } from './dragorder.js';
 
 const DEFAULT_REST = 90;
 
@@ -30,6 +35,7 @@ let _sessionTimerId = null;
 let _openEj = new Set();            // cards abiertas (persiste entre refreshes)
 let _restOverrides = {};            // ejId → sec, solo esta sesión (en memoria)
 let _restDefault = DEFAULT_REST;
+let _dragOff = null;              // desactivador del arrastre del render actual
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 export function renderEntrenar(panel) {
@@ -51,12 +57,52 @@ export function renderEntrenar(panel) {
 }
 
 // ─── Pantalla inicial (sin sesión activa) ─────────────────────────────────────
+// Resumen de la semana + tira de actividad de 7 días.
+// La pantalla de inicio era un 70% de negro vacío: el botón de empezar, tres
+// tarjetas y nada más. Esto lo llena con lo único que merece ocupar sitio ahí,
+// que es saber cómo vas — y sale de datos que ya existían sin pedir nada nuevo.
+function buildWeekCard(sesiones, sets) {
+  const r = weekSummary(sesiones, sets);
+  const volLbs = Math.round(kgToLbs(r.volumenKg) || 0);
+
+  const cifra = (valor, unidad) => el('div', { class: 'g-week-stat' }, [
+    el('div', { class: 'g-week-num' }, [valor]),
+    el('div', { class: 'g-week-unit' }, [unidad])
+  ]);
+
+  const tira = el('div', { class: 'g-week-days' });
+  r.dias.forEach((d) => {
+    tira.appendChild(el('div', { class: 'g-week-day' + (d.hoy ? ' hoy' : '') }, [
+      el('div', { class: 'g-week-day-l' }, [d.letra]),
+      el('div', { class: 'g-week-dot' + (d.entrenado ? ' on' : '') })
+    ]));
+  });
+
+  return el('div', { class: 'g-week-card' }, [
+    el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS']),
+    el('div', { class: 'g-week-stats' }, [
+      cifra(String(r.sesiones), r.sesiones === 1 ? 'sesión' : 'sesiones'),
+      cifra(fmtInt(volLbs), 'lbs'),
+      cifra(String(r.sets), r.sets === 1 ? 'set' : 'sets')
+    ]),
+    tira
+  ]);
+}
+
 function renderStartScreen(panel, sesiones) {
   const wrap = el('div', { class: 'g-start' });
 
   const finalizadas = sesiones
     .filter((s) => s.finalizada === true)
     .sort((a, b) => sessionTs(b) - sessionTs(a));
+
+  // La tarjeta va primero y se rellena al llegar los sets: es lo primero que se
+  // ve al abrir la app.
+  const weekSlot = el('div', {});
+  wrap.appendChild(weekSlot);
+  guard(dbGetAll('sets'), 'resumen semanal').then((allSets) => {
+    weekSlot.appendChild(buildWeekCard(sesiones, allSets));
+  });
 
   if (finalizadas.length > 0) {
     const headRow = el('div', { class: 'g-head-row' }, [
@@ -66,7 +112,9 @@ function renderStartScreen(panel, sesiones) {
     verTodas.addEventListener('click', () => renderAllSessions(panel));
     headRow.appendChild(verTodas);
     wrap.appendChild(headRow);
-    wrap.appendChild(buildSessionCards(panel, finalizadas.slice(0, 3), false));
+    // Cinco, no tres: con la tarjeta semanal arriba y cinco sesiones, la pantalla
+    // de inicio queda llena en un iPhone 11 en vez de dejar un tercio en negro.
+    wrap.appendChild(buildSessionCards(panel, finalizadas.slice(0, 5), false));
   } else {
     wrap.appendChild(el('div', { class: 'g-empty-card' }, [
       'Aún no hay sesiones. Toca "Iniciar sesión" para empezar.'
@@ -86,7 +134,7 @@ function buildSessionCards(panel, sesiones, fromAll) {
       const count = visibleSets(allSets.filter((st) => st.sesion_id === s.id)).length;
       const card = el('div', { class: 'g-recent-card' }, [
         el('div', {}, [
-          el('div', { class: 'g-recent-name' }, [s.nombre || 'Workout']),
+          el('div', { class: 'g-recent-name' }, [sessionName(s)]),
           el('div', { class: 'g-recent-sub' }, [
             fmtDateLong(s.fecha) + ' · ' + count + (count === 1 ? ' set' : ' sets')
           ])
@@ -140,22 +188,23 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     if (!sesion) { renderEntrenar(panel); return; }
     const ejMap = {};
     ejercicios.forEach((e) => { ejMap[e.id] = e; });
-    const visible = visibleSets(sets);
-    const done = visible.filter((s) => s.status === STATUS.DONE || !s.status).length;
+    // Una sesión finalizada solo contiene lo que registraste: los propuestos se
+    // borran al cerrar. Se filtra igual por si un backup importado trae basura.
+    const visible = visibleSets(sets).filter((s) => (s.status || STATUS.DONE) === STATUS.DONE);
     const ejIds = [...new Set(visible.map((s) => s.ejercicio_id))];
     const volLbs = Math.round(kgToLbs(volumeKg(visible)) || 0);
     const cardioMin = cardio.reduce((sum, c) => sum + (Number(c.duracion_min) || 0), 0);
 
     wrap.appendChild(el('div', { class: 'g-session-card', style: 'margin-top:8px;' }, [
       el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
-      el('div', { class: 'g-session-name' }, [sesion.nombre || 'Workout']),
+      el('div', { class: 'g-session-name' }, [sessionName(sesion)]),
       el('div', { class: 'g-recent-sub', style: 'margin-top:6px;' }, [fmtDateLong(sesion.fecha)])
     ]));
 
     const stats = el('div', { class: 'g-confirm-summary', style: 'margin-top:14px;' }, [
       confirmRow('Duración', sesion.duracion_ms ? fmtDuration(sesion.duracion_ms) : '—'),
       confirmRow('Ejercicios', String(ejIds.length)),
-      confirmRow('Sets completados', done + ' / ' + visible.length),
+      confirmRow('Sets', String(visible.length)),
       confirmRow('Volumen total', fmtInt(volLbs) + ' lbs')
     ]);
     if (cardioMin > 0) stats.appendChild(confirmRow('Cardio', cardioMin + ' min'));
@@ -174,11 +223,9 @@ function renderSessionDetail(panel, sesionId, fromAll) {
       byEj[ejId]
         .sort((a, b) => (a.orden || a.id) - (b.orden || b.id))
         .forEach((st, idx) => {
-          const statusLabel = st.status === STATUS.SKIPPED ? ' · saltado'
-            : st.status === STATUS.PENDING ? ' · pendiente' : '';
           setsList.appendChild(el('div', { class: 'g-set-row' }, [
             el('div', { class: 'g-set-info' }, [
-              'Set ' + (idx + 1) + ' · ' + fmtWeight(st.peso) + ' lbs × ' + (Number(st.reps) || 0) + ' reps' + statusLabel
+              'Set ' + (idx + 1) + ' · ' + fmtWeight(st.peso) + ' lbs × ' + (Number(st.reps) || 0) + ' reps'
             ])
           ]));
         });
@@ -202,7 +249,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     const delBtn = el('button', { class: 'g-btn-secondary', type: 'button', style: 'color:var(--red);' }, ['🗑️ Eliminar sesión']);
     delBtn.addEventListener('click', () => {
       confirmAction('¿Eliminar sesión?',
-        'Se eliminarán la sesión "' + (sesion.nombre || 'Workout') + '", sus ' + visible.length +
+        'Se eliminarán la sesión "' + sessionName(sesion) + '", sus ' + visible.length +
         ' sets y su cardio. Los ejercicios del directorio no se tocan. Esta acción no se puede deshacer.',
         () => {
           guard(dbDeleteSessionCascade(sesion.id), 'eliminando sesión').then(() => {
@@ -305,81 +352,171 @@ function promptResume(panel, activa) {
 }
 
 // ─── Iniciar sesión ───────────────────────────────────────────────────────────
+// Se ELIGE el día de una lista, no se escribe. El autollenado busca la última
+// sesión con el mismo nombre de rutina: si un día tecleas "Upper A" y otro
+// "upper a " con un espacio, el día se parte en dos y te quedas sin propuesta.
+// (La comparación normaliza tildes y mayúsculas, pero elegir lo hace imposible
+// de romper y además ahorra teclear en el gimnasio.)
 function showStartModal(panel) {
-  const s = sheet('Iniciar sesión');
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Tipo de rutina']));
+  const s = sheet('¿Qué entrenas hoy?');
+
+  // Un solo campo que hace de buscador Y de nombre para un día nuevo. Escribir
+  // filtra tus días; si lo que escribes no existe, la última fila ofrece
+  // crearlo. Así elegir un día conocido es exacto (imposible que "Upper A" y
+  // "Upper A " se conviertan en dos días y te dejen sin propuesta) y crear uno
+  // nuevo no cuesta un paso extra.
   const input = el('input', {
-    class: 'g-modal-input', type: 'text',
-    placeholder: 'Ej. Upper, Push, Leg Day…', autocomplete: 'off'
+    class: 'g-modal-input', type: 'text', autocomplete: 'off',
+    placeholder: 'Busca un día o escribe uno nuevo…'
   });
   s.modal.appendChild(input);
+  const lista = el('div', {});
+  s.modal.appendChild(lista);
 
-  const pillsLabel = el('div', { class: 'g-modal-sub', style: 'margin-top:14px;' }, ['Recientes']);
-  const pills = el('div', { class: 'g-pills', style: 'margin-bottom:12px;' });
-  s.modal.appendChild(pillsLabel);
-  s.modal.appendChild(pills);
-  const sugg = el('div', { class: 'g-suggest' });
-  s.modal.appendChild(sugg);
-
-  const startBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Comenzar entrenamiento']);
-  once(startBtn, () => {
-    const name = input.value.trim();
-    if (!name) { toast('Escribe un nombre para la rutina'); return null; }
+  // NO se enfoca el campo al abrir: el teclado taparía la lista de días, que es
+  // lo que se usa el 95% de las veces.
+  let dias = [];
+  // Hasta que la DB conteste no se sabe si hay días o no. Sin esta bandera, el
+  // primer pintado (con `dias` vacío) enseñaba "escribe tu primer día" a alguien
+  // que tiene seis: un parpadeo en escritorio, pero en el iPhone con IndexedDB
+  // fría se lee perfectamente y desconcierta.
+  let cargado = false;
+  const arrancar = (nombre) => {
     s.close();
-    return createSession(panel, name);
-  });
-  s.modal.appendChild(startBtn);
+    return createSession(panel, nombre);
+  };
 
-  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'cargando rutinas').then(([ses, ejs]) => {
-    const names = new Set();
-    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
-    ejs.forEach((x) => x.tipo && names.add(x.tipo));
-    const allNames = [...names].sort();
+  function pintar() {
+    clear(lista);
+    const termino = input.value.trim();
+    const clave = normalizeKey(termino);
+    const filtrados = clave ? dias.filter((d) => d.key.indexOf(clave) >= 0) : dias;
 
-    const recents = [];
-    ses.slice().sort((a, b) => sessionTs(b) - sessionTs(a)).forEach((x) => {
-      if (x.routine_type && !recents.includes(x.routine_type) && recents.length < 6) recents.push(x.routine_type);
-    });
-    if (recents.length === 0) pillsLabel.style.display = 'none';
-    recents.forEach((name) => {
-      const p = el('button', { class: 'g-pill', type: 'button' }, [name]);
-      p.addEventListener('click', () => {
-        input.value = name;
-        [...pills.children].forEach((c) => c.classList.remove('active'));
-        p.classList.add('active');
+    if (filtrados.length > 0) {
+      lista.appendChild(el('div', { class: 'g-modal-sub' }, ['Repetir un día']));
+      const card = el('div', { class: 'g-list-card' });
+      filtrados.slice(0, 8).forEach((d) => {
+        const row = el('button', { class: 'g-list-row', type: 'button' }, [
+          el('div', {}, [
+            el('div', { class: 'g-list-name' }, [d.nombre]),
+            el('div', { class: 'g-list-sub' }, [d.detalle])
+          ]),
+          el('span', { class: 'g-list-arrow' }, ['›'])
+        ]);
+        once(row, () => arrancar(d.nombre));
+        card.appendChild(row);
       });
-      pills.appendChild(p);
-    });
-    attachSuggest(input, sugg, () => allNames, (n) => { input.value = n; }, normalizeKey);
+      lista.appendChild(card);
+    }
+
+    // Día nuevo: solo si lo escrito no es exactamente uno que ya existe.
+    if (clave && !dias.some((d) => d.key === clave)) {
+      lista.appendChild(el('div', { class: 'g-modal-sub' }, ['Día nuevo']));
+      const crear = el('button', { class: 'g-btn-primary', type: 'button', style: 'margin-top:0;' }, [
+        'Empezar "' + termino + '" desde cero'
+      ]);
+      once(crear, () => arrancar(termino));
+      lista.appendChild(crear);
+      lista.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:10px;' }, [
+        'Arranca vacío. Lo que registres hoy será la propuesta de la próxima vez.'
+      ]));
+    } else if (filtrados.length === 0 && cargado) {
+      lista.appendChild(el('div', { class: 'g-empty-card' }, [
+        'Escribe el nombre de tu primer día — por ejemplo Upper A, Push o Legs.'
+      ]));
+    }
+  }
+
+  input.addEventListener('input', pintar);
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const termino = input.value.trim();
+    if (termino) arrancar(termino);
   });
 
+  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('sets')]), 'cargando rutinas').then(([ses, sets]) => {
+    const vistos = new Set();
+    ses.slice()
+      .filter((x) => x.finalizada === true && x.routine_type)
+      .sort((a, b) => sessionTs(b) - sessionTs(a))
+      .forEach((x) => {
+        const key = normalizeKey(x.routine_type);
+        if (vistos.has(key)) return;
+        vistos.add(key);
+        const plan = autofillPlan(x.routine_type, ses, sets);
+        const nEj = plan ? plan.ejercicios.length : 0;
+        const nSets = plan ? plan.ejercicios.reduce((t, e) => t + e.sets.length, 0) : 0;
+        dias.push({
+          key,
+          nombre: x.routine_type,
+          detalle: plan
+            ? nEj + (nEj === 1 ? ' ejercicio · ' : ' ejercicios · ') + nSets +
+              (nSets === 1 ? ' set · ' : ' sets · ') + fmtDateShort(x.fecha)
+            : 'Sin sets registrados · ' + fmtDateShort(x.fecha)
+        });
+      });
+    cargado = true;
+    pintar();
+  });
+
+  pintar();
   s.open();
-  setTimeout(() => input.focus(), 80);
 }
 
 function createSession(panel, routineType) {
   // Contador persistente + máximo del historial: no se repite aunque borres
   // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
   return guard(
-    Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones')])
-      .then(([n, all]) => {
-        const num = nextWorkoutNumber(n, all);
+    Promise.all([dbGetAll('sesiones'), dbGetAll('sets')])
+      .then(([all, allSets]) => {
+        const plan = autofillPlan(routineType, all, allSets);
         const now = Date.now();
         const sesion = {
-          nombre: 'Workout #' + num + ' · ' + routineType,
+          // Sin "Workout #N": era numeración heredada del template de Notion y
+          // no dice nada que la fecha no diga mejor (ver stats.js › sessionName).
+          nombre: routineType,
           fecha: new Date(now).toISOString(),
           timestamp_inicio: now,
           finalizada: false,
           routine_type: routineType,
-          ej_orden: []
+          ej_orden: plan ? plan.ejercicios.map((e) => e.ejercicio_id) : []
         };
-        return Promise.all([dbPut('sesiones', sesion), prefSet('contador_workouts', num)])
-          .then(([id]) => {
+        return dbPut('sesiones', sesion)
+          .then((id) => {
             sesion.id = id;
             _ack = id;
             _openEj = new Set();
             _restOverrides = {};
-            renderActiveSession(panel, sesion);
+            if (!plan) { renderActiveSession(panel, sesion); return null; }
+
+            // Los sets del plan entran como PROPUESTOS (Pending con peso y reps
+            // reales). No cuentan para nada hasta que los registres, y los que
+            // no registres se borran al finalizar — igual que siempre.
+            const inserts = [];
+            let orden = 0;
+            plan.ejercicios.forEach((e) => {
+              // Ancla del ejercicio, por si borras todos sus sets propuestos y
+              // aun así quieres que la card siga en pantalla.
+              inserts.push(dbPut('sets', {
+                sesion_id: id, ejercicio_id: e.ejercicio_id,
+                peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: now
+              }));
+              e.sets.forEach((st) => {
+                orden += 1;
+                inserts.push(dbPut('sets', {
+                  sesion_id: id, ejercicio_id: e.ejercicio_id,
+                  peso: st.peso, reps: st.reps, orden,
+                  status: STATUS.PENDING, unidad: st.unidad, ts: now
+                }));
+              });
+            });
+            _openEj.add(plan.ejercicios[0].ejercicio_id);
+            return Promise.all(inserts).then(() => {
+              const nSets = plan.ejercicios.reduce((t, e) => t + e.sets.length, 0);
+              toast('Propuesta desde tu último ' + routineType + ': ' + nSets + ' sets');
+              renderActiveSession(panel, sesion);
+            });
           });
       }),
     'creando sesión'
@@ -395,7 +532,7 @@ function renderActiveSession(panel, sesion) {
   const sessionCard = el('div', { class: 'g-session-card' }, [
     el('div', { class: 'g-session-meta' }, [
       el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
-      el('div', { class: 'g-session-name' }, [sesion.nombre || 'Workout'])
+      el('div', { class: 'g-session-name' }, [sessionName(sesion)])
     ]),
     el('div', { class: 'g-session-timer-wrap' }, [
       el('div', {}, [
@@ -412,8 +549,9 @@ function renderActiveSession(panel, sesion) {
   wrap.appendChild(restBar);
   setupRestBar(restBar);
 
-  // Ejercicios
-  const exList = el('div', {});
+  // Ejercicios. `g-ex-list` le da el gap que dragorder.js lee para calcular
+  // el hueco que deja la card levantada.
+  const exList = el('div', { class: 'g-ex-list' });
   wrap.appendChild(exList);
   refreshExercises(sesion, exList);
 
@@ -461,7 +599,7 @@ export function suspendEntrenar() {
 // ─── Rest bar UI ──────────────────────────────────────────────────────────────
 function setupRestBar(bar) {
   clear(bar);
-  const icon = ICON.clock({ size: 16, color: 'var(--accent)' });
+  const icon = ICON.clock({ size: 16, color: 'var(--t2)' });
   const label = el('div', { class: 'g-rest-label' }, ['Descanso']);
   const time = el('div', { class: 'g-rest-time' }, ['']);
   const prog = el('div', { class: 'g-rest-progress' });
@@ -538,10 +676,20 @@ function openRestConfigModal(ej, onSaved) {
 // ─── Lista de ejercicios de la sesión ─────────────────────────────────────────
 function refreshExercises(sesion, listEl) {
   clear(listEl);
-  guard(Promise.all([dbGetAllBy('sets', 'sesion_id', sesion.id), dbGetAll('ejercicios')]), 'cargando ejercicios')
-    .then(([sets, ejercicios]) => {
+  // `sesiones` se carga UNA vez aquí y se pasa a las cards. Antes cada card
+  // hacía su propio dbGetAll('sesiones') completo dentro de loadLastSession:
+  // con 8 ejercicios en la sesión eran 8 barridos de la tabla entera para
+  // pintar una pantalla.
+  guard(Promise.all([
+    dbGetAllBy('sets', 'sesion_id', sesion.id),
+    dbGetAll('ejercicios'),
+    dbGetAll('sesiones')
+  ]), 'cargando ejercicios')
+    .then(([sets, ejercicios, sesiones]) => {
       const ejMap = {};
       ejercicios.forEach((e) => { ejMap[e.id] = e; });
+      const sesMap = {};
+      sesiones.forEach((s) => { sesMap[s.id] = s; });
 
       // Orden: sesion.ej_orden si existe; si no, primera aparición en sets.
       const seen = [];
@@ -562,19 +710,45 @@ function refreshExercises(sesion, listEl) {
       order.forEach((ejId, idx) => {
         const ej = ejMap[ejId];
         if (!ej) return;
-        listEl.appendChild(buildExerciseCard(sesion, ej, listEl, { idx, total: order.length, order }));
+        listEl.appendChild(buildExerciseCard(sesion, ej, listEl, { idx, total: order.length, order, sesMap }));
       });
+
+      // Reordenar con pulsación larga + arrastre, como el homescreen del
+      // iPhone. Se engancha DESPUÉS de pintar y una sola vez por render: el
+      // listener vive en el contenedor, no en cada card.
+      if (_dragOff) { _dragOff(); _dragOff = null; }
+      if (order.length > 1) {
+        _dragOff = enableDragOrder(listEl, {
+          onStart: () => { document.body.classList.add('g-drag-activo'); },
+          onEnd: () => { document.body.classList.remove('g-drag-activo'); },
+          onDrop: (ids) => {
+            sesion.ej_orden = ids.map(Number);
+            guard(dbPut('sesiones', sesion), 'reordenando').then(() => {
+              toast('Orden guardado');
+              refreshExercises(sesion, listEl);
+            });
+          }
+        });
+      }
     });
 }
 
 function buildExerciseCard(sesion, ej, listEl, pos) {
-  const card = el('div', { class: 'g-ex-card' + (_openEj.has(ej.id) ? ' open' : '') });
+  const card = el('div', {
+    class: 'g-ex-card' + (_openEj.has(ej.id) ? ' open' : ''),
+    'data-drag-id': String(ej.id)
+  });
 
   // Header
-  const head = el('button', { class: 'g-ex-head', type: 'button' });
+  // `data-drag-handle`: la cabecera es el asa del arrastre (como el icono en el
+  // homescreen del iPhone). Es un <button> —abre y cierra el ejercicio— y sin
+  // esta marca dragorder.js la trataría como un control cualquiera y no dejaría
+  // empezar el gesto encima.
+  const head = el('button', { class: 'g-ex-head', type: 'button', 'data-drag-handle': '' });
+  const musculoEl = el('div', { class: 'g-ex-muscle' }, [(ej.musculos || []).join(' · ') || 'sin músculo']);
   head.appendChild(el('div', {}, [
     el('div', { class: 'g-ex-name' }, [ej.nombre]),
-    el('div', { class: 'g-ex-muscle' }, [(ej.musculos || []).join(' · ') || 'sin músculo'])
+    musculoEl
   ]));
   const countEl = el('div', { class: 'g-ex-count' }, ['']);
   const chev = ICON.chevronDown({ size: 18, class: 'g-ex-chevron' });
@@ -594,23 +768,19 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
     restBtn.textContent = '⏱ ' + resolveRest(ej) + 's';
   }));
   tools.appendChild(restBtn);
-  if (pos && pos.total > 1) {
-    const up = el('button', { class: 'g-tool-btn', type: 'button', title: 'Subir' }, ['↑']);
-    const down = el('button', { class: 'g-tool-btn', type: 'button', title: 'Bajar' }, ['↓']);
-    const move = (delta) => {
-      const order = pos.order.slice();
-      const i = order.indexOf(ej.id);
-      const j = i + delta;
-      if (j < 0 || j >= order.length) return;
-      [order[i], order[j]] = [order[j], order[i]];
-      sesion.ej_orden = order;
-      guard(dbPut('sesiones', sesion), 'reordenando').then(() => refreshExercises(sesion, listEl));
-    };
-    up.addEventListener('click', () => move(-1));
-    down.addEventListener('click', () => move(1));
-    tools.appendChild(up);
-    tools.appendChild(down);
-  }
+  const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, ['🏋 Discos']);
+  platesBtn.addEventListener('click', () => openPlateModal(addRow.currentLbs()));
+  tools.appendChild(platesBtn);
+  // Los ↑ / ↓ que vivían aquí los sustituye el arrastre por pulsación larga
+  // (dragorder.js), como el homescreen del iPhone. Dejaban la fila con cinco
+  // botones y reordenar seis ejercicios eran quince toques.
+  const musclesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Músculos' }, ['Músculos']);
+  musclesBtn.addEventListener('click', () => {
+    openEditMusclesModal(ej, (upd) => {
+      musculoEl.textContent = (upd.musculos || []).join(' · ') || 'sin músculo';
+    });
+  });
+  tools.appendChild(musclesBtn);
   const delEx = el('button', { class: 'g-tool-btn', type: 'button', title: 'Quitar ejercicio' }, ['🗑']);
   delEx.addEventListener('click', () => {
     confirmAction('Quitar ejercicio', '¿Quitar "' + ej.nombre + '" y sus sets de esta sesión?', () => {
@@ -665,13 +835,18 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
       const done = mine.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
       countEl.textContent = done + '/' + mine.length;
       addRow.setNextOrden(mine.length > 0 ? Math.max(...mine.map((s) => s.orden || 0)) + 1 : 1);
+      // El fantasma avanza con la serie: tras registrar el set 2, propone lo que
+      // hiciste en el set 3 de la última sesión, no otra vez el 1.
+      addRow.setDone(mine.length);
     });
   }
   updateSets();
 
   // Última sesión: datos + botón copiar
-  loadLastSession(ej.id, sesion.id).then((prev) => {
+  loadLastSession(ej.id, sesion.id, pos && pos.sesMap).then((prev) => {
     clear(lastBody);
+    // Alimenta el set fantasma de la fila de "agregar set".
+    addRow.setPrev(prev ? prev.sets : []);
     if (!prev || prev.sets.length === 0) {
       lastBody.appendChild(el('div', { class: 'g-last-empty' }, ['N/A — sin registros previos']));
       return;
@@ -700,7 +875,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
           });
         });
         Promise.all(inserts).then(() => {
-          toast(prev.sets.length + ' sets copiados como pendientes');
+          toast(prev.sets.length + ' sets propuestos');
           updateSets();
         });
       });
@@ -712,11 +887,18 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
 }
 
 // Última sesión FINALIZADA con sets reales de este ejercicio.
-function loadLastSession(ejercicioId, excludeSesionId) {
-  return guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ejercicioId), dbGetAll('sesiones')]), 'última sesión')
-    .then(([sets, sesiones]) => {
-      const sesionMap = {};
-      sesiones.forEach((s) => { sesionMap[s.id] = s; });
+// `sesMap` lo provee refreshExercises (una sola carga para todas las cards);
+// si no llega, se carga aquí como respaldo.
+function loadLastSession(ejercicioId, excludeSesionId, sesMap) {
+  const sesionesPromise = sesMap
+    ? Promise.resolve(sesMap)
+    : dbGetAll('sesiones').then((arr) => {
+        const m = {};
+        arr.forEach((s) => { m[s.id] = s; });
+        return m;
+      });
+  return guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ejercicioId), sesionesPromise]), 'última sesión')
+    .then(([sets, sesionMap]) => {
       const real = visibleSets(sets).filter((s) => {
         if (s.sesion_id === excludeSesionId) return false;
         const ses = sesionMap[s.sesion_id];
@@ -792,40 +974,64 @@ function openEditSetModal(set, num, onSaved) {
   s.open();
 }
 
+// Una fila de set tiene DOS estados, no tres etiquetas:
+//   · propuesto  — viene del autollenado, en gris, todavía no cuenta;
+//   · registrado — lo hiciste, en blanco, cuenta para PR y volumen.
+// Los chips "Hecho / Pendiente / Saltado" eran herencia de un template de Notion:
+// tres estados que Esteban ciclaba a mano y que la app puede deducir sola. Lo
+// que NO se puede quitar es la distinción: con la sesión autollenada, la
+// pantalla muestra sets que aún no has hecho, y contarlos convertiría tus PRs en
+// ficción. El estado sigue en la DB; lo que desapareció es administrarlo.
+//
+// Se registra con un BOTÓN DEDICADO, no tocando la fila: decisión de Esteban
+// (2026-08-12) porque toda la fila es un blanco enorme para el pulgar y un
+// registro accidental ensucia el historial en silencio.
 function buildSetRow(sesion, ej, set, num, onChange) {
-  const row = el('div', { class: 'g-set-row' });
+  const registrado = (set.status || STATUS.DONE) === STATUS.DONE;
+  const row = el('div', { class: 'g-set-row' + (registrado ? '' : ' g-set-propuesto') });
   row.appendChild(el('div', { class: 'g-set-n' }, ['Set ' + num]));
   const valores = el('button', { class: 'g-set-edit', type: 'button', title: 'Editar set' }, [
     el('div', { class: 'g-set-val' }, [el('b', {}, [fmtWeight(set.peso)]), el('span', {}, ['lbs'])]),
     el('div', { class: 'g-set-times' }, ['×']),
     el('div', { class: 'g-set-val' }, [el('b', {}, [String(set.reps)])])
   ]);
+  // Editar NO registra: cambiar un peso puede ser ajustar el plan antes de
+  // levantarlo. Registrar es siempre un acto explícito, en su propio botón.
   valores.addEventListener('click', () => openEditSetModal(set, num, onChange));
   row.appendChild(valores);
 
-  const status = set.status || STATUS.DONE;
-  const cfg = {
-    Pending: { icon: '○', label: 'Pendiente' },
-    Done: { icon: '✓', label: 'Hecho' },
-    Skipped: { icon: '✕', label: 'Saltado' }
-  }[status];
-  const chip = el('button', { class: 'g-chip g-chip-' + status, type: 'button' }, [
-    el('span', { style: 'font-weight:700;' }, [cfg.icon]), cfg.label
-  ]);
-  chip.addEventListener('click', () => {
-    const next = status === STATUS.PENDING ? STATUS.DONE
-      : status === STATUS.DONE ? STATUS.SKIPPED : STATUS.PENDING;
-    set.status = next;
+  const mark = el('button', {
+    class: 'g-set-mark' + (registrado ? ' on' : ''),
+    type: 'button',
+    'aria-pressed': registrado ? 'true' : 'false',
+    'aria-label': (registrado ? 'Quitar el registro del set ' : 'Registrar set ') + num,
+    title: registrado ? 'Registrado · toca para deshacer' : 'Registrar'
+  }, [ICON.check({ size: 17 })]);
+  mark.addEventListener('click', () => {
+    set.status = registrado ? STATUS.PENDING : STATUS.DONE;
     guard(dbPut('sets', set), 'actualizando set').then(() => {
-      if (next === STATUS.DONE) startRest(resolveRest(ej)); // completar un set pendiente también descansa
+      if (!registrado) startRest(resolveRest(ej)); // registrar arranca el descanso
       onChange();
     });
   });
-  row.appendChild(chip);
+  row.appendChild(mark);
 
   const del = el('button', { class: 'g-set-del', type: 'button', title: 'Eliminar set' }, ['×']);
   del.addEventListener('click', () => {
-    guard(dbDelete('sets', set.id), 'eliminando set').then(onChange);
+    // El "×" vive a un centímetro del chip de estado y se toca por error con el
+    // pulgar en pleno entrenamiento. Un diálogo de confirmación por cada set
+    // sería insoportable, así que se borra ya y se ofrece deshacer: el registro
+    // conserva su `id`, así que reponerlo lo devuelve a su sitio y a su orden.
+    const respaldo = { ...set };
+    guard(dbDelete('sets', set.id), 'eliminando set').then(() => {
+      onChange();
+      toast('Set eliminado', {
+        label: 'Deshacer',
+        onAction: () => {
+          guard(dbPut('sets', respaldo), 'restaurando set').then(onChange);
+        }
+      });
+    });
   });
   row.appendChild(del);
   return row;
@@ -834,6 +1040,10 @@ function buildSetRow(sesion, ej, set, num, onChange) {
 function buildAddSetRow(sesion, ej, onAdded) {
   let unit = 'lbs';
   let nextOrden = 1;
+  // Set fantasma: sets de la última sesión finalizada + cuántos llevas hoy.
+  // Con los dos se sabe qué proponer (stats.js › suggestNextSet).
+  let prevSets = [];
+  let yaHechos = 0;
   const row = el('div', { class: 'g-add-set' });
   const pesoInput = el('input', {
     class: 'g-input-num', type: 'text', placeholder: 'Peso',
@@ -845,6 +1055,7 @@ function buildAddSetRow(sesion, ej, onAdded) {
     unit = u;
     lbsBtn.classList.toggle('active', u === 'lbs');
     kgBtn.classList.toggle('active', u === 'kg');
+    paintGhost(); // la sugerencia se muestra en la unidad activa
   };
   lbsBtn.addEventListener('click', () => setUnit('lbs'));
   kgBtn.addEventListener('click', () => setUnit('kg'));
@@ -852,19 +1063,47 @@ function buildAddSetRow(sesion, ej, onAdded) {
   const repsInput = el('input', {
     class: 'g-input-num', type: 'number', placeholder: 'Reps', step: '1', inputmode: 'numeric'
   });
+
+  // El fantasma va en el `placeholder`, NO en el `value`: si fuera un valor de
+  // verdad, registrar lo de la última vez sin querer sería un toque, y corregir
+  // un peso exigiría borrar antes de escribir. Como placeholder, teclear encima
+  // funciona igual que siempre y el atajo es opt-in.
+  function paintGhost() {
+    const sug = suggestNextSet(prevSets, yaHechos);
+    if (!sug) {
+      pesoInput.placeholder = 'Peso';
+      repsInput.placeholder = 'Reps';
+      return;
+    }
+    // Un decimal basta: es una pista para leer de reojo, no un valor exacto.
+    // 230 lbs son 104.326 kg y "104.326" en gris no se lee, se estorba.
+    const shown = unit === 'kg' ? Math.round(sug.peso * 10) / 10 : kgToLbs(sug.peso);
+    pesoInput.placeholder = shown == null ? 'Peso' : String(shown);
+    repsInput.placeholder = String(sug.reps);
+  }
+
   const confirmBtn = el('button', { class: 'g-confirm-set', type: 'button', title: 'Confirmar set' }, ['+']);
   once(confirmBtn, () => {
-    const inputVal = parseDecimal(pesoInput.value);
-    const reps = parseInt(repsInput.value, 10);
-    if (!(inputVal >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
-    const pesoKg = inputToKg(inputVal, unit);
+    const sug = suggestNextSet(prevSets, yaHechos);
+    const rawPeso = pesoInput.value.trim();
+    const rawReps = repsInput.value.trim();
+    // Campo vacío + fantasma = "repite lo de la última vez", de un solo toque.
+    // El peso se toma en kg DIRECTO de la sugerencia, sin pasar por lbs: ir y
+    // volver por el display arrastraría su redondeo a un decimal.
+    const pesoKg = rawPeso ? inputToKg(parseDecimal(rawPeso), unit) : (sug ? sug.peso : NaN);
+    const reps = rawReps ? parseInt(rawReps, 10) : (sug ? sug.reps : NaN);
+    if (!(pesoKg >= 0) || !(reps > 0)) { toast('Peso y reps requeridos'); return null; }
     // Se incrementa YA, no cuando vuelva updateSets(): dos toques rápidos
     // creaban dos sets con el mismo `orden` y quedaban en orden aleatorio.
     const orden = nextOrden++;
     return guard(dbPut('sets', {
       sesion_id: sesion.id, ejercicio_id: ej.id,
       peso: pesoKg, reps, orden,
-      status: STATUS.DONE, unidad: unit, ts: Date.now()
+      // Si repitió el fantasma sin teclear, la unidad que tecleó fue la de aquel
+      // set, no la que está seleccionada ahora en el toggle.
+      status: STATUS.DONE,
+      unidad: rawPeso ? unit : ((sug && prevSets[Math.min(yaHechos, prevSets.length - 1)].unidad) || unit),
+      ts: Date.now()
     }), 'guardando set').then(() => {
       pesoInput.value = '';
       repsInput.value = '';
@@ -878,6 +1117,16 @@ function buildAddSetRow(sesion, ej, onAdded) {
   row.appendChild(repsInput);
   row.appendChild(confirmBtn);
 
+  // Enter encadena peso → reps → guardar, sin soltar el teclado. Registrar un
+  // set exigía teclear, bajar a tocar "+" y volver a subir: es LA acción que se
+  // repite 25 veces por entrenamiento y era la más lenta de la app.
+  pesoInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); repsInput.focus(); }
+  });
+  repsInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+  });
+
   // Recordar la última unidad usada en este ejercicio (mejora pedida: hay
   // máquinas donde Esteban registra en kg).
   guard(dbGetAllBy('sets', 'ejercicio_id', ej.id), 'unidad previa').then((all) => {
@@ -887,7 +1136,104 @@ function buildAddSetRow(sesion, ej, onAdded) {
     }
   });
 
-  return { row, setNextOrden(n) { nextOrden = n; } };
+  return {
+    row,
+    setNextOrden(n) { nextOrden = n; },
+    // Cuántos sets llevas hoy en este ejercicio → qué set de la última sesión
+    // toca proponer. Lo llama updateSets() en cada render quirúrgico.
+    setDone(n) { yaHechos = n; paintGhost(); },
+    // Sets de la última sesión finalizada. Llega asíncrono desde la card.
+    setPrev(sets) { prevSets = Array.isArray(sets) ? sets : []; paintGhost(); },
+    // El peso que la calculadora de discos debe abrir por defecto: lo tecleado,
+    // o si no la sugerencia del fantasma.
+    currentLbs() {
+      const raw = pesoInput.value.trim();
+      if (raw) {
+        const kg = inputToKg(parseDecimal(raw), unit);
+        return isFinite(kg) ? kgToLbs(kg) : null;
+      }
+      const sug = suggestNextSet(prevSets, yaHechos);
+      return sug ? kgToLbs(sug.peso) : null;
+    }
+  };
+}
+
+// ─── Calculadora de discos ────────────────────────────────────────────────────
+// Qué poner a cada lado de la barra. Trabaja en libras porque los discos del
+// gimnasio están marcados en libras: el resultado se lee y se coge, sin
+// traducir. El peso de la barra se recuerda en preferencias.
+function openPlateModal(initialLbs) {
+  const s = sheet('Discos por lado');
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso total (lbs)']));
+  const pesoInput = el('input', {
+    class: 'g-modal-input', type: 'text', inputmode: 'decimal', autocomplete: 'off',
+    placeholder: 'Ej. 185', value: initialLbs != null ? String(Math.round(initialLbs)) : ''
+  });
+  s.modal.appendChild(pesoInput);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso de la barra (lbs)']));
+  const barInput = el('input', {
+    class: 'g-modal-input', type: 'number', inputmode: 'numeric', min: '0',
+    value: String(DEFAULT_BAR_LBS)
+  });
+  s.modal.appendChild(barInput);
+
+  const out = el('div', { style: 'margin-top:18px;' });
+  s.modal.appendChild(out);
+
+  function render() {
+    clear(out);
+    const target = parseDecimal(pesoInput.value);
+    const bar = parseDecimal(barInput.value);
+    const r = plateBreakdown(target, isFinite(bar) ? bar : DEFAULT_BAR_LBS);
+
+    if (r.error) {
+      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [r.error]));
+      return;
+    }
+    out.appendChild(el('div', { class: 'g-plate-total' }, [
+      String(r.totalLbs), el('span', {}, ['lbs en total'])
+    ]));
+
+    if (r.perSide.length === 0) {
+      out.appendChild(el('div', { class: 'g-plate-note' }, ['Solo la barra, sin discos.']));
+    } else {
+      const stack = el('div', { class: 'g-plate-stack' });
+      r.perSide.forEach((p) => {
+        stack.appendChild(el('div', { class: 'g-plate' }, [
+          p.cantidad > 1 ? p.cantidad + ' × ' + p.disco : String(p.disco)
+        ]));
+      });
+      out.appendChild(stack);
+      out.appendChild(el('div', { class: 'g-plate-note' }, [
+        'A cada lado: ' + r.perSide.map((p) => p.cantidad + '×' + p.disco).join(' + ') +
+        ' = ' + r.usedLbs + ' lbs.'
+      ]));
+    }
+    if (!r.exacto && r.restoLbs > 0) {
+      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [
+        'No se llega exacto: faltan ' + r.restoLbs + ' lbs por lado con los discos estándar.'
+      ]));
+    }
+  }
+
+  pesoInput.addEventListener('input', render);
+  barInput.addEventListener('input', render);
+  guard(prefGet('bar_lbs', DEFAULT_BAR_LBS), 'peso de barra').then((v) => {
+    barInput.value = String(v);
+    render();
+  });
+
+  const cerrar = el('button', { class: 'g-btn-primary', type: 'button' }, ['Listo']);
+  cerrar.addEventListener('click', () => {
+    const bar = parseInt(barInput.value, 10);
+    if (bar >= 0 && bar <= 200) prefSet('bar_lbs', bar);
+    s.close();
+  });
+  s.modal.appendChild(cerrar);
+  render();
+  s.open();
 }
 
 // ─── Agregar ejercicio a la sesión ────────────────────────────────────────────
@@ -945,20 +1291,31 @@ function showAddExerciseModal(sesion, listEl) {
 }
 
 function attachExercise(sesion, ej, listEl) {
-  const jobs = [];
-  if (sesion.routine_type && ej.tipo !== sesion.routine_type) {
-    ej.tipo = sesion.routine_type;
-    jobs.push(dbPut('ejercicios', ej));
-  }
-  // Placeholder que ancla el ejercicio (se limpia al finalizar).
-  jobs.push(dbPut('sets', {
-    sesion_id: sesion.id, ejercicio_id: ej.id,
-    peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: Date.now()
-  }));
-  sesion.ej_orden = (sesion.ej_orden || []).filter((id) => id !== ej.id).concat([ej.id]);
-  jobs.push(dbPut('sesiones', sesion));
-  _openEj.add(ej.id);
-  guard(Promise.all(jobs), 'agregando ejercicio').then(() => refreshExercises(sesion, listEl));
+  // Agregar un ejercicio que YA está en la sesión creaba un segundo placeholder
+  // huérfano y —peor— lo mandaba al final del orden: bastaba tocarlo por error
+  // en el buscador para que el ejercicio en el que estabas trabajando saltara
+  // al fondo de la lista. Ahora se detecta y solo se abre su card.
+  guard(dbGetAllBy('sets', 'sesion_id', sesion.id), 'agregando ejercicio').then((sets) => {
+    _openEj.add(ej.id);
+    if (sets.some((s) => s.ejercicio_id === ej.id)) {
+      toast(ej.nombre + ' ya está en esta sesión');
+      refreshExercises(sesion, listEl);
+      return;
+    }
+    const jobs = [];
+    if (sesion.routine_type && ej.tipo !== sesion.routine_type) {
+      ej.tipo = sesion.routine_type;
+      jobs.push(dbPut('ejercicios', ej));
+    }
+    // Placeholder que ancla el ejercicio (se limpia al finalizar).
+    jobs.push(dbPut('sets', {
+      sesion_id: sesion.id, ejercicio_id: ej.id,
+      peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: Date.now()
+    }));
+    sesion.ej_orden = (sesion.ej_orden || []).filter((id) => id !== ej.id).concat([ej.id]);
+    jobs.push(dbPut('sesiones', sesion));
+    return Promise.all(jobs).then(() => refreshExercises(sesion, listEl));
+  });
 }
 
 // ─── Cardio ───────────────────────────────────────────────────────────────────
@@ -1051,26 +1408,50 @@ function confirmFinalize(sesion, panel) {
     dbGetAllBy('cardio', 'sesion_id', sesion.id)
   ]), 'preparando cierre').then(([sets, cardio]) => {
     const visible = visibleSets(sets);
-    const done = visible.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
-    const pending = visible.filter((s) => s.status === STATUS.PENDING).length;
-    const nEj = new Set(sets.map((s) => s.ejercicio_id)).size;
+    const registrados = visible.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE);
+    const sinRegistrar = visible.length - registrados.length;
     const dur = Date.now() - (sesion.timestamp_inicio || Date.now());
     const volLbs = Math.round(kgToLbs(volumeKg(visible)) || 0);
     const cardioMin = cardio.reduce((sum, c) => sum + (Number(c.duracion_min) || 0), 0);
+
+    // Ejercicios que se quedaron sin UN solo set registrado. Importa decirlo
+    // aquí y no después: al finalizar desaparecen de la sesión, y como el molde
+    // de la próxima vez ES esta sesión, tampoco se propondrán. Sin este aviso el
+    // plan se encogería solo, en silencio, y semanas después.
+    const conRegistro = new Set(registrados.map((s) => s.ejercicio_id));
+    const ejSinRegistro = [...new Set(visible.map((s) => s.ejercicio_id))]
+      .filter((id) => !conRegistro.has(id));
+    const nEj = conRegistro.size;
 
     const s = sheet('¿Finalizar sesión?');
     const summary = el('div', { class: 'g-confirm-summary' }, [
       confirmRow('Duración', fmtDuration(dur)),
       confirmRow('Ejercicios', String(nEj)),
-      confirmRow('Sets completados', done + ' / ' + visible.length),
+      confirmRow('Sets registrados', registrados.length + ' / ' + visible.length),
       confirmRow('Volumen total', fmtInt(volLbs) + ' lbs')
     ]);
     if (cardioMin > 0) summary.appendChild(confirmRow('Cardio', cardioMin + ' min'));
     s.modal.appendChild(summary);
-    if (pending > 0) {
+    if (sinRegistrar > 0) {
       s.modal.appendChild(el('div', { class: 'g-confirm-warn' }, [
-        pending + (pending === 1 ? ' set pendiente se eliminará' : ' sets pendientes se eliminarán') + ' al finalizar.'
+        sinRegistrar + (sinRegistrar === 1 ? ' set sin registrar se descartará.' : ' sets sin registrar se descartarán.')
       ]));
+    }
+    if (ejSinRegistro.length > 0) {
+      const aviso = el('div', { class: 'g-confirm-warn' });
+      s.modal.appendChild(aviso);
+      guard(dbGetAll('ejercicios'), 'nombres de ejercicios').then((ejs) => {
+        const ejMap = {};
+        ejs.forEach((e) => { ejMap[e.id] = e; });
+        const nombres = ejSinRegistro.map((id) => (ejMap[id] ? ejMap[id].nombre : 'un ejercicio'));
+        const uno = nombres.length === 1;
+        clear(aviso);
+        aviso.appendChild(document.createTextNode(
+          nombres.join(', ') + (uno ? ' no tiene' : ' no tienen') +
+          ' ningún set registrado, así que no ' + (uno ? 'entrará' : 'entrarán') +
+          ' en la propuesta de tu próximo ' + (sesion.routine_type || 'entrenamiento') + '.'
+        ));
+      });
     }
     const doneBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Finalizar y guardar']);
     once(doneBtn, () => {

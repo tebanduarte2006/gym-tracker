@@ -5,12 +5,30 @@ import { el } from '../dom.js';
 // Cuántos sheets hay abiertos: el bloqueo de scroll del body se suelta al
 // cerrar el ÚLTIMO, no al cerrar cualquiera.
 let _openCount = 0;
+let _scrollY = 0;
+
+// iOS Safari IGNORA `overflow:hidden` en el body: el fondo seguía arrastrándose
+// bajo el sheet aunque en Chrome de escritorio el bloqueo se veía perfecto (por
+// eso pasó la verificación). Lo único que funciona en iOS es sacar el body del
+// flujo con `position:fixed`, lo que a cambio salta el scroll al tope — así que
+// hay que guardar la posición y devolverla al cerrar.
+function lockScroll() {
+  _scrollY = window.scrollY || window.pageYOffset || 0;
+  document.body.style.top = '-' + _scrollY + 'px';
+  document.body.classList.add('g-modal-open');
+}
+
+function unlockScroll() {
+  document.body.classList.remove('g-modal-open');
+  document.body.style.top = '';
+  window.scrollTo(0, _scrollY);
+}
 
 function closeOverlay(overlay) {
   if (!overlay || !overlay.isConnected) return;
   overlay.remove();
   _openCount = Math.max(0, _openCount - 1);
-  if (_openCount === 0) document.body.classList.remove('g-modal-open');
+  if (_openCount === 0) unlockScroll();
 }
 
 export function openOverlay(modalEl) {
@@ -19,8 +37,11 @@ export function openOverlay(modalEl) {
     if (e.target === overlay) closeOverlay(overlay);
   });
   document.body.appendChild(overlay);
+  // Solo el PRIMER sheet fija el scroll: si un sheet abre otro encima (crear
+  // ejercicio desde "Agregar ejercicio"), releer `window.scrollY` con el body ya
+  // fijado devolvería 0 y al cerrar todo saltaría al tope de la pantalla.
+  if (_openCount === 0) lockScroll();
   _openCount++;
-  document.body.classList.add('g-modal-open');
   return overlay;
 }
 

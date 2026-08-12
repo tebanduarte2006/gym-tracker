@@ -5,11 +5,10 @@ import { el, clear, toast, guard } from '../dom.js';
 import { dbGetAll, dbBulkImport } from '../db.js';
 import { fmtWeight, fmtDateShort, fmtDateLong, fmtInt, kgToLbs } from '../format.js';
 import {
-  isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs
+  isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs, setsPerMuscle
 } from '../stats.js';
 import { normalizeBackup, buildExport } from '../importer.js';
 import { sheet, confirmRow, once } from './modals.js';
-import { buildCardioRow } from './entrenar.js';
 import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -19,6 +18,8 @@ export function renderProgresion(panel) {
   const wrap = el('div', { class: 'g-prog' });
   const heroSlot = el('div', {});
   wrap.appendChild(heroSlot);
+  const muscleSlot = el('div', {});
+  wrap.appendChild(muscleSlot);
   wrap.appendChild(el('div', { class: 'g-section-label' }, ['EJERCICIOS · TAP PARA VER PROGRESIÓN']));
   const listSlot = el('div', {});
   wrap.appendChild(listSlot);
@@ -69,9 +70,12 @@ export function renderProgresion(panel) {
       const sesMap = {};
       sesiones.forEach((s) => { sesMap[s.id] = s; });
 
+      // Sin ejercicios se avisa, pero NO se corta: antes este `return` se
+      // llevaba por delante la sección de cardio, así que un historial de puro
+      // cardio (o el recién importado, antes de crear ejercicios) se veía como
+      // una pantalla vacía sin explicación.
       if (ejercicios.length === 0) {
         listSlot.appendChild(el('div', { class: 'g-empty-card' }, ['Sin ejercicios. Crea uno desde la pestaña Ejercicios.']));
-        return;
       }
 
       const realSets = sets.filter((s) => {
@@ -101,6 +105,15 @@ export function renderProgresion(panel) {
         }
       }
 
+      // Volumen por grupo muscular (últimos 7 días)
+      const ejMap = {};
+      ejercicios.forEach((e) => { ejMap[e.id] = e; });
+      const porMusculo = setsPerMuscle(weekSets, ejMap);
+      if (porMusculo.length > 0) {
+        muscleSlot.appendChild(el('div', { class: 'g-section-label' }, ['ESTA SEMANA · SETS POR MÚSCULO']));
+        muscleSlot.appendChild(buildMuscleCard(porMusculo));
+      }
+
       // Lista con/sin historial
       const withData = [];
       const noData = [];
@@ -118,7 +131,9 @@ export function renderProgresion(panel) {
         const card = el('div', { class: 'g-list-card' });
         withData.forEach((item) => card.appendChild(buildRow(panel, item.ej, item.pr, item.sesionCount)));
         listSlot.appendChild(card);
-      } else {
+      } else if (ejercicios.length > 0) {
+        // Si no hay NINGÚN ejercicio ya se avisó arriba: dos tarjetas vacías
+        // seguidas diciendo casi lo mismo solo confunden.
         listSlot.appendChild(el('div', { class: 'g-empty-card' }, ['Aún no hay ejercicios con historial.']));
       }
       if (noData.length > 0) {
@@ -158,6 +173,35 @@ export function renderProgresion(panel) {
         cardioSlot.appendChild(card);
       }
     });
+}
+
+// Sets por músculo de los últimos 7 días. Sirve para ver de un vistazo qué
+// estás descuidando — los músculos ya estaban guardados en cada ejercicio y no
+// se usaban para nada. Barras relativas al músculo más trabajado.
+function buildMuscleCard(filas) {
+  const card = el('div', { class: 'g-muscle-card' });
+  const max = filas[0].sets || 1;
+  filas.slice(0, 10).forEach((f) => {
+    const volLbs = Math.round(kgToLbs(f.volumenKg) || 0);
+    const fill = el('div', { class: 'g-muscle-fill' });
+    fill.style.width = Math.max(4, (f.sets / max) * 100) + '%';
+    card.appendChild(el('div', { class: 'g-muscle-row' }, [
+      el('div', { class: 'g-muscle-head' }, [
+        el('span', { class: 'g-muscle-name' }, [f.musculo]),
+        el('span', { class: 'g-muscle-count' }, [
+          f.sets + (f.sets === 1 ? ' set · ' : ' sets · ') + fmtInt(volLbs) + ' lbs'
+        ])
+      ]),
+      el('div', { class: 'g-muscle-track' }, [fill])
+    ]));
+  });
+  // Aclaración honesta: un ejercicio con varios músculos suma un set a CADA
+  // uno, así que el total supera las series reales. Sin decirlo, los números
+  // parecen un error de conteo.
+  card.appendChild(el('div', { class: 'g-muscle-foot' }, [
+    'Un ejercicio suma un set a cada músculo que trabaja, así que el total es mayor que tus series reales.'
+  ]));
+  return card;
 }
 
 function buildRow(panel, ej, pr, sesionCount) {
@@ -204,12 +248,12 @@ function buildHero(panel, ej, prSet, rows) {
     const lineD = pts.map((p, i) => (i === 0 ? 'M ' : 'L ') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
     const area = document.createElementNS(SVG_NS, 'path');
     area.setAttribute('d', lineD + ' L ' + W + ' ' + H + ' L 0 ' + H + ' Z');
-    area.setAttribute('fill', 'rgba(255,159,10,0.18)');
+    area.setAttribute('class', 'g-chart-area');
     svg.appendChild(area);
     const line = document.createElementNS(SVG_NS, 'path');
     line.setAttribute('d', lineD);
     line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', '#FF9F0A');
+    line.setAttribute('class', 'g-chart-line');
     line.setAttribute('stroke-width', '2');
     line.setAttribute('stroke-linecap', 'round');
     line.setAttribute('stroke-linejoin', 'round');
@@ -311,7 +355,7 @@ function buildChart(rows) {
     const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('x1', padX); line.setAttribute('x2', W - padX);
     line.setAttribute('y1', y); line.setAttribute('y2', y);
-    line.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+    line.setAttribute('class', 'g-chart-grid');
     line.setAttribute('stroke-dasharray', '2 4');
     svg.appendChild(line);
   });
@@ -327,12 +371,12 @@ function buildChart(rows) {
     const lineD = 'M ' + pts.map((p) => p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' L ');
     const area = document.createElementNS(SVG_NS, 'path');
     area.setAttribute('d', lineD + ' L ' + pts[pts.length - 1].x.toFixed(1) + ' ' + (H - padY) + ' L ' + pts[0].x.toFixed(1) + ' ' + (H - padY) + ' Z');
-    area.setAttribute('fill', 'rgba(255,159,10,0.18)');
+    area.setAttribute('class', 'g-chart-area');
     svg.appendChild(area);
     const ln = document.createElementNS(SVG_NS, 'path');
     ln.setAttribute('d', lineD);
     ln.setAttribute('fill', 'none');
-    ln.setAttribute('stroke', '#FF9F0A');
+    ln.setAttribute('class', 'g-chart-line');
     ln.setAttribute('stroke-width', '2');
     ln.setAttribute('stroke-linecap', 'round');
     ln.setAttribute('stroke-linejoin', 'round');
@@ -341,7 +385,7 @@ function buildChart(rows) {
   pts.forEach((p) => {
     const c = document.createElementNS(SVG_NS, 'circle');
     c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 3);
-    c.setAttribute('fill', '#FF9F0A');
+    c.setAttribute('class', 'g-chart-dot');
     const title = document.createElementNS(SVG_NS, 'title');
     title.textContent = fmtDateShort(p.row.sesion ? p.row.sesion.fecha : null) + ': ' + (kgToLbs(p.row.maxPesoKg) || 0) + ' lbs';
     c.appendChild(title);

@@ -7,6 +7,10 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- `apple-mobile-web-app-capable` está deprecado; el estándar es
+       `mobile-web-app-capable`. Se mandan los dos: iOS viejo sigue leyendo el
+       primero y sin el segundo Lighthouse marca la PWA como incompleta. -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Gym Tracker">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -34,11 +38,6 @@
        pantalla negra al abrir. Ver README §Arranque. -->
   <div id="app">
     <h1 class="g-screen-title">Gym Tracker</h1>
-    <div class="main-tabs">
-      <button class="main-tab active" id="tab-btn-entrenar" type="button">Entrenar</button>
-      <button class="main-tab" id="tab-btn-ejercicios" type="button">Ejercicios</button>
-      <button class="main-tab" id="tab-btn-progresion" type="button">Progresión</button>
-    </div>
     <div id="tab-content">
       <div class="g-boot-skeleton" aria-hidden="true">
         <div class="g-boot-bar"></div>
@@ -46,7 +45,84 @@
         <div class="g-boot-bar short"></div>
       </div>
     </div>
+    <!-- La barra de pestañas va al FINAL del documento y flota abajo (CSS
+         `position:fixed`). Estaba arriba del título: en un iPhone 11 sostenido
+         con una mano el pulgar no llega a la navegación principal de la app.
+         Sigue siendo estática por la razón de siempre (arranque en frío). -->
+    <nav class="main-tabs" aria-label="Secciones">
+      <button class="main-tab active" id="tab-btn-entrenar" type="button">Entrenar</button>
+      <button class="main-tab" id="tab-btn-ejercicios" type="button">Ejercicios</button>
+      <button class="main-tab" id="tab-btn-progresion" type="button">Progresión</button>
+    </nav>
   </div>
+  <!-- RED DE SEGURIDAD DEL ARRANQUE. Script clásico a propósito, NO módulo: si
+       js/main.js o cualquiera de sus imports falla al cargarse (un archivo que
+       no quedó en la caché del service worker, un fallo de red en frío), el
+       módulo no se ejecuta, `boot()` nunca corre y el esqueleto se queda
+       latiendo para siempre — la app parece viva pero no responde a nada, y no
+       hay forma de salir salvo desinstalar la PWA. Esto lo detecta y da una
+       salida. Sin `innerHTML`, como todo el proyecto. -->
+  <script>
+    (function () {
+      var ARRANQUE_MAX_MS = 8000;
+      setTimeout(function () {
+        var cont = document.getElementById('tab-content');
+        if (!cont || !cont.querySelector('.g-boot-skeleton')) return; // arrancó bien
+        while (cont.firstChild) cont.removeChild(cont.firstChild);
+
+        var card = document.createElement('div');
+        card.className = 'g-empty-card';
+        card.style.margin = '20px 16px';
+        var t = document.createElement('div');
+        t.style.cssText = 'font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;';
+        t.appendChild(document.createTextNode('La app no terminó de cargar'));
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(
+          'Suele pasar cuando una actualización quedó a medias. Tus datos están a salvo: ' +
+          'viven en el teléfono y no se tocan.'
+        ));
+        card.appendChild(t);
+        card.appendChild(d);
+
+        var reintentar = document.createElement('button');
+        reintentar.className = 'g-btn-primary';
+        reintentar.type = 'button';
+        reintentar.appendChild(document.createTextNode('Reintentar'));
+        reintentar.onclick = function () { window.location.reload(); };
+
+        var reparar = document.createElement('button');
+        reparar.className = 'g-btn-secondary';
+        reparar.type = 'button';
+        reparar.appendChild(document.createTextNode('Reparar y recargar'));
+        reparar.onclick = function () {
+          reparar.disabled = true;
+          reparar.textContent = 'Reparando…';
+          // Se tira la caché del service worker y su registro: al recargar, la
+          // PWA se baja entera otra vez. IndexedDB (el historial) NO se toca.
+          var jobs = [];
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (ks) {
+              return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }));
+          }
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+              return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }));
+          }
+          Promise.all(jobs)['catch'](function () {})
+            .then(function () { window.location.reload(true); });
+        };
+
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'padding:0 16px;';
+        wrap.appendChild(reintentar);
+        wrap.appendChild(reparar);
+        cont.appendChild(card);
+        cont.appendChild(wrap);
+      }, ARRANQUE_MAX_MS);
+    })();
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
