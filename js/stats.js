@@ -101,16 +101,70 @@ export function sessionRows(sets, sesionMap) {
     .sort((a, b) => a.ts - b.ts);
 }
 
-// Número del próximo workout. Toma el máximo entre el contador persistente y
-// el mayor "Workout #N" existente (cubre historial importado de otra app o de
-// otro dispositivo, donde el contador local va atrasado).
-export function nextWorkoutNumber(prefCounter, sesiones) {
-  let max = Number(prefCounter) || 0;
+// Nombre de una sesión para mostrar. El "Workout #N" era numeración heredada
+// del template de Notion y Esteban lo quitó el 2026-08-12: no aportaba nada que
+// la fecha no diga mejor. Se lee de `routine_type`, así que las sesiones
+// ANTIGUAS también pierden el prefijo sin tocarles el dato guardado.
+export function sessionName(sesion) {
+  if (!sesion) return 'Workout';
+  if (sesion.routine_type) return sesion.routine_type;
+  // Historial anterior sin routine_type: se recorta el "Workout #12 · " si lo trae.
+  const n = String(sesion.nombre || '').trim();
+  const m = /^Workout #\d+\s*·\s*(.+)$/.exec(n);
+  if (m) return m[1];
+  return n || 'Workout';
+}
+
+// ─── Resumen de la semana (pantalla de inicio) ────────────────────────────────
+// Antes esa pantalla era un 70% de negro vacío. Devuelve lo que se puede decir
+// con datos que ya existen, sin pedir nada nuevo:
+//   { sesiones, volumenKg, sets, dias: [{ letra, entrenado, hoy }] }
+// `dias` son los últimos 7 terminando HOY, para una tira de actividad.
+const LETRA_DIA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+
+export function weekSummary(sesiones, sets, ahora) {
+  const now = ahora != null ? ahora : Date.now();
+  const hoy = new Date(now);
+  hoy.setHours(0, 0, 0, 0);
+  const inicioVentana = hoy.getTime() - 6 * 24 * 60 * 60 * 1000;
+
+  const enSemana = new Set();
   (sesiones || []).forEach((s) => {
-    const m = /^Workout #(\d+)/.exec(s.nombre || '');
-    if (m) max = Math.max(max, parseInt(m[1], 10));
+    if (s.finalizada !== true) return;
+    const ts = sessionTs(s);
+    if (!ts) return;
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    if (d.getTime() >= inicioVentana) enSemana.add(s.id);
   });
-  return max + 1;
+
+  let volumenKg = 0;
+  let nSets = 0;
+  (sets || []).forEach((s) => {
+    if (!enSemana.has(s.sesion_id) || !isCountable(s)) return;
+    volumenKg += Number(s.peso) * Number(s.reps);
+    nSets += 1;
+  });
+
+  const conActividad = new Set();
+  (sesiones || []).forEach((s) => {
+    if (!enSemana.has(s.id)) return;
+    const d = new Date(sessionTs(s));
+    d.setHours(0, 0, 0, 0);
+    conActividad.add(d.getTime());
+  });
+
+  const dias = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(hoy.getTime() - i * 24 * 60 * 60 * 1000);
+    dias.push({
+      letra: LETRA_DIA[d.getDay()],
+      entrenado: conActividad.has(d.getTime()),
+      hoy: i === 0
+    });
+  }
+
+  return { sesiones: enSemana.size, volumenKg, sets: nSets, dias };
 }
 
 // ─── Set fantasma (sugerencia de la sesión anterior) ──────────────────────────

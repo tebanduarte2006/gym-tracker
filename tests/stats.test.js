@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isCountable, isPlaceholder, visibleSets, weightPR, repsPR,
-  epley1RM, volumeKg, sessionRows, markRunningPRs, nextWorkoutNumber,
-  suggestNextSet, setsPerMuscle, autofillPlan
+  epley1RM, volumeKg, sessionRows, markRunningPRs,
+  suggestNextSet, setsPerMuscle, autofillPlan, sessionName, weekSummary
 } from '../js/stats.js';
 
 const done = (peso, reps, extra = {}) => ({ peso, reps, status: 'Done', ...extra });
@@ -68,14 +68,6 @@ test('sessionRows agrupa, ordena cronológicamente y excluye sesiones no finaliz
   assert.equal(rows[0].maxPesoKg, 35);
   assert.equal(rows[0].volumenKg, 30 * 8 + 35 * 6);
   assert.equal(rows[1].sesion.id, 2);
-});
-
-test('nextWorkoutNumber respeta historial importado y contador', () => {
-  const importadas = [{ nombre: 'Workout #35 · Legs' }, { nombre: 'Workout #12 · Push' }];
-  assert.equal(nextWorkoutNumber(0, importadas), 36);   // historial manda
-  assert.equal(nextWorkoutNumber(50, importadas), 51);  // contador manda
-  assert.equal(nextWorkoutNumber(0, []), 1);            // arranque limpio
-  assert.equal(nextWorkoutNumber(0, [{ nombre: 'Mi rutina' }]), 1); // nombres sin patrón
 });
 
 test('markRunningPRs marca récords en orden cronológico', () => {
@@ -280,4 +272,88 @@ test('autofillPlan hereda el peso corporal (0 kg con reps)', () => {
   const sets = [{ id: 1, sesion_id: 1, ejercicio_id: 10, peso: 0, reps: 15, orden: 1, status: 'Done' }];
   const plan = autofillPlan('Core', sesiones, sets);
   assert.deepEqual(plan.ejercicios[0].sets, [{ peso: 0, reps: 15, unidad: null }]);
+});
+
+// ─── Nombre de sesión (sin "Workout #N") ──────────────────────────────────────
+test('sessionName usa routine_type y no el "Workout #N" heredado de Notion', () => {
+  assert.equal(sessionName({ nombre: 'Workout #35 · Legs', routine_type: 'Legs' }), 'Legs');
+  assert.equal(sessionName({ nombre: 'Push', routine_type: 'Push' }), 'Push');
+});
+
+test('sessionName recorta el prefijo también sin routine_type (historial viejo)', () => {
+  assert.equal(sessionName({ nombre: 'Workout #12 · Upper A' }), 'Upper A');
+  assert.equal(sessionName({ nombre: 'Mi rutina' }), 'Mi rutina');
+  assert.equal(sessionName({}), 'Workout');
+  assert.equal(sessionName(null), 'Workout');
+});
+
+// ─── Resumen de la semana ─────────────────────────────────────────────────────
+const DIA = 24 * 60 * 60 * 1000;
+
+test('weekSummary suma sesiones, volumen y sets de los últimos 7 días', () => {
+  const ahora = new Date(2026, 7, 12, 15, 0, 0).getTime();
+  const sesiones = [
+    { id: 1, finalizada: true, timestamp_inicio: ahora - 1 * DIA },
+    { id: 2, finalizada: true, timestamp_inicio: ahora - 3 * DIA },
+    { id: 3, finalizada: true, timestamp_inicio: ahora - 30 * DIA }  // fuera de ventana
+  ];
+  const sets = [
+    { sesion_id: 1, peso: 50, reps: 10, status: 'Done' },
+    { sesion_id: 2, peso: 40, reps: 5, status: 'Done' },
+    { sesion_id: 3, peso: 99, reps: 9, status: 'Done' }
+  ];
+  const r = weekSummary(sesiones, sets, ahora);
+  assert.equal(r.sesiones, 2);
+  assert.equal(r.sets, 2);
+  assert.equal(r.volumenKg, 50 * 10 + 40 * 5);
+});
+
+test('weekSummary ignora sesiones sin finalizar y sets no registrados', () => {
+  const ahora = new Date(2026, 7, 12, 15, 0, 0).getTime();
+  const sesiones = [
+    { id: 1, finalizada: true, timestamp_inicio: ahora - 1 * DIA },
+    { id: 2, finalizada: false, timestamp_inicio: ahora - 1 * DIA }
+  ];
+  const sets = [
+    { sesion_id: 1, peso: 50, reps: 10, status: 'Done' },
+    { sesion_id: 1, peso: 50, reps: 10, status: 'Pending' },
+    { sesion_id: 2, peso: 99, reps: 9, status: 'Done' }
+  ];
+  const r = weekSummary(sesiones, sets, ahora);
+  assert.equal(r.sesiones, 1);
+  assert.equal(r.sets, 1);
+  assert.equal(r.volumenKg, 500);
+});
+
+test('weekSummary devuelve 7 días terminando HOY y marca los entrenados', () => {
+  const ahora = new Date(2026, 7, 12, 15, 0, 0).getTime();   // miércoles
+  const sesiones = [
+    { id: 1, finalizada: true, timestamp_inicio: ahora },              // hoy
+    { id: 2, finalizada: true, timestamp_inicio: ahora - 2 * DIA }
+  ];
+  const r = weekSummary(sesiones, [], ahora);
+  assert.equal(r.dias.length, 7);
+  assert.equal(r.dias[6].hoy, true, 'el último es hoy');
+  assert.equal(r.dias.filter((d) => d.hoy).length, 1);
+  assert.equal(r.dias[6].entrenado, true);
+  assert.equal(r.dias[4].entrenado, true);
+  assert.equal(r.dias[5].entrenado, false);
+});
+
+test('weekSummary cuenta una vez el día con dos sesiones', () => {
+  const ahora = new Date(2026, 7, 12, 15, 0, 0).getTime();
+  const sesiones = [
+    { id: 1, finalizada: true, timestamp_inicio: ahora - 2 * 60 * 60 * 1000 },
+    { id: 2, finalizada: true, timestamp_inicio: ahora - 6 * 60 * 60 * 1000 }
+  ];
+  const r = weekSummary(sesiones, [], ahora);
+  assert.equal(r.sesiones, 2, 'dos sesiones');
+  assert.equal(r.dias.filter((d) => d.entrenado).length, 1, 'pero un solo día marcado');
+});
+
+test('weekSummary aguanta listas vacías', () => {
+  const r = weekSummary([], [], Date.now());
+  assert.equal(r.sesiones, 0);
+  assert.equal(r.volumenKg, 0);
+  assert.equal(r.dias.length, 7);
 });

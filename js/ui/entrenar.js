@@ -17,7 +17,8 @@ import {
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
 import {
-  STATUS, visibleSets, volumeKg, sessionTs, nextWorkoutNumber, suggestNextSet, autofillPlan
+  STATUS, visibleSets, volumeKg, sessionTs, suggestNextSet, autofillPlan,
+  sessionName, weekSummary
 } from '../stats.js';
 import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
@@ -56,12 +57,52 @@ export function renderEntrenar(panel) {
 }
 
 // ─── Pantalla inicial (sin sesión activa) ─────────────────────────────────────
+// Resumen de la semana + tira de actividad de 7 días.
+// La pantalla de inicio era un 70% de negro vacío: el botón de empezar, tres
+// tarjetas y nada más. Esto lo llena con lo único que merece ocupar sitio ahí,
+// que es saber cómo vas — y sale de datos que ya existían sin pedir nada nuevo.
+function buildWeekCard(sesiones, sets) {
+  const r = weekSummary(sesiones, sets);
+  const volLbs = Math.round(kgToLbs(r.volumenKg) || 0);
+
+  const cifra = (valor, unidad) => el('div', { class: 'g-week-stat' }, [
+    el('div', { class: 'g-week-num' }, [valor]),
+    el('div', { class: 'g-week-unit' }, [unidad])
+  ]);
+
+  const tira = el('div', { class: 'g-week-days' });
+  r.dias.forEach((d) => {
+    tira.appendChild(el('div', { class: 'g-week-day' + (d.hoy ? ' hoy' : '') }, [
+      el('div', { class: 'g-week-day-l' }, [d.letra]),
+      el('div', { class: 'g-week-dot' + (d.entrenado ? ' on' : '') })
+    ]));
+  });
+
+  return el('div', { class: 'g-week-card' }, [
+    el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS']),
+    el('div', { class: 'g-week-stats' }, [
+      cifra(String(r.sesiones), r.sesiones === 1 ? 'sesión' : 'sesiones'),
+      cifra(fmtInt(volLbs), 'lbs'),
+      cifra(String(r.sets), r.sets === 1 ? 'set' : 'sets')
+    ]),
+    tira
+  ]);
+}
+
 function renderStartScreen(panel, sesiones) {
   const wrap = el('div', { class: 'g-start' });
 
   const finalizadas = sesiones
     .filter((s) => s.finalizada === true)
     .sort((a, b) => sessionTs(b) - sessionTs(a));
+
+  // La tarjeta va primero y se rellena al llegar los sets: es lo primero que se
+  // ve al abrir la app.
+  const weekSlot = el('div', {});
+  wrap.appendChild(weekSlot);
+  guard(dbGetAll('sets'), 'resumen semanal').then((allSets) => {
+    weekSlot.appendChild(buildWeekCard(sesiones, allSets));
+  });
 
   if (finalizadas.length > 0) {
     const headRow = el('div', { class: 'g-head-row' }, [
@@ -71,7 +112,9 @@ function renderStartScreen(panel, sesiones) {
     verTodas.addEventListener('click', () => renderAllSessions(panel));
     headRow.appendChild(verTodas);
     wrap.appendChild(headRow);
-    wrap.appendChild(buildSessionCards(panel, finalizadas.slice(0, 3), false));
+    // Cinco, no tres: con la tarjeta semanal arriba y cinco sesiones, la pantalla
+    // de inicio queda llena en un iPhone 11 en vez de dejar un tercio en negro.
+    wrap.appendChild(buildSessionCards(panel, finalizadas.slice(0, 5), false));
   } else {
     wrap.appendChild(el('div', { class: 'g-empty-card' }, [
       'Aún no hay sesiones. Toca "Iniciar sesión" para empezar.'
@@ -91,7 +134,7 @@ function buildSessionCards(panel, sesiones, fromAll) {
       const count = visibleSets(allSets.filter((st) => st.sesion_id === s.id)).length;
       const card = el('div', { class: 'g-recent-card' }, [
         el('div', {}, [
-          el('div', { class: 'g-recent-name' }, [s.nombre || 'Workout']),
+          el('div', { class: 'g-recent-name' }, [sessionName(s)]),
           el('div', { class: 'g-recent-sub' }, [
             fmtDateLong(s.fecha) + ' · ' + count + (count === 1 ? ' set' : ' sets')
           ])
@@ -154,7 +197,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
 
     wrap.appendChild(el('div', { class: 'g-session-card', style: 'margin-top:8px;' }, [
       el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
-      el('div', { class: 'g-session-name' }, [sesion.nombre || 'Workout']),
+      el('div', { class: 'g-session-name' }, [sessionName(sesion)]),
       el('div', { class: 'g-recent-sub', style: 'margin-top:6px;' }, [fmtDateLong(sesion.fecha)])
     ]));
 
@@ -206,7 +249,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     const delBtn = el('button', { class: 'g-btn-secondary', type: 'button', style: 'color:var(--red);' }, ['🗑️ Eliminar sesión']);
     delBtn.addEventListener('click', () => {
       confirmAction('¿Eliminar sesión?',
-        'Se eliminarán la sesión "' + (sesion.nombre || 'Workout') + '", sus ' + visible.length +
+        'Se eliminarán la sesión "' + sessionName(sesion) + '", sus ' + visible.length +
         ' sets y su cardio. Los ejercicios del directorio no se tocan. Esta acción no se puede deshacer.',
         () => {
           guard(dbDeleteSessionCascade(sesion.id), 'eliminando sesión').then(() => {
@@ -425,21 +468,22 @@ function createSession(panel, routineType) {
   // Contador persistente + máximo del historial: no se repite aunque borres
   // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
   return guard(
-    Promise.all([prefGet('contador_workouts', 0), dbGetAll('sesiones'), dbGetAll('sets')])
-      .then(([n, all, allSets]) => {
-        const num = nextWorkoutNumber(n, all);
+    Promise.all([dbGetAll('sesiones'), dbGetAll('sets')])
+      .then(([all, allSets]) => {
         const plan = autofillPlan(routineType, all, allSets);
         const now = Date.now();
         const sesion = {
-          nombre: 'Workout #' + num + ' · ' + routineType,
+          // Sin "Workout #N": era numeración heredada del template de Notion y
+          // no dice nada que la fecha no diga mejor (ver stats.js › sessionName).
+          nombre: routineType,
           fecha: new Date(now).toISOString(),
           timestamp_inicio: now,
           finalizada: false,
           routine_type: routineType,
           ej_orden: plan ? plan.ejercicios.map((e) => e.ejercicio_id) : []
         };
-        return Promise.all([dbPut('sesiones', sesion), prefSet('contador_workouts', num)])
-          .then(([id]) => {
+        return dbPut('sesiones', sesion)
+          .then((id) => {
             sesion.id = id;
             _ack = id;
             _openEj = new Set();
@@ -488,7 +532,7 @@ function renderActiveSession(panel, sesion) {
   const sessionCard = el('div', { class: 'g-session-card' }, [
     el('div', { class: 'g-session-meta' }, [
       el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
-      el('div', { class: 'g-session-name' }, [sesion.nombre || 'Workout'])
+      el('div', { class: 'g-session-name' }, [sessionName(sesion)])
     ]),
     el('div', { class: 'g-session-timer-wrap' }, [
       el('div', {}, [
