@@ -340,6 +340,13 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-ex-head {
   width: 100%;
   background: none; border: none;
+  /* PERMANENTE, no solo al arrastrar: la lupa de selección y el menú
+     contextual de iOS aparecen sobre los 500 ms y competían con la pulsación
+     larga justo cuando iba a vencer. Ponerlos al entrar en modo arrastre
+     llegaba tarde — para entonces iOS ya había decidido. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   padding: 15px 18px;
   min-height: 44px;
   display: flex; align-items: center; justify-content: space-between;

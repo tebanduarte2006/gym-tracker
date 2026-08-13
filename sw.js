@@ -1,7 +1,7 @@
 // Service Worker — Gym Tracker
 // Bumpear CACHE en cada deploy (formato gymtracker-YYYYMMDD-N).
 // Archivos nuevos → agregarlos a ASSETS. Ver README §Deploy.
-var CACHE = "gymtracker-" + "20260812-6";
+var CACHE = "gymtracker-" + "20260813-1";
 var ASSETS = [
   "./",
   "./index.html",

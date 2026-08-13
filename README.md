@@ -59,11 +59,19 @@ en su **iPhone 11** desde GitHub Pages.
 12. **Peso canónico SIEMPRE en kg** en la DB. Display siempre en lbs. La
     unidad es un asunto de input/display, jamás de almacenamiento.
 13. **No refactorizar de paso.** Cambios quirúrgicos, un propósito por commit.
+14. **Nada táctil se da por bueno probándolo con el ratón.** Esta regla nació de
+    tres fallos seguidos que pasaron la verificación y llegaron rotos al iPhone:
+    el bloqueo de scroll de los modales, el arrastre para reordenar y el
+    `preventDefault` del gesto. En escritorio los tres funcionaban. Todo lo que
+    sea gesto, scroll o área táctil se verifica con **eventos táctiles reales**
+    (`Input.dispatchTouchEvent` vía CDP con `hasTouch: true`), no con
+    `page.mouse`. Si no puedes probarlo así, dilo en la entrega en vez de
+    marcarlo como verificado. Ver §5.5.
 
 ## 3. Arquitectura
 
 ```
-index.html            Shell ESTÁTICO (título + tabs + esqueleto) + <script type="module">.
+index.html            Shell ESTÁTICO (título + tabs + esqueleto) + vigilante de arranque (script CLÁSICO) + <script type="module">.
 styles.css            Design tokens "Vidrio Negro" (Liquid Glass) + clases g-*. Ver §5.1 antes de tocarlo.
 manifest.json         PWA (es-CO, standalone, iconos 192/512/maskable).
 sw.js                 Service worker: cache-first versionado; responde 'VERSION' y 'SKIP_WAITING'.
@@ -442,6 +450,61 @@ demás, que es justo lo que descoloca una lista que se escanea de un vistazo.
 teclado. Es el precio del gesto que pidió Esteban; si algún día importa, la
 salida es un modo "reordenar" explícito, no devolver los botones a la fila.
 
+### 5.5 Gestos táctiles en iOS (leer antes de tocar cualquier gesto)
+
+Tres entregas seguidas llegaron rotas al iPhone por creencias falsas sobre cómo
+funciona el táctil en iOS Safari. Esteban resumió la tercera así: *"el hold y
+click para cambiar el orden NO funciona bien. A veces sí, a veces no, a veces se
+selecciona el ejercicio pero es imposible moverlo. En vez de moverse, solo
+scrollea. Funciona el 10% de las veces"*. Son cuatro reglas, y las cuatro
+parecen detalles hasta que te comes un gesto inutilizable:
+
+1. **`preventDefault()` sobre `pointermove` NO cancela el scroll en iOS.** Solo
+   lo cancela sobre **`touchmove`**, y solo si el listener se registró con
+   `{ passive: false }`. Esta única línea es la diferencia entre un arrastre que
+   funciona y uno que scrollea la página mientras la tarjeta se queda quieta.
+2. **`touch-action: none` aplicado al empezar el gesto llega tarde.** El
+   navegador decide si un toque puede scrollear **cuando el toque empieza**;
+   cambiar la propiedad a mitad del gesto no deshace esa decisión. Sirve como
+   refuerzo, nunca como mecanismo principal.
+3. **`-webkit-touch-callout` y `user-select` van PERMANENTES en el asa**, no al
+   entrar en modo arrastre. La lupa de selección y el menú contextual de iOS
+   aparecen sobre los 500 ms; si tu pulsación larga vence cerca de ahí, compiten
+   con ella. Por eso `MS_LARGA` es 320 ms y no 420.
+4. **Un umbral de cancelación de 8 px es demasiado fino para un pulgar.** El
+   dedo tiembla, más aún sudado y con prisa. 10 px distingue igual de bien un
+   scroll de una pulsación larga y deja de cancelar el gesto por temblor.
+
+**El click posterior al gesto no se puede tragar solo con el evento.** Tras
+reordenar, iOS a veces dispara el `click` de la cabecera, a veces no, y a veces
+lo dispara después del re-render — así que el ejercicio se abría solo y, en
+palabras de Esteban, *"confunde mucho"*. El interceptor en fase de captura se
+mantiene, pero la garantía es un **sello de tiempo**: `entrenar.js` guarda cuándo
+terminó el último arrastre y la cabecera ignora los clicks de los 400 ms
+siguientes. Un sello de tiempo es determinista; el orden de los eventos táctiles
+en iOS no lo es.
+
+**Tampoco se auto-abre la primera tarjeta tras reordenar.** `refreshExercises`
+abre la primera cuando no hay ninguna abierta —lo correcto al entrar a la
+sesión—, pero después de un arrastre eso abría un ejercicio que nadie tocó y
+parecía que el gesto había "seleccionado" algo.
+
+**Cómo se verifica un gesto** (y sin esto NO está verificado): contexto con
+`devices['iPhone 11']` + `hasTouch: true`, y el gesto disparado con
+`Input.dispatchTouchEvent` por CDP. Hay que comprobar las cuatro cosas a la vez,
+porque fallar una sola reproduce el síntoma que reportó Esteban:
+
+| Comprobación | Por qué |
+|---|---|
+| entra en modo arrastre | la pulsación larga vence |
+| la tarjeta sigue al dedo | el `transform` cambia de verdad |
+| `window.scrollY` NO cambia | el `touchmove` sí se está previniendo |
+| el orden cambió al soltar | el destino se calculó bien |
+
+Y las tres que garantizan que no rompiste lo de siempre: deslizar rápido sobre
+una tarjeta **scrollea** (no arrastra), un toque corto **abre** la tarjeta, y los
+botones de dentro (registrar, borrar) **siguen respondiendo**.
+
 ## 6. Deploy (paso a paso)
 
 ```bash
@@ -602,16 +665,37 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     `.g-ex-card.open .g-ex-body` (tres), así que el modo compacto colapsaba
     todas las tarjetas MENOS la abierta — justo la que más falta hacía. Cuando
     una regla "no se aplica", cuenta las clases antes de tocar nada más.
-38b. **El vigilante de un fallo no puede vivir dentro de lo que puede fallar.**
-    Si `js/main.js` no carga, ningún módulo corre — así que la red de seguridad
-    del arranque es un `<script>` clásico en `index.html`, fuera del grafo de
-    módulos. Un arranque que puede quedarse colgado necesita SIEMPRE una salida
-    que no dependa de que ese arranque funcione.
 38. **`getComputedStyle` dentro de un manejador de gesto es un freno.** Se
     llamaba una vez por `pointermove`, y `pointermove` llega más veces por
     segundo que frames hay: cada llamada fuerza un recálculo de estilo. Lo que
     no cambia durante el gesto se mide UNA vez al empezarlo, y el pintado va
     dentro de un `requestAnimationFrame`.
+39. **El vigilante de un fallo no puede vivir dentro de lo que puede fallar.**
+    Si `js/main.js` no carga, ningún módulo corre — así que la red de seguridad
+    del arranque es un `<script>` clásico en `index.html`, fuera del grafo de
+    módulos. Un arranque que puede quedarse colgado necesita SIEMPRE una salida
+    que no dependa de que ese arranque funcione.
+40. **En iOS el scroll solo se cancela desde `touchmove`.** `preventDefault()`
+    sobre `pointermove` no hace nada, y el listener tiene que ser
+    `{passive:false}` o el navegador lo ignora. Un arrastre que "a veces
+    funciona y a veces solo scrollea" es casi siempre esto.
+41. **Las propiedades que gobiernan un gesto se ponen ANTES de que empiece.**
+    `touch-action`, `-webkit-touch-callout` y `user-select` aplicados al entrar
+    en modo arrastre llegan tarde: el navegador ya decidió qué hacer con ese
+    toque cuando el dedo tocó la pantalla.
+42. **El orden de los eventos táctiles en iOS no es determinista; un sello de
+    tiempo sí.** Tragar el `click` posterior a un gesto en fase de captura falla
+    cuando iOS no dispara ninguno, o lo dispara tras el re-render. Guardar
+    cuándo terminó el gesto y consultar la hora funciona siempre.
+43. **Un comportamiento correcto al entrar a una pantalla puede ser incorrecto
+    al volver a ella.** Abrir la primera tarjeta cuando no hay ninguna abierta
+    está bien al empezar la sesión y está mal después de reordenar: abría un
+    ejercicio que nadie tocó. Pregúntate siempre desde dónde se llega a ese
+    render.
+44. **Tres fallos con la misma raíz son una regla que falta, no tres bugs.** El
+    scroll de los modales, el arrastre y el `preventDefault` fallaron los tres
+    por verificar en escritorio algo que solo se comporta así en iOS. Por eso
+    ahora es la regla dura §2.14 y tiene su propio protocolo en §5.5.
 
 ## 8. Pendientes / ideas evaluables
 
@@ -641,6 +725,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-08-13 | `(pending)` | **El arrastre, arreglado de verdad para iOS + estandarización final.** Esteban: *"funciona el 10% de las veces; a veces se resalta la tarjeta pero es imposible moverla, y en vez de moverse solo scrollea"*. Dos creencias falsas, las dos habituales: **(1)** `preventDefault()` sobre `pointermove` NO cancela el scroll en iOS Safari — solo lo hace sobre **`touchmove`** y solo con `{passive:false}`; sin eso, al mover el dedo iOS scrolleaba y se llevaba el gesto, dejando la tarjeta levantada e inmóvil, exactamente el síntoma descrito. **(2)** `touch-action:none` puesto al ENTRAR en modo arrastre llega tarde: el navegador decide si un toque puede scrollear cuando el toque empieza. Además `MS_LARGA` 420→**320 ms** (la lupa y el menú contextual de iOS salen sobre los 500 y competían con el final de la espera), umbral de cancelación 8→**10 px** (el pulgar tiembla), y `-webkit-touch-callout`/`user-select` **permanentes** en la cabecera en vez de aplicarse al arrastrar. **La tarjeta ya no se abre sola al reordenar**: tragar el click en fase de captura no basta —iOS a veces no dispara ninguno y a veces lo dispara tras el re-render— así que la cabecera ignora los clicks de los 400 ms posteriores a un arrastre, y `refreshExercises` deja de auto-abrir la primera tarjeta cuando el render viene de reordenar. Verificado con **eventos táctiles reales** (`Input.dispatchTouchEvent` sobre `devices['iPhone 11']`): **5/5 arrastres correctos**, `scrollY` sin moverse durante el gesto, y sin romper lo de siempre — deslizar rápido scrollea, el toque corto abre la tarjeta y los botones de dentro responden. **Estandarización:** nueva regla dura §2.14 (nada táctil se verifica con el ratón), nueva §5.5 con las cuatro reglas de gestos en iOS y el protocolo de verificación, y lecciones 39-44. 82/82 tests. `sw.js → gymtracker-20260813-1`. |
 | 2026-08-12 | `8d92fa1` | **Red de seguridad del arranque, pantalla de inicio y fuera "Workout #N".** Esteban reportó la PWA congelada en el esqueleto de arranque, sin poder tocar nada ni cerrando desde el multitarea. La causa es siempre la misma familia: si `js/main.js` o cualquiera de sus imports no carga (un archivo que no quedó en la caché del SW, un fallo de red en frío), el módulo no se ejecuta, `boot()` nunca corre y el esqueleto late para siempre — la app parece viva y no responde, y la única salida era desinstalar. Ahora `index.html` lleva un **script clásico (NO módulo)** que a los 8 s comprueba si el esqueleto sigue ahí y, si sigue, ofrece **Reintentar** y **Reparar y recargar** (borra cachés + desregistra el SW; IndexedDB no se toca). Un módulo no sirve para esto: si los módulos son el problema, el vigilante tiene que estar fuera de ellos. **Pantalla de inicio:** era ~70% negro vacío; ahora abre con una tarjeta de **últimos 7 días** (sesiones, volumen, sets + tira de actividad de 7 puntos) y muestra 5 sesiones recientes en vez de 3. `stats.js › weekSummary`, con tests. **Fuera "Workout #N":** numeración heredada del template de Notion que no dice nada que la fecha no diga mejor. `stats.js › sessionName` lo deriva de `routine_type`, así que el historial ANTIGUO también pierde el prefijo **sin tocar un solo registro**; se retiran `nextWorkoutNumber` y la escritura de `contador_workouts` (la clave sigue en la lista blanca del importador para que un backup viejo entre sin avisos). 82/82 tests. 0 errores de consola. `sw.js → gymtracker-20260812-6`. |
 | 2026-08-12 | `e9f57f6` | **Arrastre fluido + tarjetas compactas.** Esteban aprobó los tres riesgos del PR con un matiz: que el arrastre fuera totalmente fluido, y sugirió tarjetas lo más pequeñas posible. Resultan ser el mismo problema. **Al entrar en modo reordenar todas las tarjetas colapsan al nombre** (§5.4): la lista pasa de 610 px a **368 px** y cabe entera en pantalla, todas miden lo mismo y el cálculo de huecos se vuelve exacto — arrastrar una tarjeta abierta de 315 px tapaba media pantalla y dejaba un hueco que nunca coincidía. Requirió repetir `.open` en el selector: `.g-ex-card.open .g-ex-body` ganaba por especificidad y la tarjeta abierta seguía sin colapsar. **Fluidez:** el `gap` se lee una vez en vez de un `getComputedStyle` por `pointermove` (la causa principal de tirones), el pintado va dentro de `requestAnimationFrame`, `will-change: transform` para que el navegador no repinte la lista entera por frame, y un ancla que centra la tarjeta bajo el dedo tras colapsar. Medido: **61 fps** durante el arrastre y **0 px** de desfase entre el centro de la tarjeta y el dedo. **Fuera del modo reordenar**, la tarjeta colapsada muestra solo nombre y contador: la línea de músculos se partía en dos y descuadraba la lista. Toast a 0.88 de opacidad — era el único vidrio que aparece sobre texto denso y se leía turbio. **Bug encontrado al verificar:** `pointermove`/`pointerup` colgaban del contenedor, así que si el dedo salía de la lista antes de vencer la pulsación larga (hacia el cronómetro) la cancelación no llegaba y el arrastre arrancaba igual; ahora van en `window`. Cinco casos límite verificados: salir de la lista, scroll corto, mantener quieto, soltar fuera y toque corto. 76/76 tests. 0 errores de consola. `sw.js → gymtracker-20260812-5`. |
 | 2026-08-12 | `0df7aa0` | **Taxonomía de músculos, arrastre para reordenar y flujo de inicio.** **Músculos (§5.3):** Esteban reportó "músculos raros y duplicados"; la auditoría encontró que el defecto no estaba en sus datos sino en el selector — la constante decía `Aductores` y sus datos `Aductor`, y como el selector añadía además los músculos descubiertos en la base, mostraba los dos a la vez. Peor: `Espalda` y `Dorsales` eran marcables a la vez, así que el volumen por músculo contaba **el mismo set dos veces**. Lista definitiva de **18 músculos** en `js/muscles.js`, un solo nivel de granularidad, agrupada por patrón de movimiento; el selector pasa a ser **lista cerrada** (sin buscador ni "Crear «X»", que es lo que dejó nacer los duplicados). Migración del historial **ofrecida con el diff a la vista** (17 ejercicios), con la regla de traducir y no inventar: `Espalda` en un remo sí significa dorsales y trapecios, pero añadirle bíceps habría triplicado ese volumen sin motivo. 14 tests, incluido uno sobre los 36 ejercicios reales que exige que nadie quede sin músculos ni con nombres fuera de la taxonomía. **Editar músculos DURANTE la rutina** desde la tarjeta del ejercicio. **Reordenar (§5.4):** los ↑ / ↓ los sustituye pulsación larga + arrastre estilo homescreen de iOS (`js/ui/dragorder.js`). **Inicio:** un solo campo que busca entre tus días y, si lo que escribes no existe, ofrece crearlo vacío. Verificado en Chromium: migración aplicada, selector de 18 en 4 grupos, filtrado de días, creación de día nuevo, arrastre que aterriza donde apunta el dedo (con una card abierta entre cerradas) y scroll que NO arrastra. 0 errores de consola. 76/76 tests. `sw.js → gymtracker-20260812-4`. |
