@@ -21,8 +21,14 @@
 // lista puede tener tarjetas de alturas distintas (una abierta y las demás
 // cerradas es lo normal en pleno entrenamiento).
 
-const MS_LARGA = 420;        // pulsación larga antes de entrar en modo arrastre
-const UMBRAL_SCROLL = 8;     // px de movimiento que cancelan la pulsación larga
+// 320 ms, no 420: iOS levanta su propio menú contextual y la lupa de selección
+// alrededor de los 500 ms, y a 420 el gesto competía con ellos justo al final de
+// la espera. A 320 se resuelve antes y sigue siendo claramente un "mantener
+// pulsado" y no un toque (Strong y Hevy andan por ahí).
+const MS_LARGA = 320;
+// 10 px, no 8: el pulgar sudado tiembla, y cancelar la pulsación larga por
+// temblor era parte del "funciona el 10% de las veces".
+const UMBRAL_SCROLL = 10;
 
 // Activa el arrastre sobre `contenedor`. Cada hijo directo con [data-drag-id]
 // es un elemento reordenable.
@@ -184,10 +190,33 @@ export function enableDragOrder(contenedor, opts = {}) {
       yActual = e.clientY;
       return;
     }
+    // El preventDefault de VERDAD va en `touchmove` (ver onTouchMove). Este de
+    // aquí solo sirve en escritorio; en iOS no impide el scroll.
     e.preventDefault();
     yActual = e.clientY;
     hasta = calcularDestino(yActual);
     pedirPintado();
+  }
+
+  // ─── LO QUE HACE QUE EL GESTO FUNCIONE EN iOS ───────────────────────────────
+  // Esteban lo describió como "funciona el 10% de las veces: a veces se resalta
+  // la tarjeta pero es imposible moverla, y en vez de moverse solo scrollea".
+  // Son dos creencias falsas, las dos habituales:
+  //
+  //   1. `preventDefault()` sobre un POINTERMOVE no cancela el scroll en iOS
+  //      Safari. Solo lo cancela sobre `touchmove`, y solo si el listener es
+  //      `{passive:false}`. Sin esto, en cuanto el dedo se movía iOS scrolleaba
+  //      la página y se llevaba el gesto: la tarjeta quedaba levantada pero
+  //      inmóvil, exactamente lo que él veía.
+  //   2. `touch-action:none` puesto AL ENTRAR en modo arrastre llega tarde. El
+  //      navegador decide si un toque puede scrollear cuando el toque EMPIEZA;
+  //      cambiar la propiedad a mitad del gesto no lo deshace.
+  //
+  // Por eso se prohíbe el scroll aquí, en el evento correcto, y solo mientras se
+  // arrastra de verdad: antes de que venza la pulsación larga el scroll tiene
+  // que seguir funcionando con normalidad.
+  function onTouchMove(e) {
+    if (arrastrando && e.cancelable) e.preventDefault();
   }
 
   // Tras un arrastre de verdad, el navegador dispara igualmente el `click` del
@@ -221,6 +250,10 @@ export function enableDragOrder(contenedor, opts = {}) {
       ids.splice(hasta, 0, movido);
       onDrop(ids);
     }
+    // `onEnd` marca la hora de fin. Tragar el click en fase de captura no basta
+    // en iOS —a veces no llega ningún click y a veces llega tras el re-render—,
+    // así que quien escucha el toque comprueba además si acaba de haber un
+    // arrastre. Es determinista y no depende del orden de los eventos.
     onEnd();
     item = null;
     hermanos = [];
@@ -242,6 +275,10 @@ export function enableDragOrder(contenedor, opts = {}) {
   // preventDefault y la página scrollea bajo el dedo mientras arrastras.
   contenedor.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove, { passive: false });
+  // `passive:false` NO es opcional: con el listener pasivo el navegador ignora
+  // el preventDefault y scrollea igual. Es la línea de la que depende que el
+  // arrastre funcione en el iPhone.
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerCancel);
   // El menú contextual de una pulsación larga en iOS/Android taparía el gesto.
@@ -252,6 +289,7 @@ export function enableDragOrder(contenedor, opts = {}) {
     if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
     contenedor.removeEventListener('pointerdown', onPointerDown);
     window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('touchmove', onTouchMove);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointercancel', onPointerCancel);
   };

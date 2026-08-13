@@ -36,6 +36,7 @@ let _openEj = new Set();            // cards abiertas (persiste entre refreshes)
 let _restOverrides = {};            // ejId → sec, solo esta sesión (en memoria)
 let _restDefault = DEFAULT_REST;
 let _dragOff = null;              // desactivador del arrastre del render actual
+let _finArrastre = 0;             // instante del último arrastre (ver head.click)
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 export function renderEntrenar(panel) {
@@ -705,7 +706,12 @@ function refreshExercises(sesion, listEl) {
         listEl.appendChild(el('div', { class: 'g-empty-card' }, ['Toca "+ Agregar ejercicio" para empezar.']));
         return;
       }
-      if (_openEj.size === 0 && order.length > 0) _openEj.add(order[0]);
+      // Abrir la primera SOLO al entrar en la sesión. Tras reordenar, hacerlo
+      // abría un ejercicio que nadie tocó y parecía que el arrastre había
+      // "seleccionado" algo.
+      if (_openEj.size === 0 && order.length > 0 && Date.now() - _finArrastre > 1500) {
+        _openEj.add(order[0]);
+      }
 
       order.forEach((ejId, idx) => {
         const ej = ejMap[ejId];
@@ -720,7 +726,10 @@ function refreshExercises(sesion, listEl) {
       if (order.length > 1) {
         _dragOff = enableDragOrder(listEl, {
           onStart: () => { document.body.classList.add('g-drag-activo'); },
-          onEnd: () => { document.body.classList.remove('g-drag-activo'); },
+          onEnd: () => {
+            document.body.classList.remove('g-drag-activo');
+            _finArrastre = Date.now();
+          },
           onDrop: (ids) => {
             sesion.ej_orden = ids.map(Number);
             guard(dbPut('sesiones', sesion), 'reordenando').then(() => {
@@ -754,6 +763,12 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   const chev = ICON.chevronDown({ size: 18, class: 'g-ex-chevron' });
   head.appendChild(el('div', { class: 'g-ex-head-right' }, [countEl, chev]));
   head.addEventListener('click', () => {
+    // Tras reordenar, iOS dispara el click de la cabecera y el ejercicio se
+    // abría solo — Esteban lo describió como "confunde mucho". Tragar el click
+    // en fase de captura no basta: en iOS a veces no llega ninguno y a veces
+    // llega después del re-render. Comprobar cuándo terminó el último arrastre
+    // sí es determinista.
+    if (Date.now() - _finArrastre < 400) return;
     const open = card.classList.toggle('open');
     open ? _openEj.add(ej.id) : _openEj.delete(ej.id);
   });
