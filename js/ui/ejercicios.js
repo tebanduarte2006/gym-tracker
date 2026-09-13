@@ -56,7 +56,11 @@ export function renderEjercicios(panel) {
   // UNA sola carga para las pastillas y para la lista. Antes se disparaban dos
   // Promise.all distintos que pedían `ejercicios` y `sesiones` por duplicado:
   // cinco lecturas completas de la DB para pintar una pantalla que necesita tres.
-  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones')]), 'cargando ejercicios')
+  renderList(listWrap, panel, null);
+
+  // La cadena se DEVUELVE: `main.js` la espera para revelar el tab ya lleno en
+  // vez de enseñarlo vacío mientras IndexedDB contesta (ver renderEntrenar).
+  return guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones')]), 'cargando ejercicios')
     .then(([ejercicios, allSets, sesiones]) => {
       const names = new Set();
       ejercicios.forEach((e) => e.tipo && names.add(e.tipo));
@@ -66,7 +70,6 @@ export function renderEjercicios(panel) {
       _cache = { ejercicios, allSets, sesiones };
       repaint();
     });
-  renderList(listWrap, panel, null);
 }
 
 function renderList(listEl, panel, data) {

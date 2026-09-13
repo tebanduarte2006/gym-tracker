@@ -79,7 +79,7 @@ js/
   main.js             Bootstrap: tabs, oferta de seed.
   swupdate.js         Registro del SW, detección/aplicación de versiones, APP_VERSION.
   db.js               IndexedDB: UNA conexión cacheada, índices usados de verdad, bulk import transaccional.
-  dom.js              el() / clear() / toast() / guard().
+  dom.js              el() / clear() / toast() / guard() / sinMovimiento().
   format.js           [PURO] unidades kg↔lbs, fechas es-CO, duraciones, normalización.
   stats.js            [PURO] isCountable/isPlaceholder, PR peso/reps, Epley, volumen, filas por sesión, set fantasma, sets por músculo, autollenado.
   plates.js           [PURO] calculadora de discos por lado (en libras; display, no almacenamiento).
@@ -289,6 +289,10 @@ si no se leen.**
 (`.g-chart-line`, `.g-chart-area`, `.g-chart-dot`, `.g-chart-grid`). El diseño
 anterior llevaba `#FF9F0A` escrito a mano en cuatro líneas de `progresion.js` y
 cualquier cambio de paleta las dejaba atrás.
+
+**El movimiento es parte del sistema, no un adorno que se añade al final.**
+Las reglas de transiciones (qué se anima, cuánto dura y por qué el orden de
+pintar importa más que la animación) están en §5.8.
 
 **Accesibilidad: no es opcional en Liquid Glass.** Apple lo trata como parte del
 material, y `styles.css` responde a las tres preferencias del sistema:
@@ -608,6 +612,94 @@ hizo. Es la lección 43 aplicada hasta el final: un comportamiento correcto al
 entrar a una pantalla sigue siendo incorrecto cada vez que se vuelve a ella, y
 ninguna ventana de tiempo alrededor del render lo arregla — solo no hacerlo.
 
+### 5.8 Movimiento y transiciones (2026-09-13)
+
+Esteban: *"las transiciones entre tabs, o al espichar cualquier botón que abre,
+cierre o haga cualquier cosa, se sienten muy bruscas. Especialmente el cambio de
+tabs: hago click y muestra un flash de lo que hay en esa página. Nada es
+smooth."*
+
+**Lo primero que hay que entender: el "flash" no era una animación que faltaba,
+era el ORDEN de las operaciones.** `switchTab` marcaba el panel como visible y
+DESPUÉS lo pintaba — y pintar aquí es `clear()` más rellenar cuando contesta
+IndexedDB. O sea que el panel entraba en pantalla vacío y el contenido caía
+encima uno o dos frames más tarde. Medido en Chromium antes del cambio: al tocar
+Ejercicios el panel aparecía con **202 px** de alto y saltaba a **2832 px**;
+Progresión, 435 → 2824; Entrenar aparecía literalmente **vacío**. Ninguna
+animación arregla eso: con fundido o sin él, lo que ves es contenido a medias.
+
+Las cuatro reglas que salen de ahí:
+
+1. **Se pinta oculto y se revela lleno.** Los tres `render*` DEVUELVEN una
+   promesa que resuelve cuando sus datos ya están en el DOM; `main.js` pinta el
+   panel todavía en `display:none` y solo entonces lo enseña. Si añades una
+   pantalla o una carga nueva, **encadena su promesa** o volverás a enseñar el
+   panel a medias — es el fallo que este apartado existe para impedir.
+2. **El control responde al instante; el contenido puede tardar un pelo.** La
+   pastilla de la pestaña se marca en el mismo tick del toque, sin esperar
+   datos. Al revés se siente como si la app hubiera ignorado el dedo.
+3. **Siempre hay un tope de espera** (`TOPE_MS`, 260 ms). Un parpadeo raro es
+   mejor que una app que parece colgada porque IndexedDB se durmió. Lo mismo en
+   el arranque: el esqueleto se queda hasta que el primer tab tiene datos, pero
+   no más de `ARRANQUE_TOPE_MS`.
+4. **Nada de scroll animado mientras cambia el contenido.** El `scrollTo` suave
+   que había animaba la página justo cuando el contenido se reemplazaba debajo:
+   dos movimientos a la vez que no tienen nada que ver. Ahora el scroll vuelve
+   arriba de golpe y en el mismo instante del relevo. El scroll suave se queda
+   solo para tocar la pestaña en la que ya estás, que no repinta nada.
+
+**Tocar la pestaña activa ya no re-renderiza.** Repintaba la pantalla entera —el
+parpadeo completo— por el gesto más inofensivo de la barra. Ahora sube al
+inicio, como cualquier app de iOS.
+
+**Duraciones.** 120 ms para irse, 200 ms para entrar, 200 ms para cerrar un
+sheet, 260 ms (`--base`) para desplegar una tarjeta. Nada por encima de 300:
+esto se usa entre series, con prisa. Y la curva de salida (`--ease-in`) no es la
+de entrada: lo que llega desacelera, lo que se va acelera.
+
+**Abrir y cerrar sin medir alturas en JS.** Una tarjeta de ejercicio no tiene
+altura conocida, y medir con `scrollHeight` en cada apertura es volver a meter
+lecturas de layout en el camino del dedo (lección 38). La forma sin JS es una
+rejilla de una fila que va de `0fr` a `1fr` — es lo que hace `colapsable()` en
+`entrenar.js`. Tres cosas que hay que respetar si lo tocas:
+
+- **Son dos divs, no uno.** El de dentro recorta. Si el contenido con padding
+  cuelga directo de la rejilla, ese padding sigue midiendo con la fila a cero y
+  la tarjeta cerrada queda 14 px más alta.
+- **`visibility: hidden` al terminar el cierre.** `display:none` quitaba lo
+  cerrado del foco por teclado y de VoiceOver gratis; recortar con `overflow`
+  no. La visibilidad se apaga con retraso (al abrir, al instante) para no cortar
+  la animación.
+- **En modo reordenar el colapso es INSTANTÁNEO** (`transition: none`).
+  `dragorder.js` mide las tarjetas en el mismo tick en que pone
+  `.g-reordenando`, y una altura a media animación le daría bandas equivocadas:
+  el cálculo del destino del arrastre entero sale mal. Y el selector repite
+  `.open` por lo de siempre (§5.4 y lección 37).
+
+Si un navegador no interpola `fr` (Safari < 16), el resultado es el salto
+instantáneo de antes: se degrada a lo que ya había.
+
+**Los sheets se cierran animados.** Entraban deslizando y desaparecían de golpe
+con un `overlay.remove()` seco. Media transición se siente peor que ninguna, y
+el cierre es el momento en que más veces al día ves ese componente. El scroll
+del fondo se suelta YA, no al terminar la animación: el sheet que sale está en
+`position:fixed` y no se mueve con la página, así que devolver el fondo a su
+sitio antes no se ve — y esperar 200 ms para poder scrollear sí se siente.
+
+**Respuesta al toque en TODO lo que se toca.** Media app la tenía y media no, y
+ahí estaba la otra mitad del "nada es smooth". Botones grandes se hunden un pelo
+(`scale(.985)`); filas y cabeceras se tiñen, con la tinta entrando
+**instantánea** y saliendo con fundido — al revés el aviso llega cuando ya
+levantaste el dedo. Nada de `scale` en controles pequeños: en un botón de 32 px
+no se ve y solo emborrona el texto.
+
+**`prefers-reduced-motion` tiene que apagarlo TODO, y el CSS solo apaga la
+mitad.** El JS también programa esperas (los 120 ms del desvanecido, los 200 ms
+del cierre del sheet) y una espera sin animación detrás no es una transición: es
+un retraso. Por eso existe `sinMovimiento()` en `dom.js` y hay que consultarla en
+cualquier espera nueva. En el CSS, el bloque de reducción también pone
+`transition-delay: 0s`.
+
 ## 6. Deploy (paso a paso)
 
 ```bash
@@ -837,6 +929,34 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     oyendo. Un interruptor que deja encendida "solo una parte pequeña" es peor
     que no tenerlo, porque el síntoma que provoca ya no tiene explicación.
 
+53. **El parpadeo al cambiar de pantalla casi nunca es falta de animación: es
+    el orden.** Si enseñas el panel y luego lo pintas con datos que llegan por
+    promesa, el usuario ve el hueco — con fundido lo verá igual, más suave. Se
+    pinta oculto y se revela lleno; la animación es el acabado, no el arreglo.
+54. **Una transición que solo existe a la entrada se siente peor que ninguna.**
+    Los bottom sheets entraban deslizando y desaparecían con un `remove()` seco.
+    El cerebro aprende el movimiento de entrada y espera su simétrico; cuando no
+    llega, el corte se nota más que si nunca hubiera habido animación.
+55. **Una altura desconocida se anima con una rejilla de `0fr` a `1fr`, no
+    midiéndola.** Medir con `scrollHeight` en cada apertura devuelve lecturas de
+    layout al camino del dedo (lección 38) y hay que re-medir cada vez que el
+    contenido cambia. Con la rejilla el navegador hace la cuenta. Trampa: el
+    contenido con padding necesita un div que recorte, o el padding sigue
+    midiendo con la fila a cero.
+56. **Recortar no es ocultar.** `display:none` sacaba lo cerrado del orden de
+    foco y de VoiceOver gratis; `overflow:hidden` lo deja ahí, invisible pero
+    alcanzable con el teclado y leído por el lector de pantalla. Al cambiar uno
+    por otro hay que reponer a mano lo que el primero daba de regalo
+    (`visibility`).
+57. **Un control que no acusa recibo se siente roto aunque funcione.** No es
+    decoración: entre el toque y el resultado hay milisegundos en los que el
+    dedo duda y vuelve a tocar. La mitad de los controles de esta app no tenían
+    `:active` y esa mitad era justo la que se sentía "brusca".
+58. **`prefers-reduced-motion` en el CSS apaga media casa.** Las esperas que
+    programa el JS alrededor de una animación siguen ahí, y una espera sin
+    animación detrás no es una transición: es la app tardando. Se consulta la
+    preferencia también desde el JS (`sinMovimiento()`).
+
 ## 8. Pendientes / ideas evaluables
 
 - [ ] Preferencia para display en kg (hoy display fijo lbs; pedirá OK Esteban).
@@ -880,6 +1000,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-09-13 | `(pending)` | **Transiciones: se acabó el parpadeo al cambiar de pestaña (§5.8).** Esteban: *"hago click y muestra un flash de lo que hay en esa página; nada es smooth"*. **El diagnóstico no era falta de animación, era el ORDEN:** `switchTab` marcaba el panel como visible y DESPUÉS lo pintaba, y pintar es `clear()` más rellenar cuando contesta IndexedDB — el panel entraba en pantalla vacío y el contenido caía encima uno o dos frames más tarde. Medido en Chromium sobre `devices['iPhone 11']` ANTES del cambio: Ejercicios aparecía con **202 px** de alto y saltaba a **2832**, Progresión 435 → 2824, y Entrenar aparecía **vacío**; DESPUÉS los tres son estables desde el primer frame visible (2832 → 2832, 2824 → 2824, 659 → 659). Los tres `render*` devuelven ahora una promesa que resuelve con los datos ya en el DOM, `main.js` pinta el panel oculto y lo revela lleno, y el panel que se va se desvanece antes (120 ms fuera / 200 ms dentro, con 6 px de asentamiento). La pastilla de la pestaña se marca en el mismo tick del toque —el control responde aunque el contenido tarde—, hay tope de espera de 260 ms, y el `scrollTo` suave que animaba la página justo mientras el contenido se reemplazaba pasa a ser un salto instantáneo en el mismo instante del relevo. **Tocar la pestaña activa ya no re-renderiza** (repintaba la pantalla entera por el gesto más inofensivo de la barra): sube al inicio, como en iOS. **El arranque también:** el esqueleto se queda hasta que el primer tab tiene datos en vez de borrarse y dejar un rectángulo negro. **Abrir y cerrar tarjetas de ejercicio se anima** con la rejilla `0fr → 1fr` (nada de medir alturas en JS: lección 38), con `visibility` para no dejar lo cerrado accesible al foco y a VoiceOver, y con colapso INSTANTÁNEO en modo reordenar porque `dragorder.js` mide en el mismo tick (§5.4). **Los sheets se cierran animados** en vez de `overlay.remove()` seco, soltando el scroll del fondo de inmediato. **`:active` en los ~14 controles que no lo tenían.** `sinMovimiento()` en `dom.js` porque `prefers-reduced-motion` en CSS no apaga las esperas que programa el JS. Verificado con eventos táctiles reales (§2.14) en las tres pestañas: 0 frames con panel visible vacío en 5 cambios seguidos, altura estable tras revelarse, cambio en 166-174 ms, dos toques seguidos dejan un solo panel, movimiento reducido sin esperas, y el arrastre intacto (entra en modo, las 5 tarjetas colapsan a 53 px exactos, sigue al dedo, `scrollY` sin moverse, aterriza donde apunta el dedo, no abre nada de más, el toque corto sigue abriendo). Lecciones 53-58. 86/86 tests. 0 errores de consola. `sw.js → gymtracker-20260913-2`. |
 | 2026-09-13 | `b638f24` | **Tarjetas que no se abren solas + alarma de descanso que se oye y puede sonar con la pantalla bloqueada.** Dos reportes de Esteban y una auditoría. **(1) Tarjetas (§5.7):** *"que la única razón por la que se abren es cuando YO las toco; es muy molesto salirme o, en un momento aleatorio, que se abra la del primer ejercicio"*. Había DOS auto-aperturas: `createSession` abría el primero del plan autollenado, y `refreshExercises` abría el primero siempre que no hubiera ninguna abierta — y `refreshExercises` corre en CADA vuelta al tab porque `switchTab` re-renderiza siempre, que es de donde salía el "momento aleatorio". Las dos fuera; ahora solo abre una tarjeta el toque en su cabecera (y agregar ese ejercicio a la sesión). **(2) Alarma (§5.6):** eran dos problemas distintos. *Que no se oye:* el beep eran dos **senoidales puras** de 880/1175 Hz a ganancia 0.35 — la peor forma de onda posible en ruido de banda ancha; ahora son seis pulsos (3 + pausa + 3) de **2000 Hz con armónicos**, donde el oído es más sensible y el altavoz del iPhone rinde, y normalizados por el **pico real** de la onda (1.4198 medido, no 1.8 = la suma de amplitudes, que la dejaba 3 dB por debajo). *Que no suena con el teléfono bloqueado:* el mecanismo anterior **no podía** funcionar — programaba el tono en el reloj del AudioContext e iOS suspende el AudioContext justo al bloquear la pantalla. Ahora la alarma va por un elemento `<audio>` al que se le da YA un clip WAV generado en memoria de **silencio del largo del descanso + el tono al final**: el reloj que cuenta pasa a ser el del reproductor del sistema. Tiene un coste real (ocupa el "now playing" y puede pausar tu música), así que es la preferencia **`alarma_fondo`** con interruptor y botón de probar en Progresión → ALARMA DE DESCANSO; apagada, la app no toca el reproductor **ni para autorizar el elemento**. `alarmWasLost()` mira el cabezal del reproductor —un hecho, no una deducción— para sonar al volver si iOS lo mató y NO sonar dos veces si sí sonó. **(3) Auditoría:** `.g-modal-close` decía en un comentario que su área era 44 y medía **32×32** (lo que tenía era un `box-shadow` transparente, y una sombra no recibe toques); el `<input>` de búsqueda medía 21 px de alto dentro de una caja de 44, así que tocar el borde del buscador no enfocaba nada; `.g-tool-btn` (donde vive el 🗑 que quita el ejercicio) medía 40; el `contextmenu` de `dragorder.js` era anónimo y `disable()` no podía quitarlo, así que se acumulaba un listener por render sobre un contenedor que sobrevive a todos; y la tarjeta de sesión activa abría el entrenamiento con **"LEGS / Legs"** — desde que se retiró "Workout #N", `sessionName` devuelve exactamente `routine_type` y la línea de arriba repetía la de abajo. Áreas táctiles medidas con `elementFromPoint`, no leyendo el CSS. Verificado en Chromium sobre `devices['iPhone 11']` con eventos táctiles reales (§2.14): 22 comprobaciones de tarjetas/alarma/preferencia + el arrastre completo (entra en modo, sigue al dedo, `scrollY` sin moverse, aterriza donde apunta el dedo, no abre nada al soltar, el toque corto sigue abriendo) + 0 desbordes horizontales en las 8 pantallas. **Lo que NO está verificado y hay que probar en el iPhone: que el clip siga sonando con la pantalla bloqueada.** 86/86 tests (4 nuevos sobre el WAV generado). 0 errores de consola. `sw.js → gymtracker-20260913-1`. |
 | 2026-08-13 | `fd6b2e8` | **El arrastre, arreglado de verdad para iOS + estandarización final.** Esteban: *"funciona el 10% de las veces; a veces se resalta la tarjeta pero es imposible moverla, y en vez de moverse solo scrollea"*. Dos creencias falsas, las dos habituales: **(1)** `preventDefault()` sobre `pointermove` NO cancela el scroll en iOS Safari — solo lo hace sobre **`touchmove`** y solo con `{passive:false}`; sin eso, al mover el dedo iOS scrolleaba y se llevaba el gesto, dejando la tarjeta levantada e inmóvil, exactamente el síntoma descrito. **(2)** `touch-action:none` puesto al ENTRAR en modo arrastre llega tarde: el navegador decide si un toque puede scrollear cuando el toque empieza. Además `MS_LARGA` 420→**320 ms** (la lupa y el menú contextual de iOS salen sobre los 500 y competían con el final de la espera), umbral de cancelación 8→**10 px** (el pulgar tiembla), y `-webkit-touch-callout`/`user-select` **permanentes** en la cabecera en vez de aplicarse al arrastrar. **La tarjeta ya no se abre sola al reordenar**: tragar el click en fase de captura no basta —iOS a veces no dispara ninguno y a veces lo dispara tras el re-render— así que la cabecera ignora los clicks de los 400 ms posteriores a un arrastre, y `refreshExercises` deja de auto-abrir la primera tarjeta cuando el render viene de reordenar. Verificado con **eventos táctiles reales** (`Input.dispatchTouchEvent` sobre `devices['iPhone 11']`): **5/5 arrastres correctos**, `scrollY` sin moverse durante el gesto, y sin romper lo de siempre — deslizar rápido scrollea, el toque corto abre la tarjeta y los botones de dentro responden. **Estandarización:** nueva regla dura §2.14 (nada táctil se verifica con el ratón), nueva §5.5 con las cuatro reglas de gestos en iOS y el protocolo de verificación, y lecciones 39-44. 82/82 tests. `sw.js → gymtracker-20260813-1`. |
 | 2026-08-12 | `8d92fa1` | **Red de seguridad del arranque, pantalla de inicio y fuera "Workout #N".** Esteban reportó la PWA congelada en el esqueleto de arranque, sin poder tocar nada ni cerrando desde el multitarea. La causa es siempre la misma familia: si `js/main.js` o cualquiera de sus imports no carga (un archivo que no quedó en la caché del SW, un fallo de red en frío), el módulo no se ejecuta, `boot()` nunca corre y el esqueleto late para siempre — la app parece viva y no responde, y la única salida era desinstalar. Ahora `index.html` lleva un **script clásico (NO módulo)** que a los 8 s comprueba si el esqueleto sigue ahí y, si sigue, ofrece **Reintentar** y **Reparar y recargar** (borra cachés + desregistra el SW; IndexedDB no se toca). Un módulo no sirve para esto: si los módulos son el problema, el vigilante tiene que estar fuera de ellos. **Pantalla de inicio:** era ~70% negro vacío; ahora abre con una tarjeta de **últimos 7 días** (sesiones, volumen, sets + tira de actividad de 7 puntos) y muestra 5 sesiones recientes en vez de 3. `stats.js › weekSummary`, con tests. **Fuera "Workout #N":** numeración heredada del template de Notion que no dice nada que la fecha no diga mejor. `stats.js › sessionName` lo deriva de `routine_type`, así que el historial ANTIGUO también pierde el prefijo **sin tocar un solo registro**; se retiran `nextWorkoutNumber` y la escritura de `contador_workouts` (la clave sigue en la lista blanca del importador para que un backup viejo entre sin avisos). 82/82 tests. 0 errores de consola. `sw.js → gymtracker-20260812-6`. |

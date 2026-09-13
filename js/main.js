@@ -2,7 +2,7 @@
 // Gym Tracker es una app de UN solo módulo: no hay home ni registry (la
 // arquitectura de módulos de habitos-app era overhead sin uso aquí).
 
-import { el, clear, toast, guard } from './dom.js';
+import { el, clear, toast, guard, sinMovimiento } from './dom.js';
 import { dbGetAll, dbPut, prefGet, prefSet, dbBulkImport } from './db.js';
 import { registerSW } from './swupdate.js';
 import { normalizeBackup } from './importer.js';
@@ -33,13 +33,16 @@ function boot() {
     .then((v) => setBackgroundAlarm(v !== false))
     .catch(() => {});
   const content = document.getElementById('tab-content');
-  clear(content); // quita el esqueleto estático de arranque
 
+  // Los paneles nacen OCULTOS y el esqueleto de arranque se queda en pantalla
+  // hasta que el primero tenga datos. Antes se borraba el esqueleto aquí mismo
+  // y la app enseñaba un rectángulo negro vacío hasta que volvía IndexedDB: el
+  // esqueleto existe justo para que ese hueco no se vea (README §Arranque).
   const panels = {};
-  TABS.forEach((tab, i) => {
+  TABS.forEach((tab) => {
     const btn = document.getElementById('tab-btn-' + tab.id);
     if (btn) btn.addEventListener('click', () => switchTab(tab.id, panels));
-    const panel = el('div', { class: 'tab-panel' + (i === 0 ? ' active' : ''), id: 'panel-' + tab.id });
+    const panel = el('div', { class: 'tab-panel', id: 'panel-' + tab.id });
     panels[tab.id] = panel;
     content.appendChild(panel);
   });
@@ -50,7 +53,21 @@ function boot() {
   // costó tres arreglos (ver README §Arranque). Ejercicios y Progresión se
   // pintan solos al tocarlos: `switchTab` ya re-renderiza en CADA cambio de
   // pestaña, así que no hay nada que precalentar.
-  paintTab(TABS[0], panels[TABS[0].id]);
+  const primero = panels[TABS[0].id];
+  let mostrado = false;
+  const mostrarPrimero = () => {
+    if (mostrado) return;
+    mostrado = true;
+    const esq = content.querySelector('.g-boot-skeleton');
+    if (esq) esq.remove();
+    entrar(primero);
+  };
+  paintTab(TABS[0], primero).then(mostrarPrimero);
+  // Tope de seguridad: si la primera lectura se eterniza, el esqueleto se
+  // queda (que es lo correcto, para eso está) pero no más allá de esto. El
+  // vigilante de los 8 s de index.html sigue cubriendo el caso de que nunca
+  // llegue nada.
+  setTimeout(mostrarPrimero, ARRANQUE_TOPE_MS);
   registerSW();
   maybeOfferSeed(panels);
   maybeOfferMuscleMigration();
@@ -134,31 +151,115 @@ function maybeOfferMuscleMigration() {
 // mostrando el contenido de la anterior: sin este try/catch, una excepción
 // abortaba el arranque entero y dejaba la app sin service worker (adiós
 // actualizaciones) y sin la oferta de restaurar el historial.
+//
+// DEVUELVE una promesa que resuelve cuando el tab tiene ya sus datos en el DOM:
+// es lo que permite pintarlo oculto y revelarlo entero en vez de enseñarlo
+// vacío mientras IndexedDB contesta. Nunca se rechaza — un fallo de datos ya lo
+// avisó `guard()` por toast, y el panel tiene que revelarse igual.
 function paintTab(tab, panel) {
+  let p;
   try {
-    tab.render(panel);
+    p = tab.render(panel);
   } catch (err) {
     console.error('[gym-tracker] render del tab', tab.id, err);
     clear(panel);
     panel.appendChild(el('div', { class: 'g-empty-card' }, [
       'Esta pestaña falló al cargar. Cierra y vuelve a abrir la app.'
     ]));
+    return Promise.resolve();
   }
+  return Promise.resolve(p).catch(() => {});
+}
+
+// ─── Cambio de pestaña ────────────────────────────────────────────────────────
+// Esteban lo describió así: *"hago click y muestra un flash de lo que hay en esa
+// página; se siente muy feo"*. No era una animación que faltara, era el ORDEN.
+// `switchTab` marcaba el panel como visible y DESPUÉS lo pintaba — y pintar es
+// `clear()` más rellenar cuando vuelve IndexedDB, o sea que el panel entraba en
+// pantalla VACÍO y el contenido caía encima uno o dos frames más tarde. Encima
+// el `scrollTo` suave animaba la página justo mientras el contenido se
+// reemplazaba debajo.
+//
+// Ahora el panel se pinta TODAVÍA OCULTO y solo se revela cuando sus datos ya
+// están en el DOM: no existe ningún frame con la pantalla a medias. Mientras
+// tanto el panel que se va se desvanece, así que tampoco hay un corte seco.
+//
+// Cuatro cosas que parecen detalles y no lo son:
+// · La pastilla de la pestaña se marca al INSTANTE, sin esperar datos. El
+//   control que tocas responde siempre, aunque el contenido tarde un pelo; al
+//   revés se siente como que la app ignoró el toque.
+// · `_seq` descarta el render que llegó tarde. Sin él, cambiar dos veces rápido
+//   podía revelar el panel equivocado cuando la primera lectura contestara.
+// · Hay un TOPE de espera. Un parpadeo raro es mejor que una app que parece
+//   colgada porque IndexedDB se durmió.
+// · El scroll vuelve arriba de golpe y en el mismo instante del relevo, no
+//   animado: un scroll animado mientras cambia el contenido es exactamente lo
+//   que se siente brusco.
+const SALIDA_MS = 120;        // desvanecido del panel que se va
+const TOPE_MS = 260;          // espera máxima por los datos del que entra
+const ARRANQUE_TOPE_MS = 1200; // espera máxima del esqueleto en el arranque
+
+let _tabActivo = TABS[0].id;
+let _seq = 0;
+
+// Revela un panel con el fundido de entrada. La animación se reinicia a mano
+// (quitar la clase, forzar un reflow, volver a ponerla) porque volver rápido a
+// una pestaña reutiliza el mismo nodo y el navegador no relanza una animación
+// que ya estaba puesta.
+function entrar(panel) {
+  panel.classList.add('active');
+  panel.classList.remove('g-tab-enter');
+  if (sinMovimiento()) return;
+  void panel.offsetWidth;
+  panel.classList.add('g-tab-enter');
 }
 
 function switchTab(activeId, panels) {
+  // Tocar la pestaña en la que YA estás no re-renderiza nada: sube al inicio,
+  // como cualquier app de iOS. Antes repintaba la pantalla entera, o sea que el
+  // gesto más inofensivo de la barra provocaba el parpadeo completo.
+  if (activeId === _tabActivo) {
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const saliente = panels[_tabActivo];
+  _tabActivo = activeId;
+  const seq = ++_seq;
+
   // El tab que se va deja de consumir CPU: su cronómetro de sesión seguía
   // latiendo 1×/s en segundo plano mientras mirabas otra pestaña.
   if (activeId !== 'entrenar') suspendEntrenar();
+
   TABS.forEach((tab) => {
     const btn = document.getElementById('tab-btn-' + tab.id);
-    const isActive = tab.id === activeId;
-    if (btn) btn.classList.toggle('active', isActive);
-    panels[tab.id].classList.toggle('active', isActive);
+    if (btn) btn.classList.toggle('active', tab.id === activeId);
   });
+
+  const quieto = sinMovimiento();
+  const entrante = panels[activeId];
   const tab = TABS.find((t) => t.id === activeId);
-  paintTab(tab, panels[activeId]);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (saliente && saliente !== entrante && !quieto) saliente.classList.add('g-tab-leaving');
+
+  let datos = false;
+  let salida = quieto;
+  let hecho = false;
+  const relevo = () => {
+    if (hecho || !datos || !salida) return;
+    hecho = true;
+    if (seq !== _seq) return;   // cambiaste otra vez mientras esperaba
+    TABS.forEach((t) => {
+      panels[t.id].classList.remove('g-tab-leaving');
+      if (t.id !== activeId) panels[t.id].classList.remove('active');
+    });
+    if (window.scrollY > 0) window.scrollTo(0, 0);
+    entrar(entrante);
+  };
+  const listo = () => { datos = true; relevo(); };
+
+  paintTab(tab, entrante).then(listo);
+  setTimeout(listo, TOPE_MS);
+  if (!quieto) setTimeout(() => { salida = true; relevo(); }, SALIDA_MS);
+  else relevo();
 }
 
 // ─── Seed inicial (historial de habitos-app) ──────────────────────────────────

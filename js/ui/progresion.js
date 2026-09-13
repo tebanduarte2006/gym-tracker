@@ -69,7 +69,9 @@ export function renderProgresion(panel) {
 
   panel.appendChild(wrap);
 
-  guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones'), dbGetAll('cardio')]), 'cargando progresión')
+  // La cadena se DEVUELVE: `main.js` la espera para revelar el tab ya lleno en
+  // vez de enseñarlo vacío mientras IndexedDB contesta (ver renderEntrenar).
+  return guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones'), dbGetAll('cardio')]), 'cargando progresión')
     .then(([ejercicios, sets, sesiones, cardio]) => {
       const sesMap = {};
       sesiones.forEach((s) => { sesMap[s.id] = s; });

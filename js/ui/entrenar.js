@@ -39,21 +39,25 @@ let _dragOff = null;              // desactivador del arrastre del render actual
 let _finArrastre = 0;             // instante del último arrastre (ver head.click)
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
+// DEVUELVE una promesa que resuelve cuando la pantalla ya tiene su contenido.
+// `main.js` la encadena para pintar el tab oculto y revelarlo entero: sin esto,
+// cambiar de pestaña enseñaba el panel vacío y el contenido caía encima uno o
+// dos frames después — el "flash" que reportó Esteban. Las funciones de abajo
+// devuelven sus propias promesas por la misma razón.
 export function renderEntrenar(panel) {
   clear(panel);
   stopSessionTimer();
-  guard(Promise.all([dbGetAll('sesiones'), prefGet('rest_default', DEFAULT_REST)]), 'cargando sesiones')
+  return guard(Promise.all([dbGetAll('sesiones'), prefGet('rest_default', DEFAULT_REST)]), 'cargando sesiones')
     .then(([sesiones, restDef]) => {
       _restDefault = Number(restDef) || DEFAULT_REST;
       const activa = sesiones.find((s) => s.finalizada !== true);
       if (activa) {
-        if (_ack === activa.id) renderActiveSession(panel, activa);
-        else promptResume(panel, activa);
-      } else {
-        _ack = null;
-        releaseAwake();
-        renderStartScreen(panel, sesiones);
+        if (_ack === activa.id) return renderActiveSession(panel, activa);
+        return promptResume(panel, activa);
       }
+      _ack = null;
+      releaseAwake();
+      return renderStartScreen(panel, sesiones);
     });
 }
 
@@ -92,6 +96,7 @@ function buildWeekCard(sesiones, sets) {
 
 function renderStartScreen(panel, sesiones) {
   const wrap = el('div', { class: 'g-start' });
+  const pendientes = [];
 
   const finalizadas = sesiones
     .filter((s) => s.finalizada === true)
@@ -101,9 +106,9 @@ function renderStartScreen(panel, sesiones) {
   // ve al abrir la app.
   const weekSlot = el('div', {});
   wrap.appendChild(weekSlot);
-  guard(dbGetAll('sets'), 'resumen semanal').then((allSets) => {
+  pendientes.push(guard(dbGetAll('sets'), 'resumen semanal').then((allSets) => {
     weekSlot.appendChild(buildWeekCard(sesiones, allSets));
-  });
+  }));
 
   if (finalizadas.length > 0) {
     const headRow = el('div', { class: 'g-head-row' }, [
@@ -115,7 +120,9 @@ function renderStartScreen(panel, sesiones) {
     wrap.appendChild(headRow);
     // Cinco, no tres: con la tarjeta semanal arriba y cinco sesiones, la pantalla
     // de inicio queda llena en un iPhone 11 en vez de dejar un tercio en negro.
-    wrap.appendChild(buildSessionCards(panel, finalizadas.slice(0, 5), false));
+    const cards = buildSessionCards(panel, finalizadas.slice(0, 5), false);
+    pendientes.push(cards.listo);
+    wrap.appendChild(cards);
   } else {
     wrap.appendChild(el('div', { class: 'g-empty-card' }, [
       'Aún no hay sesiones. Toca "Iniciar sesión" para empezar.'
@@ -126,11 +133,16 @@ function renderStartScreen(panel, sesiones) {
   startBtn.addEventListener('click', () => showStartModal(panel));
   wrap.appendChild(startBtn);
   panel.appendChild(wrap);
+  return Promise.all(pendientes).catch(() => {});
 }
 
+// Devuelve el nodo (los llamadores lo insertan) y le cuelga `list.listo`: la
+// promesa de que las tarjetas ya están dentro. El nodo se necesita YA para
+// mantener el orden de la pantalla, pero quien pinta el tab necesita saber
+// cuándo terminó de llenarse.
 function buildSessionCards(panel, sesiones, fromAll) {
   const list = el('div', { class: 'g-recent-list' });
-  guard(dbGetAll('sets'), 'cargando sets').then((allSets) => {
+  list.listo = guard(dbGetAll('sets'), 'cargando sets').then((allSets) => {
     sesiones.forEach((s) => {
       const count = visibleSets(allSets.filter((st) => st.sesion_id === s.id)).length;
       const card = el('div', { class: 'g-recent-card' }, [
@@ -314,7 +326,7 @@ function promptResume(panel, activa) {
   panel.appendChild(fallbackWrap);
 
   const startTs = sessionTs(activa) || Date.now();
-  guard(dbGetAllBy('sets', 'sesion_id', activa.id), 'cargando sesión activa').then((sets) => {
+  return guard(dbGetAllBy('sets', 'sesion_id', activa.id), 'cargando sesión activa').then((sets) => {
     const real = visibleSets(sets);
     const nEj = new Set(sets.map((s) => s.ejercicio_id)).size;
     const age = Date.now() - startTs;
@@ -568,7 +580,7 @@ function renderActiveSession(panel, sesion) {
   // el hueco que deja la card levantada.
   const exList = el('div', { class: 'g-ex-list' });
   wrap.appendChild(exList);
-  refreshExercises(sesion, exList);
+  const ejerciciosListos = refreshExercises(sesion, exList);
 
   const addBtn = el('button', { class: 'g-add-exercise', type: 'button' }, ['+ Agregar ejercicio']);
   addBtn.addEventListener('click', () => showAddExerciseModal(sesion, exList));
@@ -577,7 +589,7 @@ function renderActiveSession(panel, sesion) {
   // Cardio
   const cardioWrap = el('div', {});
   wrap.appendChild(cardioWrap);
-  refreshCardio(sesion, cardioWrap);
+  const cardioListo = refreshCardio(sesion, cardioWrap);
   const addCardio = el('button', { class: 'g-add-exercise', type: 'button' }, ['+ Agregar cardio']);
   addCardio.addEventListener('click', () => showAddCardioModal(sesion, cardioWrap));
   wrap.appendChild(addCardio);
@@ -587,6 +599,7 @@ function renderActiveSession(panel, sesion) {
   wrap.appendChild(finBtn);
 
   panel.appendChild(wrap);
+  return Promise.all([ejerciciosListos, cardioListo]).catch(() => {});
 }
 
 function startSessionTimer(startTs) {
@@ -695,7 +708,7 @@ function refreshExercises(sesion, listEl) {
   // hacía su propio dbGetAll('sesiones') completo dentro de loadLastSession:
   // con 8 ejercicios en la sesión eran 8 barridos de la tabla entera para
   // pintar una pantalla.
-  guard(Promise.all([
+  return guard(Promise.all([
     dbGetAllBy('sets', 'sesion_id', sesion.id),
     dbGetAll('ejercicios'),
     dbGetAll('sesiones')
@@ -754,6 +767,18 @@ function refreshExercises(sesion, listEl) {
         });
       }
     });
+}
+
+// Envoltorio de "abrir y cerrar suave". Son DOS divs y cada uno hace falta: el
+// de fuera es la rejilla que anima su única fila de 0fr a 1fr —la única forma de
+// transicionar una altura DESCONOCIDA sin medirla en JS— y el de dentro recorta
+// lo que sobra mientras esa fila mide cero. Si el contenido con padding colgara
+// directo de la rejilla, su padding seguiría midiendo y la tarjeta cerrada
+// quedaría 14 px más alta que ahora. Las reglas viven en styles.css §Colapsables.
+function colapsable(contenido, clase) {
+  return el('div', { class: 'g-collapse' + (clase ? ' ' + clase : '') }, [
+    el('div', { class: 'g-collapse-clip' }, [contenido])
+  ]);
 }
 
 function buildExerciseCard(sesion, ej, listEl, pos) {
@@ -836,7 +861,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   const lastBody = el('div', { class: 'g-last-body' }, [
     el('div', { class: 'g-last-empty' }, ['Cargando…'])
   ]);
-  body.appendChild(lastBody);
+  body.appendChild(colapsable(lastBody, 'g-collapse-last'));
   lastToggle.addEventListener('click', () => {
     const open = lastToggle.classList.toggle('open');
     card.classList.toggle('last-open', open);
@@ -850,7 +875,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   const addRow = buildAddSetRow(sesion, ej, () => updateSets());
   body.appendChild(addRow.row);
 
-  card.appendChild(body);
+  card.appendChild(colapsable(body));
 
   // Render quirúrgico: solo esta card re-consulta y re-pinta sus sets.
   function updateSets() {
@@ -1350,7 +1375,7 @@ function attachExercise(sesion, ej, listEl) {
 // ─── Cardio ───────────────────────────────────────────────────────────────────
 function refreshCardio(sesion, wrap) {
   clear(wrap);
-  guard(dbGetAllBy('cardio', 'sesion_id', sesion.id), 'cargando cardio').then((rows) => {
+  return guard(dbGetAllBy('cardio', 'sesion_id', sesion.id), 'cargando cardio').then((rows) => {
     if (rows.length === 0) return;
     wrap.appendChild(el('div', { class: 'g-section-label' }, ['CARDIO']));
     rows.sort((a, b) => (a.orden || a.id) - (b.orden || b.id)).forEach((c) => {

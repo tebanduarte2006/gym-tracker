@@ -61,6 +61,10 @@
 
   /* Movimiento */
   --ease: cubic-bezier(.32,.72,0,1);
+  /* Curva de SALIDA. La de arriba desacelera al final, que es lo que quieres
+     cuando algo llega; lo que se va tiene que acelerar al irse, o parece que
+     duda. Se usa al cerrar los bottom sheets. */
+  --ease-in: cubic-bezier(.4,0,1,1);
   --fast: .18s;
   --base: .26s;
 
@@ -194,8 +198,23 @@ body.g-modal-open {
 }
 .main-tab:active { opacity: .7; }
 
+/* Relevo entre pestañas. El panel que se va se desvanece (120 ms) y el que
+   entra aparece con un fundido y 6 px de asentamiento — pero solo DESPUÉS de
+   que js/main.js lo haya pintado con datos, nunca vacío. La animación de
+   entrada es `animation` y no `transition` a propósito: el panel viene de
+   `display:none` y las transiciones no arrancan desde ahí. */
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+.tab-panel.g-tab-leaving {
+  opacity: 0;
+  pointer-events: none;          /* nada de tocar lo que ya se está yendo */
+  transition: opacity .12s ease-out;
+}
+.tab-panel.g-tab-enter { animation: tab-in .2s var(--ease); }
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ─── Superficies ───────────────────────────────────────────────────────────
    `g-surface` es EL patrón de tarjeta. Todo lo que sea una tarjeta lo usa; no
@@ -260,6 +279,13 @@ body.g-modal-open {
     0 0 0 0.5px var(--rim-hair),
     var(--lift-sm);
 }
+/* Aparece justo después de registrar un set, así que aparecía de golpe en medio
+   de la pantalla. Entra desde arriba, que es de donde cuelga. */
+.g-rest-bar:not(.hidden) { animation: rest-in .24s var(--ease); }
+@keyframes rest-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
 .g-rest-label { font-size: 13px; font-weight: 600; color: var(--t1); }
 .g-rest-time {
   font-family: var(--font-num);
@@ -303,11 +329,20 @@ body.g-modal-open {
    clases y ganaba por especificidad, así que la tarjeta abierta seguía midiendo
    315 px mientras las demás bajaban a 53 — exactamente el desnivel que este modo
    existe para eliminar. Con `.open` explícito son cuatro clases y gana esta. */
-.g-reordenando .g-ex-body,
-.g-reordenando .g-ex-card.open .g-ex-body,
 .g-reordenando .g-ex-count,
 .g-reordenando .g-ex-chevron,
 .g-reordenando .g-ex-muscle { display: none; }
+/* `transition: none` NO es opcional: dragorder.js mide las tarjetas en el
+   mismo tick en que pone esta clase, y una altura a media animación le daría
+   bandas equivocadas — el cálculo del destino del arrastre entero sale mal.
+   El segundo selector repite `.open` por lo de siempre (§5.4): sin él,
+   `.g-ex-card.open > .g-collapse` gana por especificidad y la tarjeta abierta
+   se queda sin colapsar, que es justo el desnivel que este modo elimina. */
+.g-reordenando .g-collapse,
+.g-reordenando .g-ex-card.open > .g-collapse {
+  grid-template-rows: 0fr;
+  transition: none;
+}
 .g-reordenando .g-ex-head { padding: 17px 18px; min-height: 0; }
 /* `will-change` promueve las tarjetas a su propia capa: sin esto el navegador
    repinta la lista entera en cada frame del arrastre. */
@@ -364,8 +399,38 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 }
 .g-ex-chevron { width: 18px; height: 18px; color: var(--t3); transition: transform var(--base) var(--ease); }
 .g-ex-card.open .g-ex-chevron { transform: rotate(180deg); }
-.g-ex-body { padding: 0 14px 14px; box-shadow: inset 0 0.5px 0 var(--sep); display: none; }
-.g-ex-card.open .g-ex-body { display: block; }
+.g-ex-body { padding: 0 14px 14px; box-shadow: inset 0 0.5px 0 var(--sep); }
+
+/* ─── Colapsables (abrir/cerrar suave) ──────────────────────────────────────
+   Abrir un ejercicio era un salto seco: `display:none` → `block`. Animar una
+   altura DESCONOCIDA sin medirla en JS solo se puede de una forma: una rejilla
+   de una fila que va de `0fr` a `1fr`. De ahí los dos divs de `colapsable()`
+   en entrenar.js — el de dentro recorta, porque si el contenido con padding
+   colgara directo de la rejilla ese padding seguiría midiendo y la tarjeta
+   cerrada quedaría 14 px más alta.
+   Si algún navegador no interpola `fr` (Safari < 16), el resultado es el salto
+   instantáneo de siempre: se degrada a lo que ya había, no se rompe. */
+.g-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--base) var(--ease);
+}
+.g-collapse-clip {
+  overflow: hidden;
+  min-height: 0;
+  /* `display:none` quitaba lo cerrado del foco por teclado y de VoiceOver
+     gratis; recortar con `overflow` no. `visibility` sí, y se aplica al TERMINAR
+     el cierre (al abrir, al instante) para no cortar la animación. */
+  visibility: hidden;
+  transition: visibility 0s linear var(--base);
+}
+.g-ex-card.open > .g-collapse,
+.g-ex-card.last-open .g-collapse-last { grid-template-rows: 1fr; }
+.g-ex-card.open > .g-collapse > .g-collapse-clip,
+.g-ex-card.last-open .g-collapse-last > .g-collapse-clip {
+  visibility: visible;
+  transition-delay: 0s;
+}
 .g-ex-tools {
   display: flex; justify-content: flex-end; gap: 4px;
   padding: 8px 0 4px;
@@ -403,10 +468,8 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-sm);
   padding: 10px 12px;
   margin-bottom: 10px;
-  display: none;
   box-shadow: inset 0 0.5px 0 var(--rim-top);
 }
-.g-ex-card.last-open .g-last-body { display: block; }
 .g-last-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--t2); }
 .g-last-row b { color: var(--t1); font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; }
 .g-last-empty { font-size: 13px; color: var(--t3); text-align: center; padding: 6px 0; }
@@ -949,6 +1012,16 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   animation: modal-in var(--base) var(--ease);
 }
 @keyframes modal-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* Salida. Entraban deslizando y desaparecían de golpe (`overlay.remove()` seco):
+   media transición se siente peor que ninguna. `forwards` mantiene el estado
+   final los milisegundos que quedan hasta que modals.js quita el nodo. */
+.g-modal-overlay.g-modal-closing {
+  animation: overlay-out .2s ease forwards;
+  pointer-events: none;
+}
+.g-modal-overlay.g-modal-closing .g-modal { animation: modal-out .2s var(--ease-in) forwards; }
+@keyframes overlay-out { to { opacity: 0; } }
+@keyframes modal-out { to { transform: translateY(100%); } }
 .g-modal-handle { width: 38px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); margin: 8px auto 16px; }
 .g-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .g-modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: var(--t1); }
@@ -1246,6 +1319,48 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 /* Mientras el banner está arriba, el contenido baja para no quedar tapado. */
 body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) + 84px); }
 
+/* ─── Respuesta al toque ────────────────────────────────────────────────────
+   Un control que no acusa recibo se siente roto aunque funcione: tocas, no pasa
+   nada visible durante los milisegundos que tarda el trabajo, y el dedo duda.
+   Media app lo tenía (`.g-btn-primary`, `.g-start-cta`, `.g-tool-btn`…) y media
+   no, que es de donde salía el "nada es smooth".
+
+   Dos patrones, según el control:
+   · Los botones grandes se hunden un pelo (`scale(.985)`). Nada de scale en
+     controles pequeños: en un botón de 32 px el cambio no se ve y solo emborrona
+     el texto.
+   · Las filas y cabeceras se tiñen. La tinta entra INSTANTÁNEA (`transition:
+     none` en `:active`) y se va con fundido al soltar: al revés, el aviso llega
+     cuando ya levantaste el dedo, que es como no tenerlo. */
+.g-btn-secondary:active,
+.g-btn-destructive:active,
+.g-secondary-btn:active,
+.g-add-cta:active,
+.g-add-exercise:active,
+.g-finalize:active { transform: scale(.985); opacity: .9; }
+
+.g-ex-head,
+.g-last-toggle,
+.g-copy-last,
+.g-modal-close,
+.g-session-summary,
+.g-pill { transition: background var(--fast); }
+.g-ex-head:active,
+.g-last-toggle:active,
+.g-copy-last:active,
+.g-session-summary:active,
+/* `:not(.active)`: la pastilla seleccionada es platino sólido y teñirla de gris
+   al tocarla la haría parecer deseleccionada justo mientras la pulsas. */
+.g-pill:not(.active):active { background: var(--glass-2); transition: none; }
+.g-modal-close:active { background: var(--glass-3); transition: none; }
+.g-pill.active:active { opacity: .85; }
+
+/* Botones de puro texto: no hay fondo que teñir, así que bajan de opacidad. */
+.g-link-btn:active,
+.g-back-inline:active,
+.g-edit-muscles:active,
+.g-rest-skip:active { opacity: .55; }
+
 /* Touch targets — red de seguridad. Ver README §5: 44px es piso, no objetivo. */
 .g-btn-primary, .g-btn-secondary, .g-btn-destructive,
 .g-add-exercise, .g-finalize, .g-confirm-set,
@@ -1299,6 +1414,10 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
+    /* Los retrasos también: el de `.g-collapse-clip` existe para esperar a una
+       animación que aquí ya no ocurre, y sin esto seguiría esperándola. Las
+       esperas que programa el JS las anula `sinMovimiento()` en js/dom.js. */
+    transition-delay: 0s !important;
   }
 }
 
