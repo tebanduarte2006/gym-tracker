@@ -679,6 +679,49 @@ rejilla de una fila que va de `0fr` a `1fr` — es lo que hace `colapsable()` en
 Si un navegador no interpola `fr` (Safari < 16), el resultado es el salto
 instantáneo de antes: se degrada a lo que ya había.
 
+**La curva de lo que cambia de TAMAÑO no es la de lo que se mueve** (corregido
+el 2026-09-13, segunda pasada). Esteban probó la versión anterior: *"ya no es de
+golpe como antes, pero se sigue sintiendo rough, no es fluida"*. No era falta de
+frames —medido con la CPU 6× más lenta, mediana de 16.7 ms y un solo frame
+largo— era el **perfil del movimiento**. `--ease` (`.32,.72,0,1`, la curva
+"snappy" de Apple) recorre el 86% del camino en el primer 30% del tiempo: con un
+chevrón que gira eso es carácter, y con 254 px de tarjeta es un latigazo seguido
+de un reptar. Medido frame a frame al abrir un ejercicio:
+
+| | Salto máximo | Salto p90 | Cola (frames < 2 px) |
+|---|---|---|---|
+| `--ease` `.32,.72,0,1` | **66 px** | 53 px | 6 |
+| `--ease-size` `.25,.1,.25,1` | **37 px** | 34 px | 0 |
+
+De ahí el token **`--ease-size`**, y la regla: `--ease` para transformaciones
+(se componen en la GPU y suelen recorrer poca distancia), `--ease-size` para
+altura, anchura o cualquier cosa que cambie de tamaño. Un salto de 66 px entre
+dos frames se ve; el ojo sigue el borde que avanza.
+
+**El contenido entra con fundido, no solo destapado por un borde.** Con el puro
+recorte, cada frame el texto vuelve a encajar en la rejilla de píxeles y el
+borde en movimiento se lee como un barrido duro. `opacity` y `transform` los
+compone la GPU: no añaden ni un cálculo de layout por frame.
+
+**`contain: layout paint` en el recorte no es un adorno.** Sin él, cambiar la
+altura obliga al navegador a reconsiderar el layout de la página entera en cada
+frame. Medido con la CPU **10×** más lenta —peor caso que un iPhone 11— durante
+la apertura:
+
+| | Frames por encima de 32 ms |
+|---|---|
+| sin contención | 23 de 94 (24%) |
+| con `contain: layout paint` | 8 de 106 (**7.5%**) |
+
+Es seguro aquí porque el recorte ya lleva `overflow:hidden` y lo único
+posicionado dentro (el círculo de `.g-set-mark`) se ancla a su propio padre
+`relative`. **No pongas `contain: size`**: la rejilla necesita medir el contenido
+para saber cuánto vale `1fr`, y con contención de tamaño mediría cero.
+
+Dato de la misma medición, por si algún día hace falta: quitar el
+`backdrop-filter` de las tarjetas ahorraba menos que la contención (13 de 99
+frames largos frente a 8 de 106) y cuesta el material entero. No es el camino.
+
 **Los sheets se cierran animados.** Entraban deslizando y desaparecían de golpe
 con un `overlay.remove()` seco. Media transición se siente peor que ninguna, y
 el cierre es el momento en que más veces al día ves ese componente. El scroll
@@ -957,6 +1000,15 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     animación detrás no es una transición: es la app tardando. Se consulta la
     preferencia también desde el JS (`sinMovimiento()`).
 
+59. **Una animación puede ir a 60 fps y aun así sentirse rough.** La primera
+    sospecha ante "no es fluido" es que se caen frames; aquí no se caía casi
+    ninguno. Lo que fallaba era el perfil: la curva metía 66 px de salto entre
+    dos frames y luego se arrastraba 180 ms avanzando menos de 2 px. Antes de
+    optimizar, **mide el incremento por frame**, no solo el tiempo de frame.
+60. **La curva de lo que cambia de tamaño no es la de lo que se mueve.** Una
+    curva agresiva de salida es carácter en un elemento que se desplaza 18 px y
+    un latigazo en uno que crece 254. La distancia decide la curva, no el gusto.
+
 ## 8. Pendientes / ideas evaluables
 
 - [ ] Preferencia para display en kg (hoy display fijo lbs; pedirá OK Esteban).
@@ -1000,6 +1052,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-09-13 | `(pending)` | **La apertura de las tarjetas, fluida de verdad (§5.8).** Esteban sobre la entrega anterior: *"ya no es de golpe como antes, pero se sigue sintiendo rough, no es fluida"*. **No se caían frames** —medido con la CPU 6× más lenta: mediana de 16.7 ms y UN solo frame largo—, así que optimizar no era el camino. Lo que fallaba era el **perfil del movimiento**: `--ease` (`.32,.72,0,1`) recorre el 86% del camino en el primer 30% del tiempo, o sea que la tarjeta saltaba de 65 a 285 px en 73 ms con **saltos de 66 px entre frames** y luego se arrastraba 180 ms avanzando menos de 2 px por frame. Latigazo y reptar. Comparadas seis curvas frame a frame sobre `devices['iPhone 11']`, gana `.25,.1,.25,1`: **37 px de salto máximo** (vs 66), 34 de p90 (vs 53) y **cero frames de cola** (vs 6). Vive en el token nuevo **`--ease-size`**, con la regla de que `--ease` es para transformaciones y `--ease-size` para lo que cambia de tamaño. Además el contenido **entra con fundido y 6 px de asentamiento** en vez de aparecer destapado por un borde que avanza (con el puro recorte, cada frame el texto vuelve a encajar en la rejilla de píxeles y se lee como un barrido duro); son `opacity` y `transform`, los compone la GPU y no añaden un solo cálculo de layout por frame. Y **`contain: layout paint` en el recorte**, que sí era rendimiento puro: sin él, cambiar la altura obliga a reconsiderar el layout de la página entera en cada frame — con la CPU **10×** más lenta (peor caso que un iPhone 11) los frames por encima de 32 ms bajan de **23 de 94 (24%) a 8 de 106 (7.5%)**, y con 6× quedan en **cero**. Seguro porque el recorte ya lleva `overflow:hidden` y lo único posicionado dentro se ancla a su propio padre `relative`; `contain: size` NO se puede poner, la rejilla necesita medir el contenido para resolver `1fr`. Medido también, y descartado: quitar el `backdrop-filter` de las tarjetas ahorra menos que la contención y cuesta el material entero. Aspecto sin cambios (mismas capturas). Las 45 comprobaciones táctiles de la entrega anterior siguen en verde, arrastre incluido. Lecciones 59-60. 86/86 tests. 0 errores de consola. `sw.js → gymtracker-20260913-3`. |
 | 2026-09-13 | `(pending)` | **Transiciones: se acabó el parpadeo al cambiar de pestaña (§5.8).** Esteban: *"hago click y muestra un flash de lo que hay en esa página; nada es smooth"*. **El diagnóstico no era falta de animación, era el ORDEN:** `switchTab` marcaba el panel como visible y DESPUÉS lo pintaba, y pintar es `clear()` más rellenar cuando contesta IndexedDB — el panel entraba en pantalla vacío y el contenido caía encima uno o dos frames más tarde. Medido en Chromium sobre `devices['iPhone 11']` ANTES del cambio: Ejercicios aparecía con **202 px** de alto y saltaba a **2832**, Progresión 435 → 2824, y Entrenar aparecía **vacío**; DESPUÉS los tres son estables desde el primer frame visible (2832 → 2832, 2824 → 2824, 659 → 659). Los tres `render*` devuelven ahora una promesa que resuelve con los datos ya en el DOM, `main.js` pinta el panel oculto y lo revela lleno, y el panel que se va se desvanece antes (120 ms fuera / 200 ms dentro, con 6 px de asentamiento). La pastilla de la pestaña se marca en el mismo tick del toque —el control responde aunque el contenido tarde—, hay tope de espera de 260 ms, y el `scrollTo` suave que animaba la página justo mientras el contenido se reemplazaba pasa a ser un salto instantáneo en el mismo instante del relevo. **Tocar la pestaña activa ya no re-renderiza** (repintaba la pantalla entera por el gesto más inofensivo de la barra): sube al inicio, como en iOS. **El arranque también:** el esqueleto se queda hasta que el primer tab tiene datos en vez de borrarse y dejar un rectángulo negro. **Abrir y cerrar tarjetas de ejercicio se anima** con la rejilla `0fr → 1fr` (nada de medir alturas en JS: lección 38), con `visibility` para no dejar lo cerrado accesible al foco y a VoiceOver, y con colapso INSTANTÁNEO en modo reordenar porque `dragorder.js` mide en el mismo tick (§5.4). **Los sheets se cierran animados** en vez de `overlay.remove()` seco, soltando el scroll del fondo de inmediato. **`:active` en los ~14 controles que no lo tenían.** `sinMovimiento()` en `dom.js` porque `prefers-reduced-motion` en CSS no apaga las esperas que programa el JS. Verificado con eventos táctiles reales (§2.14) en las tres pestañas: 0 frames con panel visible vacío en 5 cambios seguidos, altura estable tras revelarse, cambio en 166-174 ms, dos toques seguidos dejan un solo panel, movimiento reducido sin esperas, y el arrastre intacto (entra en modo, las 5 tarjetas colapsan a 53 px exactos, sigue al dedo, `scrollY` sin moverse, aterriza donde apunta el dedo, no abre nada de más, el toque corto sigue abriendo). Lecciones 53-58. 86/86 tests. 0 errores de consola. `sw.js → gymtracker-20260913-2`. |
 | 2026-09-13 | `b638f24` | **Tarjetas que no se abren solas + alarma de descanso que se oye y puede sonar con la pantalla bloqueada.** Dos reportes de Esteban y una auditoría. **(1) Tarjetas (§5.7):** *"que la única razón por la que se abren es cuando YO las toco; es muy molesto salirme o, en un momento aleatorio, que se abra la del primer ejercicio"*. Había DOS auto-aperturas: `createSession` abría el primero del plan autollenado, y `refreshExercises` abría el primero siempre que no hubiera ninguna abierta — y `refreshExercises` corre en CADA vuelta al tab porque `switchTab` re-renderiza siempre, que es de donde salía el "momento aleatorio". Las dos fuera; ahora solo abre una tarjeta el toque en su cabecera (y agregar ese ejercicio a la sesión). **(2) Alarma (§5.6):** eran dos problemas distintos. *Que no se oye:* el beep eran dos **senoidales puras** de 880/1175 Hz a ganancia 0.35 — la peor forma de onda posible en ruido de banda ancha; ahora son seis pulsos (3 + pausa + 3) de **2000 Hz con armónicos**, donde el oído es más sensible y el altavoz del iPhone rinde, y normalizados por el **pico real** de la onda (1.4198 medido, no 1.8 = la suma de amplitudes, que la dejaba 3 dB por debajo). *Que no suena con el teléfono bloqueado:* el mecanismo anterior **no podía** funcionar — programaba el tono en el reloj del AudioContext e iOS suspende el AudioContext justo al bloquear la pantalla. Ahora la alarma va por un elemento `<audio>` al que se le da YA un clip WAV generado en memoria de **silencio del largo del descanso + el tono al final**: el reloj que cuenta pasa a ser el del reproductor del sistema. Tiene un coste real (ocupa el "now playing" y puede pausar tu música), así que es la preferencia **`alarma_fondo`** con interruptor y botón de probar en Progresión → ALARMA DE DESCANSO; apagada, la app no toca el reproductor **ni para autorizar el elemento**. `alarmWasLost()` mira el cabezal del reproductor —un hecho, no una deducción— para sonar al volver si iOS lo mató y NO sonar dos veces si sí sonó. **(3) Auditoría:** `.g-modal-close` decía en un comentario que su área era 44 y medía **32×32** (lo que tenía era un `box-shadow` transparente, y una sombra no recibe toques); el `<input>` de búsqueda medía 21 px de alto dentro de una caja de 44, así que tocar el borde del buscador no enfocaba nada; `.g-tool-btn` (donde vive el 🗑 que quita el ejercicio) medía 40; el `contextmenu` de `dragorder.js` era anónimo y `disable()` no podía quitarlo, así que se acumulaba un listener por render sobre un contenedor que sobrevive a todos; y la tarjeta de sesión activa abría el entrenamiento con **"LEGS / Legs"** — desde que se retiró "Workout #N", `sessionName` devuelve exactamente `routine_type` y la línea de arriba repetía la de abajo. Áreas táctiles medidas con `elementFromPoint`, no leyendo el CSS. Verificado en Chromium sobre `devices['iPhone 11']` con eventos táctiles reales (§2.14): 22 comprobaciones de tarjetas/alarma/preferencia + el arrastre completo (entra en modo, sigue al dedo, `scrollY` sin moverse, aterriza donde apunta el dedo, no abre nada al soltar, el toque corto sigue abriendo) + 0 desbordes horizontales en las 8 pantallas. **Lo que NO está verificado y hay que probar en el iPhone: que el clip siga sonando con la pantalla bloqueada.** 86/86 tests (4 nuevos sobre el WAV generado). 0 errores de consola. `sw.js → gymtracker-20260913-1`. |
 | 2026-08-13 | `fd6b2e8` | **El arrastre, arreglado de verdad para iOS + estandarización final.** Esteban: *"funciona el 10% de las veces; a veces se resalta la tarjeta pero es imposible moverla, y en vez de moverse solo scrollea"*. Dos creencias falsas, las dos habituales: **(1)** `preventDefault()` sobre `pointermove` NO cancela el scroll en iOS Safari — solo lo hace sobre **`touchmove`** y solo con `{passive:false}`; sin eso, al mover el dedo iOS scrolleaba y se llevaba el gesto, dejando la tarjeta levantada e inmóvil, exactamente el síntoma descrito. **(2)** `touch-action:none` puesto al ENTRAR en modo arrastre llega tarde: el navegador decide si un toque puede scrollear cuando el toque empieza. Además `MS_LARGA` 420→**320 ms** (la lupa y el menú contextual de iOS salen sobre los 500 y competían con el final de la espera), umbral de cancelación 8→**10 px** (el pulgar tiembla), y `-webkit-touch-callout`/`user-select` **permanentes** en la cabecera en vez de aplicarse al arrastrar. **La tarjeta ya no se abre sola al reordenar**: tragar el click en fase de captura no basta —iOS a veces no dispara ninguno y a veces lo dispara tras el re-render— así que la cabecera ignora los clicks de los 400 ms posteriores a un arrastre, y `refreshExercises` deja de auto-abrir la primera tarjeta cuando el render viene de reordenar. Verificado con **eventos táctiles reales** (`Input.dispatchTouchEvent` sobre `devices['iPhone 11']`): **5/5 arrastres correctos**, `scrollY` sin moverse durante el gesto, y sin romper lo de siempre — deslizar rápido scrollea, el toque corto abre la tarjeta y los botones de dentro responden. **Estandarización:** nueva regla dura §2.14 (nada táctil se verifica con el ratón), nueva §5.5 con las cuatro reglas de gestos en iOS y el protocolo de verificación, y lecciones 39-44. 82/82 tests. `sw.js → gymtracker-20260813-1`. |
