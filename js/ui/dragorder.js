@@ -282,12 +282,17 @@ export function enableDragOrder(contenedor, opts = {}) {
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerCancel);
   // El menú contextual de una pulsación larga en iOS/Android taparía el gesto.
-  contenedor.addEventListener('contextmenu', (e) => { if (arrastrando) e.preventDefault(); });
+  // Con nombre, no anónimo: `disable()` tiene que poder quitarlo. El contenedor
+  // de la lista SOBREVIVE a cada `refreshExercises` (solo se vacían sus hijos),
+  // así que un listener anónimo se acumulaba uno por render.
+  const onContextMenu = (e) => { if (arrastrando) e.preventDefault(); };
+  contenedor.addEventListener('contextmenu', onContextMenu);
 
   return function disable() {
     limpiarTemporizador();
     if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
     contenedor.removeEventListener('pointerdown', onPointerDown);
+    contenedor.removeEventListener('contextmenu', onContextMenu);
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('touchmove', onTouchMove);
     window.removeEventListener('pointerup', onPointerUp);

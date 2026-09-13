@@ -85,7 +85,7 @@ js/
   plates.js           [PURO] calculadora de discos por lado (en libras; display, no almacenamiento).
   muscles.js          [PURO] taxonomía de 18 músculos + migración del etiquetado viejo. Ver §5.3.
   importer.js         [PURO] normaliza backups v2 (habitos-app, con toda su deuda) y v3 (nativo).
-  audio.js            Beep Web Audio (iOS no soporta navigator.vibrate).
+  audio.js            Alarma de descanso: clip WAV generado (silencio + tono) por <audio> para que pueda sonar con la pantalla bloqueada + Web Audio inmediato de respaldo. Ver §5 y §5.6.
   wakelock.js         Screen Wake Lock durante sesión activa.
   resttimer.js        Rest timer por TIMESTAMP (endTs fijo), sobrevive lock/background.
   ui/entrenar.js      Tab 1: sesión activa, sets quirúrgicos, cardio, reordenar, copiar última sesión.
@@ -196,6 +196,9 @@ cardio     { id (AI), sesion_id (índice), tipo (free-text), duracion_min,
 preferencias { clave, valor }
              · rest_default (90) · contador_workouts · seed_decidido · bar_lbs (45)
              · musculos_migrados (bool): ya se ofreció la migración de §5.3
+             · alarma_fondo (bool, default true): la alarma de descanso puede
+               ocupar el reproductor del sistema para sonar con la pantalla
+               bloqueada. Se apaga desde Progresión → ALARMA DE DESCANSO. Ver §5.6
              · TODA clave nueva va también a PREFS_IMPORTABLES en importer.js,
                o restaurar un backup la pierde en silencio (hay test que lo exige).
 ```
@@ -223,16 +226,20 @@ actualizar `importer.js` + tests + esta sección, en el mismo commit.
   Wake Lock. **Widgets de home screen y Live Activities de lock screen:
   imposibles en una PWA de iOS** (requieren app nativa con WidgetKit/ActivityKit)
   — no prometérselo.
-- **Alerta de fin de descanso — límite honesto:** con la app en background o la
-  pantalla bloqueada, iOS congela los timers de JS y suspende el AudioContext.
-  El *conteo* sí sobrevive (va por timestamp fijo), la *alerta* no está
-  garantizada. Mitigación: el beep se **programa por adelantado** en el reloj
-  del AudioContext (`audio.js` › `scheduleBeep`), que suena aunque el JS esté
-  congelado *si* iOS no suspendió el contexto; si lo suspendió,
-  `scheduleWasLost()` hace que suene al volver, sin duplicar. La defensa real
-  es el Wake Lock: durante la sesión la pantalla no se apaga sola.
-  **No escribas en el README ni en la UI que el aviso suena con la pantalla
-  bloqueada.**
+- **Alerta de fin de descanso — límite honesto (revisado 2026-09-13):** con la
+  app en background o la pantalla bloqueada, iOS congela los timers de JS y
+  **suspende el AudioContext**. El *conteo* sí sobrevive (va por timestamp
+  fijo); la *alerta* no está garantizada. El mecanismo anterior —programar el
+  beep en el reloj de Web Audio— no podía funcionar con la pantalla bloqueada,
+  porque muere con el contexto suspendido; Esteban lo reportó exactamente así.
+  Ahora la alarma va por un **elemento `<audio>` reproduciendo un clip generado
+  al vuelo** (silencio del largo del descanso + el tono al final): la
+  reproducción de medios es lo único que iOS deja seguir con la pantalla
+  apagada. Sigue siendo **best-effort** y tiene un coste real (puede pausar tu
+  música), por eso es la preferencia `alarma_fondo`. Detalle completo en §5.6.
+  La defensa de verdad sigue siendo el Wake Lock: durante la sesión la pantalla
+  no se apaga sola. **No escribas en el README ni en la UI que el aviso suena
+  SIEMPRE con la pantalla bloqueada.**
 - **Cardio:** tipo free-text + duración min + velocidad/inclinación opcionales.
 - **Estética:** rediseñada el 2026-08-12 a **"Vidrio Negro"** — negro real,
   grises transparentes y material Liquid Glass de Apple, con acento **platino
@@ -484,10 +491,10 @@ terminó el último arrastre y la cabecera ignora los clicks de los 400 ms
 siguientes. Un sello de tiempo es determinista; el orden de los eventos táctiles
 en iOS no lo es.
 
-**Tampoco se auto-abre la primera tarjeta tras reordenar.** `refreshExercises`
-abre la primera cuando no hay ninguna abierta —lo correcto al entrar a la
-sesión—, pero después de un arrastre eso abría un ejercicio que nadie tocó y
-parecía que el gesto había "seleccionado" algo.
+**Tampoco se auto-abre la primera tarjeta tras reordenar.** Esto se resolvió
+del todo el 2026-09-13: `refreshExercises` ya **no abre ninguna tarjeta nunca**
+(ver §5.7), así que el caso desapareció por la raíz en vez de estar parcheado
+con una ventana de tiempo tras el arrastre.
 
 **Cómo se verifica un gesto** (y sin esto NO está verificado): contexto con
 `devices['iPhone 11']` + `hasTouch: true`, y el gesto disparado con
@@ -504,6 +511,102 @@ porque fallar una sola reproduce el síntoma que reportó Esteban:
 Y las tres que garantizan que no rompiste lo de siempre: deslizar rápido sobre
 una tarjeta **scrollea** (no arrastra), un toque corto **abre** la tarjeta, y los
 botones de dentro (registrar, borrar) **siguen respondiendo**.
+
+### 5.6 Alarma de descanso (leer antes de tocar `js/audio.js`)
+
+Reescrita el 2026-09-13 sobre dos reportes de Esteban que son problemas
+distintos y tienen arreglos distintos.
+
+**A) "Muy suave y muy grave; con la música y el ruido del gimnasio no la oigo."**
+El beep eran dos **senoidales puras** de 880 y 1175 Hz a ganancia 0.35. Una
+senoidal pura es la peor forma de onda posible para un aviso en ruido: toda su
+energía está en una frecuencia y el ruido de banda ancha de un gimnasio la tapa
+entera. Tres cambios, los tres necesarios:
+
+1. **2000 Hz con armónicos** (fundamental + 2º + 3º), no una senoidal. El oído
+   humano es más sensible entre 2 y 4 kHz y el altavoz del iPhone rinde mucho
+   mejor ahí que en los graves — que es literalmente lo que él describió.
+2. **Fondo de escala.** La normalización va por el **pico real** de la onda
+   (1.4198, medido), no por la suma de las amplitudes (1.8): dividir por la suma
+   dejaba la alarma ~3 dB por debajo de lo que el clip permite.
+3. **Patrón, no un pitido:** seis pulsos de 140 ms (3 + pausa + 3). Un sonido
+   con ritmo se distingue del ruido ambiente aunque el nivel sea parecido.
+
+**B) "Con el celular bloqueado no suena hasta que entro a la app."** Cierto, y
+el mecanismo anterior NO podía arreglarlo. `scheduleBeep` programaba el tono en
+el reloj del AudioContext, e **iOS suspende el AudioContext al bloquear la
+pantalla**: se programaba algo en un reloj que se para.
+
+Lo único que iOS deja seguir con la pantalla apagada es la **reproducción de un
+elemento `<audio>`** (es lo que hace cualquier reproductor de música web). Pero
+un `<audio>` no se puede "programar" para dentro de 90 s: programar exige que el
+JS corra a esa hora, y el JS está congelado. Así que se le da **ya** un clip que
+dura exactamente el descanso: **silencio + el tono al final**, generado byte a
+byte en memoria (`crearWav`). El reloj que cuenta pasa a ser el del reproductor
+del sistema, no el nuestro.
+
+Cinco cosas que parecen detalles y no lo son:
+
+1. **Un solo elemento `<audio>`, reutilizado.** El permiso de reproducción de
+   iOS es del ELEMENTO, y `startRest()` se llama dentro de un `.then()` de
+   IndexedDB, o sea ya fuera del gesto del usuario. Por eso el primer toque en
+   la app reproduce 50 ms de silencio en ese elemento para dejarlo autorizado el
+   resto de la vida de la página, y después solo se le cambia el `src`. Crear un
+   elemento por descanso lo rompería en el primer descanso.
+2. **Blob URL, no data URI.** Un data URI obliga a pasar el clip por base64:
+   +33 % de tamaño y una cadena de 2 MB construida en medio del entrenamiento.
+3. **PCM 8 bits a 16 kHz.** El silencio es exactamente 128 (silencio digital, no
+   "casi") y 90 s ocupan 1.4 MB que se liberan al terminar el descanso. Hay un
+   tope de 900 s: por encima el WAV pesaría más que la app entera.
+4. **Se corrige la latencia de arranque.** Cargar el clip y empezar cuesta unos
+   milisegundos y ese retraso se acumularía entero al final; tras `play()` se
+   adelanta el cabezal lo que se tardó.
+5. **`alarmWasLost()` mira el CABEZAL del reproductor**, no el estado del
+   AudioContext: si el clip llegó al tono, sonó; si iOS lo paró antes, no sonó y
+   el rest timer dispara la alarma inmediata al volver. Es un hecho observable,
+   no una suposición — y es lo que evita sonar dos veces en el caso normal.
+
+**El coste, y por qué hay un interruptor.** Mientras dura el descanso la app
+ocupa el "now playing" de iOS y **puede pausar la música que estés oyendo**. Eso
+no se puede decidir por él: es la preferencia `alarma_fondo` (Progresión →
+ALARMA DE DESCANSO), encendida por defecto. Apagada, la app **no toca el
+reproductor del sistema ni para autorizar el elemento** — apagar tiene que
+significar eso exactamente, no "casi". Junto al interruptor hay un botón de
+**probar**, porque el volumen de una alarma no se evalúa en una sala en
+silencio: hay que oírla en el gimnasio antes de confiarle un descanso.
+
+**Lo que NO se puede prometer:** que suene siempre con la pantalla bloqueada.
+Si iOS mata la reproducción de una PWA en segundo plano, se pierde igual. En
+esta entrega esto se verificó en **Chromium**, no en el iPhone: el clip se arma,
+se reproduce, dura descanso + patrón, se cancela al saltar el descanso y el
+respaldo salta cuando se simula que el sistema para la reproducción. **El
+comportamiento real con la pantalla bloqueada solo lo confirma el iPhone.**
+
+### 5.7 Las tarjetas de ejercicio NO se abren solas (2026-09-13)
+
+Esteban: *"quisiera que las tarjetas de los ejercicios estén cerradas por
+defecto en todo momento, que la única razón por la que se abren es cuando YO las
+toco. Es muy molesto: me salgo, o en un momento aleatorio, y se abre la del
+primer ejercicio y me desconcentra."*
+
+Había dos auto-aperturas, las dos con buena intención:
+
+1. `createSession` abría el primer ejercicio del plan autollenado.
+2. `refreshExercises` abría el primero **cada vez que no hubiera ninguna
+   abierta**. Y `refreshExercises` corre en CADA vuelta al tab Entrenar, porque
+   `switchTab` re-renderiza siempre. De ahí el "momento aleatorio": bastaba
+   mirar Progresión y volver para que el ejercicio 1 se abriera solo.
+
+Las dos fuera. El único código que abre una tarjeta es el `click` de su
+cabecera, más `attachExercise` (acabas de agregar ESE ejercicio a la sesión: no
+es la app decidiendo, es el resultado directo de tu toque). `_openEj` sigue
+persistiendo entre renders, así que lo que tú abriste sigue abierto al volver.
+
+**No lo devuelvas "por comodidad".** La comodidad de ahorrar un toque al empezar
+cuesta un ejercicio que se abre solo en mitad de una serie, y esa cuenta ya se
+hizo. Es la lección 43 aplicada hasta el final: un comportamiento correcto al
+entrar a una pantalla sigue siendo incorrecto cada vez que se vuelve a ella, y
+ninguna ventana de tiempo alrededor del render lo arregla — solo no hacerlo.
 
 ## 6. Deploy (paso a paso)
 
@@ -696,6 +799,43 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
     scroll de los modales, el arrastre y el `preventDefault` fallaron los tres
     por verificar en escritorio algo que solo se comporta así en iOS. Por eso
     ahora es la regla dura §2.14 y tiene su propio protocolo en §5.5.
+45. **Una senoidal pura es la peor forma de onda para un aviso.** Toda su
+    energía está en UNA frecuencia, así que cualquier ruido de banda ancha —la
+    música y el ambiente de un gimnasio— la tapa entera. Un aviso que tiene que
+    oírse en ruido lleva armónicos, ritmo y vive donde el oído es más sensible
+    (2–4 kHz). Subirle el volumen a una senoidal grave no la hace audible, solo
+    más fuerte.
+46. **Normalizar por la suma de las amplitudes no normaliza.** El pico de
+    `sin(x) + 0.5·sin(2x) + 0.3·sin(3x)` es 1.42, no 1.8: los armónicos no
+    llegan al máximo a la vez. Dividir por 1.8 dejó la alarma ~3 dB por debajo
+    de lo que el formato permitía. Si vas a normalizar, MIDE el pico.
+47. **Programar algo en un reloj que el sistema para no es programarlo.** El
+    beep del descanso se agendaba en el reloj del AudioContext, e iOS suspende
+    el AudioContext justo en el único caso donde hacía falta: pantalla
+    bloqueada. Antes de apoyarte en un temporizador, pregúntate quién lo mueve y
+    si sigue vivo en el escenario que te importa.
+48. **Cuando no puedes programar un evento, programa su MEDIO.** Un `<audio>`
+    no admite "suena dentro de 90 s", pero sí admite un clip de 90 s de silencio
+    con el tono al final. El reloj pasa a ser el del reproductor del sistema, que
+    es exactamente el que no se congela.
+49. **Un permiso del navegador se le concede a un OBJETO, no a la página.** El
+    permiso de reproducir audio en iOS es del elemento `<audio>` concreto que
+    sonó dentro de un gesto. Crear uno nuevo por cada descanso lo perdía; hay
+    UNO y se le cambia el `src`.
+50. **Comprobar un hecho observable gana a deducir un estado.** Para saber si la
+    alarma sonó se mira el cabezal del reproductor (¿llegó al segundo del tono?),
+    no el estado del AudioContext. Un hecho no tiene casos raros; una deducción
+    los tiene todos.
+51. **Un comentario que afirma una medida no la garantiza.** `.g-modal-close`
+    decía "el área es 44" y medía 32×32: lo que tenía era un `box-shadow` de
+    6 px transparente, y una sombra no recibe toques. Si una regla dura del
+    diseño se puede medir, mídela — el área táctil real se comprueba con
+    `elementFromPoint` en las esquinas, no leyendo el CSS.
+52. **"Apagado" tiene que significar apagado.** Con la alarma de fondo
+    desactivada, la app tampoco reproduce los 50 ms de silencio que autorizan el
+    elemento: son silencio, pero le quitan la sesión de audio a lo que estés
+    oyendo. Un interruptor que deja encendida "solo una parte pequeña" es peor
+    que no tenerlo, porque el síntoma que provoca ya no tiene explicación.
 
 ## 8. Pendientes / ideas evaluables
 
@@ -717,6 +857,21 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
       vez de volver de un detalle. Requeriría la History API.
 - [ ] Reordenar accesible: el arrastre por pulsación larga no es operable con
       VoiceOver ni teclado (§5.4). Salida: un modo "reordenar" explícito.
+- [ ] **Confirmar la alarma de fondo en el iPhone.** §5.6 está verificada en
+      Chromium; que el clip siga sonando con la pantalla bloqueada en una PWA de
+      iOS solo lo dice el teléfono. Si no suena, la siguiente parada es Web Push
+      — y eso exige un servidor, que hoy el proyecto no tiene.
+- [ ] **Deshacer un registro no para el descanso.** Si tocas el ✓ por error y lo
+      quitas, el temporizador sigue corriendo. No se corrigió porque cancelar
+      siempre rompería el caso de corregir un set viejo mientras descansas del
+      último; habría que recordar qué set arrancó el descanso.
+- [ ] **Exportar en la PWA de iOS.** El backup se baja con un `<a download>`
+      sobre un blob; en modo standalone iOS puede ignorarlo sin avisar. Sin un
+      iPhone para probarlo no se toca a ciegas.
+- [ ] Áreas táctiles por debajo de 44 px que quedan a propósito: el toggle
+      lbs/kg (36×38) y las pastillas de filtro (38 de alto) son controles
+      segmentados secundarios; el 🗑 de quitar ejercicio mide 37 de ancho y ser
+      estrecho ahí protege. Medido el 2026-09-13; si alguna estorba, se sube.
 
 ## 9. Historial de cambios estructurales
 
@@ -725,6 +880,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 | Fecha | Commits | Cambio |
 |-------|---------|--------|
+| 2026-09-13 | `(pending)` | **Tarjetas que no se abren solas + alarma de descanso que se oye y puede sonar con la pantalla bloqueada.** Dos reportes de Esteban y una auditoría. **(1) Tarjetas (§5.7):** *"que la única razón por la que se abren es cuando YO las toco; es muy molesto salirme o, en un momento aleatorio, que se abra la del primer ejercicio"*. Había DOS auto-aperturas: `createSession` abría el primero del plan autollenado, y `refreshExercises` abría el primero siempre que no hubiera ninguna abierta — y `refreshExercises` corre en CADA vuelta al tab porque `switchTab` re-renderiza siempre, que es de donde salía el "momento aleatorio". Las dos fuera; ahora solo abre una tarjeta el toque en su cabecera (y agregar ese ejercicio a la sesión). **(2) Alarma (§5.6):** eran dos problemas distintos. *Que no se oye:* el beep eran dos **senoidales puras** de 880/1175 Hz a ganancia 0.35 — la peor forma de onda posible en ruido de banda ancha; ahora son seis pulsos (3 + pausa + 3) de **2000 Hz con armónicos**, donde el oído es más sensible y el altavoz del iPhone rinde, y normalizados por el **pico real** de la onda (1.4198 medido, no 1.8 = la suma de amplitudes, que la dejaba 3 dB por debajo). *Que no suena con el teléfono bloqueado:* el mecanismo anterior **no podía** funcionar — programaba el tono en el reloj del AudioContext e iOS suspende el AudioContext justo al bloquear la pantalla. Ahora la alarma va por un elemento `<audio>` al que se le da YA un clip WAV generado en memoria de **silencio del largo del descanso + el tono al final**: el reloj que cuenta pasa a ser el del reproductor del sistema. Tiene un coste real (ocupa el "now playing" y puede pausar tu música), así que es la preferencia **`alarma_fondo`** con interruptor y botón de probar en Progresión → ALARMA DE DESCANSO; apagada, la app no toca el reproductor **ni para autorizar el elemento**. `alarmWasLost()` mira el cabezal del reproductor —un hecho, no una deducción— para sonar al volver si iOS lo mató y NO sonar dos veces si sí sonó. **(3) Auditoría:** `.g-modal-close` decía en un comentario que su área era 44 y medía **32×32** (lo que tenía era un `box-shadow` transparente, y una sombra no recibe toques); el `<input>` de búsqueda medía 21 px de alto dentro de una caja de 44, así que tocar el borde del buscador no enfocaba nada; `.g-tool-btn` (donde vive el 🗑 que quita el ejercicio) medía 40; el `contextmenu` de `dragorder.js` era anónimo y `disable()` no podía quitarlo, así que se acumulaba un listener por render sobre un contenedor que sobrevive a todos; y la tarjeta de sesión activa abría el entrenamiento con **"LEGS / Legs"** — desde que se retiró "Workout #N", `sessionName` devuelve exactamente `routine_type` y la línea de arriba repetía la de abajo. Áreas táctiles medidas con `elementFromPoint`, no leyendo el CSS. Verificado en Chromium sobre `devices['iPhone 11']` con eventos táctiles reales (§2.14): 22 comprobaciones de tarjetas/alarma/preferencia + el arrastre completo (entra en modo, sigue al dedo, `scrollY` sin moverse, aterriza donde apunta el dedo, no abre nada al soltar, el toque corto sigue abriendo) + 0 desbordes horizontales en las 8 pantallas. **Lo que NO está verificado y hay que probar en el iPhone: que el clip siga sonando con la pantalla bloqueada.** 86/86 tests (4 nuevos sobre el WAV generado). 0 errores de consola. `sw.js → gymtracker-20260913-1`. |
 | 2026-08-13 | `fd6b2e8` | **El arrastre, arreglado de verdad para iOS + estandarización final.** Esteban: *"funciona el 10% de las veces; a veces se resalta la tarjeta pero es imposible moverla, y en vez de moverse solo scrollea"*. Dos creencias falsas, las dos habituales: **(1)** `preventDefault()` sobre `pointermove` NO cancela el scroll en iOS Safari — solo lo hace sobre **`touchmove`** y solo con `{passive:false}`; sin eso, al mover el dedo iOS scrolleaba y se llevaba el gesto, dejando la tarjeta levantada e inmóvil, exactamente el síntoma descrito. **(2)** `touch-action:none` puesto al ENTRAR en modo arrastre llega tarde: el navegador decide si un toque puede scrollear cuando el toque empieza. Además `MS_LARGA` 420→**320 ms** (la lupa y el menú contextual de iOS salen sobre los 500 y competían con el final de la espera), umbral de cancelación 8→**10 px** (el pulgar tiembla), y `-webkit-touch-callout`/`user-select` **permanentes** en la cabecera en vez de aplicarse al arrastrar. **La tarjeta ya no se abre sola al reordenar**: tragar el click en fase de captura no basta —iOS a veces no dispara ninguno y a veces lo dispara tras el re-render— así que la cabecera ignora los clicks de los 400 ms posteriores a un arrastre, y `refreshExercises` deja de auto-abrir la primera tarjeta cuando el render viene de reordenar. Verificado con **eventos táctiles reales** (`Input.dispatchTouchEvent` sobre `devices['iPhone 11']`): **5/5 arrastres correctos**, `scrollY` sin moverse durante el gesto, y sin romper lo de siempre — deslizar rápido scrollea, el toque corto abre la tarjeta y los botones de dentro responden. **Estandarización:** nueva regla dura §2.14 (nada táctil se verifica con el ratón), nueva §5.5 con las cuatro reglas de gestos en iOS y el protocolo de verificación, y lecciones 39-44. 82/82 tests. `sw.js → gymtracker-20260813-1`. |
 | 2026-08-12 | `8d92fa1` | **Red de seguridad del arranque, pantalla de inicio y fuera "Workout #N".** Esteban reportó la PWA congelada en el esqueleto de arranque, sin poder tocar nada ni cerrando desde el multitarea. La causa es siempre la misma familia: si `js/main.js` o cualquiera de sus imports no carga (un archivo que no quedó en la caché del SW, un fallo de red en frío), el módulo no se ejecuta, `boot()` nunca corre y el esqueleto late para siempre — la app parece viva y no responde, y la única salida era desinstalar. Ahora `index.html` lleva un **script clásico (NO módulo)** que a los 8 s comprueba si el esqueleto sigue ahí y, si sigue, ofrece **Reintentar** y **Reparar y recargar** (borra cachés + desregistra el SW; IndexedDB no se toca). Un módulo no sirve para esto: si los módulos son el problema, el vigilante tiene que estar fuera de ellos. **Pantalla de inicio:** era ~70% negro vacío; ahora abre con una tarjeta de **últimos 7 días** (sesiones, volumen, sets + tira de actividad de 7 puntos) y muestra 5 sesiones recientes en vez de 3. `stats.js › weekSummary`, con tests. **Fuera "Workout #N":** numeración heredada del template de Notion que no dice nada que la fecha no diga mejor. `stats.js › sessionName` lo deriva de `routine_type`, así que el historial ANTIGUO también pierde el prefijo **sin tocar un solo registro**; se retiran `nextWorkoutNumber` y la escritura de `contador_workouts` (la clave sigue en la lista blanca del importador para que un backup viejo entre sin avisos). 82/82 tests. 0 errores de consola. `sw.js → gymtracker-20260812-6`. |
 | 2026-08-12 | `e9f57f6` | **Arrastre fluido + tarjetas compactas.** Esteban aprobó los tres riesgos del PR con un matiz: que el arrastre fuera totalmente fluido, y sugirió tarjetas lo más pequeñas posible. Resultan ser el mismo problema. **Al entrar en modo reordenar todas las tarjetas colapsan al nombre** (§5.4): la lista pasa de 610 px a **368 px** y cabe entera en pantalla, todas miden lo mismo y el cálculo de huecos se vuelve exacto — arrastrar una tarjeta abierta de 315 px tapaba media pantalla y dejaba un hueco que nunca coincidía. Requirió repetir `.open` en el selector: `.g-ex-card.open .g-ex-body` ganaba por especificidad y la tarjeta abierta seguía sin colapsar. **Fluidez:** el `gap` se lee una vez en vez de un `getComputedStyle` por `pointermove` (la causa principal de tirones), el pintado va dentro de `requestAnimationFrame`, `will-change: transform` para que el navegador no repinte la lista entera por frame, y un ancla que centra la tarjeta bajo el dedo tras colapsar. Medido: **61 fps** durante el arrastre y **0 px** de desfase entre el centro de la tarjeta y el dedo. **Fuera del modo reordenar**, la tarjeta colapsada muestra solo nombre y contador: la línea de músculos se partía en dos y descuadraba la lista. Toast a 0.88 de opacidad — era el único vidrio que aparece sobre texto denso y se leía turbio. **Bug encontrado al verificar:** `pointermove`/`pointerup` colgaban del contenedor, así que si el dedo salía de la lista antes de vencer la pulsación larga (hacia el cronómetro) la cancelación no llegaba y el arrastre arrancaba igual; ahora van en `window`. Cinco casos límite verificados: salir de la lista, scroll corto, mantener quieto, soltar fuera y toque corto. 76/76 tests. 0 errores de consola. `sw.js → gymtracker-20260812-5`. |
