@@ -1,6 +1,6 @@
 // modals.js — bottom sheets reutilizables.
 
-import { el } from '../dom.js';
+import { el, sinMovimiento } from '../dom.js';
 
 // Cuántos sheets hay abiertos: el bloqueo de scroll del body se suelta al
 // cerrar el ÚLTIMO, no al cerrar cualquiera.
@@ -24,11 +24,25 @@ function unlockScroll() {
   window.scrollTo(0, _scrollY);
 }
 
+// Los sheets ENTRABAN deslizando y desaparecían de golpe: `overlay.remove()` a
+// secas. La mitad de una transición se siente peor que ninguna — el cierre es el
+// momento en que más veces al día ves este componente.
+//
+// El scroll se suelta YA, no al terminar la animación: el sheet que sale está en
+// `position:fixed` y no se mueve con la página, así que devolver el fondo a su
+// sitio antes no se ve — y esperar 200 ms para poder scrollear sí se siente.
+// `_cerrando` protege del doble cierre (tocar fuera y el ✕ casi a la vez), que
+// si no descontaría dos veces `_openCount` y dejaría el fondo bloqueado.
+const CIERRE_MS = 200;
+
 function closeOverlay(overlay) {
-  if (!overlay || !overlay.isConnected) return;
-  overlay.remove();
+  if (!overlay || !overlay.isConnected || overlay._cerrando) return;
+  overlay._cerrando = true;
   _openCount = Math.max(0, _openCount - 1);
   if (_openCount === 0) unlockScroll();
+  if (sinMovimiento()) { overlay.remove(); return; }
+  overlay.classList.add('g-modal-closing');
+  setTimeout(() => { if (overlay.isConnected) overlay.remove(); }, CIERRE_MS);
 }
 
 export function openOverlay(modalEl) {

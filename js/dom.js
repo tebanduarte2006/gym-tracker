@@ -73,3 +73,13 @@ export function guard(promise, contexto) {
     throw err;
   });
 }
+
+// ¿El sistema pide menos movimiento? `styles.css` ya anula las animaciones por
+// CSS, pero el JS también programa esperas (el desvanecido de un panel, el
+// cierre de un sheet) y esas hay que ponerlas a cero aquí: una espera sin
+// animación detrás no es una transición, es un retraso.
+export function sinMovimiento() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
