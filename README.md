@@ -995,7 +995,7 @@ banner "Nueva versión disponible" aparece, tocar Actualizar.
 
 ## 9. Historial de cambios estructurales
 
-> Una fila por commit o grupo relacionado. `(pending)` → SHA tras el push.
+> Una fila por commit o grupo relacionado. `98d6889` → SHA tras el push.
 > Mencionar siempre `sw.js → gymtracker-YYYYMMDD-N` si hubo deploy.
 
 | Fecha | Commits | Cambio |
