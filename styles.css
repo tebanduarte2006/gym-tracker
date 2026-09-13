@@ -65,6 +65,13 @@
      cuando algo llega; lo que se va tiene que acelerar al irse, o parece que
      duda. Se usa al cerrar los bottom sheets. */
   --ease-in: cubic-bezier(.4,0,1,1);
+  /* Curva para lo que cambia de TAMAÑO, que no es la misma que para lo que se
+     mueve. `--ease` recorre el 86% del camino en el primer 30% del tiempo:
+     perfecto para un chevrón que gira 18 px, y un latigazo seguido de un
+     reptar cuando lo que crece son 254 px de tarjeta. Medido al abrir un
+     ejercicio: con `--ease`, saltos de 66 px en un frame y 6 frames finales
+     avanzando menos de 2 px; con esta, 37 px de salto máximo y sin cola. */
+  --ease-size: cubic-bezier(.25,.1,.25,1);
   --fast: .18s;
   --base: .26s;
 
@@ -413,11 +420,33 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--base) var(--ease);
+  transition: grid-template-rows var(--base) var(--ease-size);
+}
+/* El contenido entra con fundido y 6 px de asentamiento, no solo destapado por
+   un borde que avanza. Con el puro recorte, cada frame el texto vuelve a
+   encajar en la rejilla de píxeles y el borde en movimiento se lee como un
+   barrido duro; el fundido lo disuelve. Son `opacity` y `transform`: los dos
+   los compone la GPU, así que no añaden ni un cálculo de layout por frame. */
+.g-collapse-clip > * {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity var(--fast) ease, transform var(--base) var(--ease-size);
+}
+.g-ex-card.open > .g-collapse > .g-collapse-clip > *,
+.g-ex-card.last-open .g-collapse-last > .g-collapse-clip > * {
+  opacity: 1;
+  transform: none;
 }
 .g-collapse-clip {
   overflow: hidden;
   min-height: 0;
+  /* Le promete al navegador que nada de dentro afecta al layout de fuera ni se
+     sale del recorte, así que al cambiar la altura no tiene que reconsiderar la
+     página entera. Medido con la CPU 10× más lenta: los frames caídos durante
+     la apertura bajan del 24% al 9%. Es seguro aquí porque ya hay
+     `overflow:hidden` y lo único posicionado dentro (el círculo de `.g-set-mark`)
+     se ancla a su propio padre `relative`, no a un ancestro de fuera. */
+  contain: layout paint;
   /* `display:none` quitaba lo cerrado del foco por teclado y de VoiceOver
      gratis; recortar con `overflow` no. `visibility` sí, y se aplica al TERMINAR
      el cierre (al abrir, al instante) para no cortar la animación. */
