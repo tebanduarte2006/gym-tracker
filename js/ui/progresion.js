@@ -2,7 +2,7 @@
 // TODOS los cálculos usan solo sets Done (stats.js). PR doble: peso y reps.
 
 import { el, clear, toast, guard } from '../dom.js';
-import { dbGetAll, dbBulkImport } from '../db.js';
+import { dbGetAll, dbBulkImport, prefGet, prefSet } from '../db.js';
 import { fmtWeight, fmtDateShort, fmtDateLong, fmtInt, kgToLbs } from '../format.js';
 import {
   isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs, setsPerMuscle
@@ -10,6 +10,7 @@ import {
 import { normalizeBackup, buildExport } from '../importer.js';
 import { sheet, confirmRow, once } from './modals.js';
 import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
+import { beep, setBackgroundAlarm } from '../audio.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -27,6 +28,9 @@ export function renderProgresion(panel) {
   wrap.appendChild(noHistSlot);
   const cardioSlot = el('div', {});
   wrap.appendChild(cardioSlot);
+
+  wrap.appendChild(el('div', { class: 'g-section-label' }, ['ALARMA DE DESCANSO']));
+  wrap.appendChild(buildAlarmCard());
 
   wrap.appendChild(el('div', { class: 'g-section-label' }, ['DATOS']));
   const eiWrap = el('div', { class: 'g-export-row' });
@@ -173,6 +177,61 @@ export function renderProgresion(panel) {
         cardioSlot.appendChild(card);
       }
     });
+}
+
+// ─── Alarma de descanso ───────────────────────────────────────────────────────
+// Dos controles y ninguno es decorativo. El de PROBAR existe porque el volumen
+// de una alarma no se puede evaluar en la sala: hay que oírla en el gimnasio,
+// con su música, antes de confiarle un descanso. El interruptor existe porque
+// sonar con la pantalla bloqueada tiene un precio real — la app ocupa el
+// reproductor del sistema durante el descanso y puede pausar tu música. Ver
+// js/audio.js para el mecanismo y sus límites.
+function buildAlarmCard() {
+  const card = el('div', { class: 'g-list-card' });
+
+  const estado = el('div', { class: 'g-list-sub' }, ['Cargando…']);
+  const toggleRow = el('button', { class: 'g-list-row', type: 'button' }, [
+    el('div', {}, [
+      el('div', { class: 'g-list-name' }, ['Sonar con la pantalla bloqueada']),
+      estado
+    ]),
+    el('span', { class: 'g-list-pr' }, ['—'])
+  ]);
+  const valor = toggleRow.lastChild;
+
+  let activo = true;
+  const pintar = () => {
+    valor.textContent = activo ? 'Sí' : 'No';
+    estado.textContent = activo
+      ? 'Puede pausar tu música mientras dura el descanso.'
+      : 'La alarma solo suena con la app abierta.';
+  };
+
+  guard(prefGet('alarma_fondo', true), 'preferencia de alarma').then((v) => {
+    activo = v !== false;
+    setBackgroundAlarm(activo);
+    pintar();
+  });
+
+  toggleRow.addEventListener('click', () => {
+    activo = !activo;
+    pintar();
+    setBackgroundAlarm(activo);
+    guard(prefSet('alarma_fondo', activo), 'guardando preferencia');
+  });
+  card.appendChild(toggleRow);
+
+  const probar = el('button', { class: 'g-list-row', type: 'button' }, [
+    el('div', {}, [
+      el('div', { class: 'g-list-name' }, ['Probar la alarma']),
+      el('div', { class: 'g-list-sub' }, ['Súbele el volumen al teléfono antes.'])
+    ]),
+    el('span', { class: 'g-list-arrow' }, ['▶'])
+  ]);
+  probar.addEventListener('click', () => beep());
+  card.appendChild(probar);
+
+  return card;
 }
 
 // Sets por músculo de los últimos 7 días. Sirve para ver de un vistazo qué

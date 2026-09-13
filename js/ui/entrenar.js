@@ -196,11 +196,18 @@ function renderSessionDetail(panel, sesionId, fromAll) {
     const volLbs = Math.round(kgToLbs(volumeKg(visible)) || 0);
     const cardioMin = cardio.reduce((sum, c) => sum + (Number(c.duracion_min) || 0), 0);
 
-    wrap.appendChild(el('div', { class: 'g-session-card', style: 'margin-top:8px;' }, [
-      el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
-      el('div', { class: 'g-session-name' }, [sessionName(sesion)]),
-      el('div', { class: 'g-recent-sub', style: 'margin-top:6px;' }, [fmtDateLong(sesion.fecha)])
-    ]));
+    // El sobretítulo solo aparece si dice algo distinto del nombre. En una
+    // sesión con `routine_type` son la misma cadena y salía dos veces seguidas;
+    // en el historial viejo sin `routine_type` sí aportaba.
+    const nombreSes = sessionName(sesion);
+    const rt = (sesion.routine_type || '').toUpperCase();
+    const cabecera = el('div', { class: 'g-session-card', style: 'margin-top:8px;' });
+    if (rt && rt !== nombreSes.toUpperCase()) {
+      cabecera.appendChild(el('div', { class: 'g-session-rt' }, [rt]));
+    }
+    cabecera.appendChild(el('div', { class: 'g-session-name' }, [nombreSes]));
+    cabecera.appendChild(el('div', { class: 'g-recent-sub', style: 'margin-top:6px;' }, [fmtDateLong(sesion.fecha)]));
+    wrap.appendChild(cabecera);
 
     const stats = el('div', { class: 'g-confirm-summary', style: 'margin-top:14px;' }, [
       confirmRow('Duración', sesion.duracion_ms ? fmtDuration(sesion.duracion_ms) : '—'),
@@ -512,7 +519,10 @@ function createSession(panel, routineType) {
                 }));
               });
             });
-            _openEj.add(plan.ejercicios[0].ejercicio_id);
+            // NADA se abre solo: las tarjetas arrancan cerradas siempre y solo
+            // las abre un toque suyo. Abrir la primera al empezar parecía
+            // cómodo y era justo lo que Esteban reportó como molesto — ver el
+            // bloque equivalente (retirado) de refreshExercises.
             return Promise.all(inserts).then(() => {
               const nSets = plan.ejercicios.reduce((t, e) => t + e.sets.length, 0);
               toast('Propuesta desde tu último ' + routineType + ': ' + nSets + ' sets');
@@ -530,9 +540,13 @@ function renderActiveSession(panel, sesion) {
   keepAwake();
   const wrap = el('div', { class: 'g-train' });
 
+  // La línea de arriba decía el nombre de la rutina y la de abajo lo repetía:
+  // desde que se retiró "Workout #N" (2026-08-12) `sessionName` devuelve
+  // exactamente `routine_type`, así que la tarjeta abría el entrenamiento con
+  // "LEGS / Legs". El sobretítulo pasa a decir algo que el nombre no dice.
   const sessionCard = el('div', { class: 'g-session-card' }, [
     el('div', { class: 'g-session-meta' }, [
-      el('div', { class: 'g-session-rt' }, [(sesion.routine_type || '').toUpperCase()]),
+      el('div', { class: 'g-session-rt' }, ['EN CURSO']),
       el('div', { class: 'g-session-name' }, [sessionName(sesion)])
     ]),
     el('div', { class: 'g-session-timer-wrap' }, [
@@ -706,12 +720,12 @@ function refreshExercises(sesion, listEl) {
         listEl.appendChild(el('div', { class: 'g-empty-card' }, ['Toca "+ Agregar ejercicio" para empezar.']));
         return;
       }
-      // Abrir la primera SOLO al entrar en la sesión. Tras reordenar, hacerlo
-      // abría un ejercicio que nadie tocó y parecía que el arrastre había
-      // "seleccionado" algo.
-      if (_openEj.size === 0 && order.length > 0 && Date.now() - _finArrastre > 1500) {
-        _openEj.add(order[0]);
-      }
+      // NO se abre ninguna tarjeta sola. Antes se abría la primera cuando no
+      // había ninguna abierta, y como `refreshExercises` corre en CADA vuelta al
+      // tab (switchTab re-renderiza siempre), el ejercicio 1 se abría solo al
+      // salir y volver, o al reanudar: Esteban lo reportó como "se abre en un
+      // momento aleatorio y me desconcentra". Una tarjeta solo se abre si la
+      // tocas, o si acabas de agregar ese ejercicio a la sesión.
 
       order.forEach((ejId, idx) => {
         const ej = ejMap[ejId];

@@ -376,7 +376,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 8px 12px;
   border-radius: var(--r-xs);
   font-size: 13px; font-weight: 600;
-  min-height: 40px;
+  /* 44, no 40: aquí vive el 🗑 que quita el ejercicio entero de la sesión, y es
+     la fila que se toca con el pulgar sudado entre series (§5.1.6). */
+  min-height: 44px;
   box-shadow: inset 0 0.5px 0 var(--rim-top);
   transition: background var(--fast);
 }
@@ -653,7 +655,10 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-search-wrap {
   display: flex; align-items: center; gap: 9px;
   border-radius: var(--r-md);
-  padding: 11px 14px;
+  /* El padding vertical se lo queda el propio <input> (abajo). Con el padding
+     aquí, el campo medía 21 px de alto dentro de una caja de 44: tocar el borde
+     de la caja de búsqueda no enfocaba nada y parecía que la app no respondía. */
+  padding: 0 14px;
   min-height: 44px;
   margin-bottom: 12px;
 }
@@ -662,6 +667,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--t1);
   font-size: 16px;   /* evita el zoom automático de iOS al enfocar */
   flex: 1; min-width: 0;
+  align-self: stretch;
+  min-height: 44px;
+  padding: 0;
 }
 .g-search::placeholder { color: var(--t3); }
 .g-search-icon { width: 17px; height: 17px; color: var(--t3); flex-shrink: 0; }
@@ -948,7 +956,11 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   background: var(--glass-2);
   border: none;
   color: var(--t2);
-  /* Medía 28px. El dibujo sigue siendo un círculo pequeño; el área es 44. */
+  /* El DIBUJO es un círculo de 32; el ÁREA TÁCTIL es 44, que la extiende el
+     ::after de abajo. El `box-shadow` transparente que había antes no hacía
+     nada de eso: una sombra no recibe toques, así que el botón medía 32×32 de
+     verdad pese al comentario que decía lo contrario. Es la técnica del §5.1.6
+     (crecer el área, no el dibujo), igual que en .g-set-del. */
   width: 32px; height: 32px;
   padding: 0;
   border-radius: 50%;
@@ -956,8 +968,13 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   font-size: 14px;
   line-height: 1;
   flex-shrink: 0;
-  box-shadow: 0 0 0 6px transparent;
+  position: relative;
   outline-offset: 6px;
+}
+.g-modal-close::after {
+  content: '';
+  position: absolute;
+  top: -6px; left: -6px; right: -6px; bottom: -6px;
 }
 .g-modal-sub {
   font-size: 11px; font-weight: 750;

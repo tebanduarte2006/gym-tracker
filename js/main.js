@@ -6,7 +6,7 @@ import { el, clear, toast, guard } from './dom.js';
 import { dbGetAll, dbPut, prefGet, prefSet, dbBulkImport } from './db.js';
 import { registerSW } from './swupdate.js';
 import { normalizeBackup } from './importer.js';
-import { installAudioUnlock } from './audio.js';
+import { installAudioUnlock, setBackgroundAlarm } from './audio.js';
 import { renderEntrenar, suspendEntrenar } from './ui/entrenar.js';
 import { renderEjercicios } from './ui/ejercicios.js';
 import { renderProgresion } from './ui/progresion.js';
@@ -25,6 +25,13 @@ const TABS = [
 // No los muevas de vuelta a JS "por limpieza" — ver README §Arranque.
 function boot() {
   installAudioUnlock();
+  // La alarma de fin de descanso puede sonar con la pantalla bloqueada a costa
+  // de ocupar el reproductor del sistema (y pausar tu música). Es una decisión
+  // suya, así que vive en una preferencia; se lee aquí y no en el rest timer
+  // para que audio.js no dependa de IndexedDB. Ver js/audio.js y Progresión.
+  prefGet('alarma_fondo', true)
+    .then((v) => setBackgroundAlarm(v !== false))
+    .catch(() => {});
   const content = document.getElementById('tab-content');
   clear(content); // quita el esqueleto estático de arranque
 
