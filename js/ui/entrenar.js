@@ -1,6 +1,6 @@
 // entrenar.js — Tab 1: sesión activa, historial de sesiones, cardio.
 //
-// Decisiones clave (ver README §Lecciones):
+// Decisiones clave (ver docs/rutas/entrenar.md y docs/proyecto/lecciones.md):
 // · Render QUIRÚRGICO: agregar un set o cambiar un status actualiza solo la
 //   card afectada. La app vieja re-renderizaba toda la lista y colapsaba las
 //   cards en pleno entrenamiento.
@@ -266,7 +266,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
       openEditDurationModal(sesion, () => renderSessionDetail(panel, sesionId, fromAll));
     });
     actions.appendChild(editBtn);
-    const delBtn = el('button', { class: 'g-btn-secondary', type: 'button', style: 'color:var(--red);' }, ['🗑️ Eliminar sesión']);
+    const delBtn = el('button', { class: 'g-btn-secondary g-danger', type: 'button' }, ['🗑️ Eliminar sesión']);
     delBtn.addEventListener('click', () => {
       confirmAction('¿Eliminar sesión?',
         'Se eliminarán la sesión "' + sessionName(sesion) + '", sus ' + visible.length +
@@ -627,7 +627,7 @@ export function suspendEntrenar() {
 // ─── Rest bar UI ──────────────────────────────────────────────────────────────
 function setupRestBar(bar) {
   clear(bar);
-  const icon = ICON.clock({ size: 16, color: 'var(--t2)' });
+  const icon = ICON.clock({ size: 16, color: 'var(--color-text-secondary)' });
   const label = el('div', { class: 'g-rest-label' }, ['Descanso']);
   const time = el('div', { class: 'g-rest-time' }, ['']);
   const prog = el('div', { class: 'g-rest-progress' });
@@ -1326,7 +1326,7 @@ function showAddExerciseModal(sesion, listEl) {
       }
       filtered.forEach((e) => {
         const item = el('button', { class: 'g-suggest-row', type: 'button' }, [
-          el('div', { style: 'font-weight:600;color:var(--t1);' }, [e.nombre]),
+          el('div', { style: 'font-weight:600;color:var(--color-text);' }, [e.nombre]),
           el('div', { class: 'g-suggest-meta' }, [(e.tipo || '—') + ' · ' + ((e.musculos || []).join(' · ') || 'sin músculo')])
         ]);
         item.addEventListener('click', () => {

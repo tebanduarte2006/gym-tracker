@@ -22,7 +22,7 @@ const TABS = [
 // El título y la barra de tabs viven ESTÁTICOS en index.html a propósito: son
 // lo único que iOS puede pintar antes de descargar y ejecutar los módulos, y
 // sin ellos el arranque en frío de la PWA era una pantalla negra de segundos.
-// No los muevas de vuelta a JS "por limpieza" — ver README §Arranque.
+// No los muevas de vuelta a JS "por limpieza" — ver docs/rutas/arranque-y-actualizaciones.md.
 function boot() {
   installAudioUnlock();
   // La alarma de fin de descanso puede sonar con la pantalla bloqueada a costa
@@ -37,7 +37,7 @@ function boot() {
   // Los paneles nacen OCULTOS y el esqueleto de arranque se queda en pantalla
   // hasta que el primero tenga datos. Antes se borraba el esqueleto aquí mismo
   // y la app enseñaba un rectángulo negro vacío hasta que volvía IndexedDB: el
-  // esqueleto existe justo para que ese hueco no se vea (README §Arranque).
+  // esqueleto existe justo para que ese hueco no se vea (docs/rutas/arranque-y-actualizaciones.md).
   const panels = {};
   TABS.forEach((tab) => {
     const btn = document.getElementById('tab-btn-' + tab.id);
@@ -50,7 +50,7 @@ function boot() {
   // SOLO se pinta el tab visible. Antes se pintaban los tres al arrancar: nueve
   // lecturas completas de IndexedDB (sesiones, sets, ejercicios, cardio…) antes
   // de que se viera nada, en un iPhone 11 y encima del arranque en frío que ya
-  // costó tres arreglos (ver README §Arranque). Ejercicios y Progresión se
+  // costó tres arreglos (ver docs/rutas/arranque-y-actualizaciones.md). Ejercicios y Progresión se
   // pintan solos al tocarlos: `switchTab` ya re-renderiza en CADA cambio de
   // pestaña, así que no hay nada que precalentar.
   const primero = panels[TABS[0].id];

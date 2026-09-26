@@ -4,3 +4,8 @@ node_modules/
 *.log
 .obsidian/
 *.base
+graphify-out/cost.json
+graphify-out/cache/
+graphify-out/graph.html
+# graphify guarda una copia de respaldo por día; no se sube.
+graphify-out/20*/

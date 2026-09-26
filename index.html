@@ -5,19 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Gym Tracker</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#000000">
+  <!-- Un color por tema: el fondo de cada uno (styles.css › :root). -->
+  <meta name="theme-color" content="#fbf6ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#2d353b" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- `apple-mobile-web-app-capable` está deprecado; el estándar es
        `mobile-web-app-capable`. Se mandan los dos: iOS viejo sigue leyendo el
        primero y sin el segundo Lighthouse marca la PWA como incompleta. -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Gym Tracker">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- `default`, como Plata: con `black-translucent` la hora y la batería van
+       SIEMPRE en blanco sobre la app, invisibles sobre el crema del tema claro. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <!-- Splash de arranque de iOS. Sin estas etiquetas iOS pinta el
-       background_color del manifest (negro) durante el arranque en frío y la
-       app parecía colgada varios segundos. Ver README §Arranque. -->
+       background_color del manifest durante el arranque en frío y la
+       app parecía colgada varios segundos. Ver docs/rutas/arranque-y-actualizaciones.md. -->
   <link rel="apple-touch-startup-image" href="icons/splash-828x1792.png"
         media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
   <link rel="apple-touch-startup-image" href="icons/splash-1125x2436.png"
@@ -35,7 +39,7 @@
        ejecutar los módulos ES. js/main.js se engancha a estos nodos, no los
        recrea. Si cambias los ids o las etiquetas, cambia también TABS en
        js/main.js. NO lo devuelvas a JS "por limpieza": era la causa #2 de la
-       pantalla negra al abrir. Ver README §Arranque. -->
+       pantalla negra al abrir. Ver docs/rutas/arranque-y-actualizaciones.md. -->
   <div id="app">
     <h1 class="g-screen-title">Gym Tracker</h1>
     <div id="tab-content">
@@ -74,7 +78,9 @@
         card.className = 'g-empty-card';
         card.style.margin = '20px 16px';
         var t = document.createElement('div');
-        t.style.cssText = 'font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;';
+        // Sin color escrito a mano: sirve en los dos temas. Si styles.css no
+        // cargó, la variable no existe y el color se hereda (legible igual).
+        t.style.cssText = 'font-size:16px;font-weight:600;color:var(--color-text);margin-bottom:8px;';
         t.appendChild(document.createTextNode('La app no terminó de cargar'));
         var d = document.createElement('div');
         d.appendChild(document.createTextNode(

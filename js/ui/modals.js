@@ -111,10 +111,11 @@ export function confirmRow(label, value) {
 export function confirmAction(titulo, msg, onConfirm, opts = {}) {
   const s = sheet(titulo);
   s.modal.appendChild(el('div', { class: 'g-modal-body' }, [msg]));
+  // La variante destructiva es una clase (.g-danger en styles.css), no un
+  // `style` con colores: los colores viven en CSS y cambian con el tema.
   const ok = el('button', {
-    class: 'g-btn-primary',
-    type: 'button',
-    style: opts.destructive ? 'background:var(--red);color:#fff;' : null
+    class: opts.destructive ? 'g-btn-primary g-danger' : 'g-btn-primary',
+    type: 'button'
   }, [opts.okLabel || 'Sí, continuar']);
   ok.addEventListener('click', () => { s.close(); onConfirm(); });
   const cancel = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Cancelar']);

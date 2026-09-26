@@ -8,7 +8,7 @@ import { dbGetAll } from './db.js';
 
 // Versión de la app que este JS cree ser. Debe coincidir con CACHE en sw.js.
 // Se muestra en Progresión → DATOS junto a la que sirve el SW de verdad.
-export const APP_VERSION = '20260913-3';
+export const APP_VERSION = '20260926-1';
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
 // Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
@@ -43,7 +43,7 @@ export function registerSW() {
   // primerísima instalación: al llegar una versión nueva se aplicaba
   // (SKIP_WAITING) pero `controllerchange` veía `false` y NO recargaba, así que
   // la pantalla seguía corriendo el JS viejo en memoria sin decir nada. Es el
-  // mismo error que la lección #18 del README, en la otra mitad del mecanismo.
+  // mismo error que la lección 18 (docs/proyecto/lecciones.md), en la otra mitad del mecanismo.
   let hadController = !!navigator.serviceWorker.controller;
 
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {

@@ -1,5 +1,5 @@
 # CI — corre en cada push/PR: tests + chequeo de sintaxis.
-# Regla del proyecto: un push rojo se corrige de inmediato (README §2.7).
+# Regla del proyecto: un push rojo se corrige de inmediato (CLAUDE.md §4).
 name: CI
 on:
   push:
