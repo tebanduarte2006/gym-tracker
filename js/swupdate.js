@@ -43,7 +43,7 @@ export function registerSW() {
   // primerísima instalación: al llegar una versión nueva se aplicaba
   // (SKIP_WAITING) pero `controllerchange` veía `false` y NO recargaba, así que
   // la pantalla seguía corriendo el JS viejo en memoria sin decir nada. Es el
-  // mismo error que la lección #18 del README, en la otra mitad del mecanismo.
+  // mismo error que la lección 18 (docs/proyecto/lecciones.md), en la otra mitad del mecanismo.
   let hadController = !!navigator.serviceWorker.controller;
 
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {

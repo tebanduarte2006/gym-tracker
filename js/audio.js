@@ -33,7 +33,7 @@
 //     PWA en segundo plano, se pierde igual. `alarmWasLost()` detecta ese caso
 //     (el cabezal no llegó al tono) y el rest timer suena al volver, sin
 //     duplicar cuando sí sonó.
-//   · NO escribir en la UI ni en el README que el aviso suena SIEMPRE con la
+//   · NO escribir en la UI ni en la documentación que el aviso suena SIEMPRE con la
 //     pantalla bloqueada. Es best-effort; la defensa de verdad sigue siendo el
 //     Wake Lock (wakelock.js): durante la sesión la pantalla no se apaga sola.
 

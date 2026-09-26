@@ -1,6 +1,6 @@
 // entrenar.js — Tab 1: sesión activa, historial de sesiones, cardio.
 //
-// Decisiones clave (ver README §Lecciones):
+// Decisiones clave (ver docs/rutas/entrenar.md y docs/proyecto/lecciones.md):
 // · Render QUIRÚRGICO: agregar un set o cambiar un status actualiza solo la
 //   card afectada. La app vieja re-renderizaba toda la lista y colapsaba las
 //   cards en pleno entrenamiento.

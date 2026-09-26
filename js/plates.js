@@ -6,7 +6,7 @@
 //
 // Trabaja en LIBRAS a propósito, no en kg: los discos del gimnasio de Esteban
 // están marcados en libras y el objetivo es que pueda leer el resultado y
-// cogerlos sin traducir nada. La regla de "peso canónico en kg" (README §2.12)
+// cogerlos sin traducir nada. La regla de "peso canónico en kg" (docs/convenciones.md)
 // aplica al ALMACENAMIENTO; esto es display puro y no toca la base de datos.
 
 export const DEFAULT_BAR_LBS = 45;

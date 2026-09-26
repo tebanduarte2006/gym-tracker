@@ -10,7 +10,7 @@ import { normalizeKey } from './format.js';
 
 // `SKIPPED` sigue existiendo solo para no romper un backup antiguo que lo traiga.
 // La app YA NO lo crea ni lo muestra: desde el 2026-08-12 un set solo puede
-// estar propuesto (Pending) o registrado (Done). Ver README §5.2.
+// estar propuesto (Pending) o registrado (Done). Ver docs/rutas/entrenar.md.
 export const STATUS = { PENDING: 'Pending', DONE: 'Done', SKIPPED: 'Skipped' };
 
 // Un set "cuenta" si está hecho y tiene reps reales. peso 0 es válido

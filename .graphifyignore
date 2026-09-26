@@ -1,0 +1,7 @@
+# El mapa del código es para navegar ESTE proyecto. Las instrucciones de la
+# herramienta graphify, los datos y las imágenes solo meten ruido en las búsquedas.
+.claude/
+node_modules/
+data/
+icons/
+fonts/
