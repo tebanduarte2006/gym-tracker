@@ -397,7 +397,7 @@ function buildChart(rows) {
     'PESO MÁX · ÚLTIMAS ' + rows.length + (rows.length === 1 ? ' SESIÓN' : ' SESIONES')
   ]));
   if (rows.length === 0) {
-    card.appendChild(el('div', { style: 'color:var(--t3);font-size:13px;padding:20px 0;text-align:center;' }, ['Sin datos.']));
+    card.appendChild(el('div', { style: 'color:var(--color-text-secondary);font-size:13px;padding:20px 0;text-align:center;' }, ['Sin datos.']));
     return card;
   }
   const W = 320, H = 120, padX = 14, padY = 14;
@@ -469,7 +469,7 @@ function buildSessionDetails(row) {
   const nameLine = el('div', { class: 'g-list-name' }, [fmtDateLong(row.sesion ? row.sesion.fecha : null)]);
   if (routine) {
     nameLine.appendChild(document.createTextNode(' · '));
-    nameLine.appendChild(el('span', { style: 'color:var(--accent);' }, [routine]));
+    nameLine.appendChild(el('span', { style: 'color:var(--color-text-secondary);' }, [routine]));
   }
   summary.appendChild(el('div', {}, [
     nameLine,
