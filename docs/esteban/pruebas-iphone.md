@@ -11,7 +11,7 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] Mis sesiones siguen ahí después de la actualización.
 
 ## Respaldo (pendiente)
-- [ ] **Progresión** → **DATOS** → **📤 Exportar**: se abre algo para guardar el archivo (o se descarga) con la app instalada. **Si no pasa nada, avísale a un agente: significa que hoy no tienes ningún respaldo.**
+- [ ] **⚙︎** (arriba a la derecha) → **DATOS** → **Exportar**: se abre algo para guardar el archivo (o se descarga) con la app instalada. **Si no pasa nada, avísale a un agente: significa que hoy no tienes ningún respaldo.**
 - [ ] Guardé el archivo en **Files** → **iCloud Drive**.
 
 ## Tema nuevo: crema y Everforest (pendiente, 2026-09-26)
@@ -33,7 +33,7 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 ## Descanso y alarma
 - [ ] En el gimnasio, con música, oigo la alarma al terminar el descanso.
 - [ ] (pendiente) Con la pantalla bloqueada durante un descanso, la alarma suena al terminar.
-- [ ] **Progresión** → **ALARMA DE DESCANSO** → **Probar la alarma** suena.
+- [ ] **⚙︎** → **ALARMA DE DESCANSO** → **Probar la alarma** suena.
 - [ ] Con la alarma de fondo apagada, mi música no se pausa al empezar un descanso.
 - [ ] La pantalla no se apaga sola mientras hay una sesión en curso.
 
@@ -46,4 +46,11 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] En el detalle de un ejercicio (pestaña **Ejercicios** → un ejercicio), arriba hay un círculo con **‹** (antes decía "‹ Ejercicios"). Al tocarlo vuelvo a la lista.
 - [ ] Borro un set con la **×**: el aviso con **Deshacer** no se va solo; desaparece cuando toco cualquier otra cosa.
 - [ ] En una tarjeta abierta, el ✓ y la × de cada set responden al primer toque y nunca marcan el set de al lado.
+
+## Ajustes y Apariencia (2026-10-02)
+- [ ] Arriba a la derecha, junto a **Gym Tracker**, hay un círculo con un engranaje **⚙︎**. Al tocarlo sube la hoja **Ajustes**.
+- [ ] **APARIENCIA** → **Oscuro**: toda la app cambia a gris verdoso al instante. **Claro** la vuelve crema. **Automático** sigue al iPhone. Cierro la app del todo, la reabro y se mantiene lo que elegí.
+- [ ] **DESCANSO POR DEFECTO**: escribo 120 → **Guardar** → aparece "Descanso por defecto: 120s". En una sesión, un ejercicio sin descanso propio arranca con 120.
+- [ ] **ALARMA DE DESCANSO** y **DATOS** (Exportar / Importar) ya no están al final de **Progresión**; están en Ajustes y funcionan igual.
+- [ ] Al final de Ajustes, **Buscar actualización** y la línea "Versión 20261002-2 · al día".
 

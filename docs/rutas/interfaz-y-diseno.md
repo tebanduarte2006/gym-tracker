@@ -1,16 +1,18 @@
 # Ruta: interfaz y diseño
 
 ## Qué es
-El sistema visual de la app. Desde el 2026-09-26 es **el mismo de Plata** (la app de finanzas de Esteban, repo `finanzas-ia`, `src/styles.css`): tema claro **crema con acentos naranjas**, tema oscuro **Everforest** (gris verdoso cálido, nunca negro plano), según el modo del iPhone. **Superficies sólidas**: el material de vidrio ("Vidrio Negro", 2026-08-12) se retiró. Letra única **Atkinson Hyperlegible Next**, diseñada para baja visión: Esteban tiene astigmatismo.
+El sistema visual de la app. Desde el 2026-09-26 es **el mismo de Plata** (la app de finanzas de Esteban, repo `finanzas-ia`, `src/styles.css`): tema claro **crema con acentos naranjas**, tema oscuro **Everforest** (gris verdoso cálido, nunca negro plano), según el modo del iPhone o lo elegido en **Ajustes → Apariencia** (desde 2026-10-02, como Plata). **Superficies sólidas**: el material de vidrio ("Vidrio Negro", 2026-08-12) se retiró. Letra única **Atkinson Hyperlegible Next**, diseñada para baja visión: Esteban tiene astigmatismo.
 
 Si Plata cambia su paleta, se cambia aquí también (un solo sistema en sus dos apps), y al revés.
 
 ## Archivos
 | Dónde | Qué |
 |---|---|
-| `styles.css` | Todo el diseño. Tokens en `:root` (claro) y `@media (prefers-color-scheme: dark)`; bloques `prefers-contrast: more` (por tema) y `prefers-reduced-motion`. La cabecera del archivo resume las reglas |
+| `styles.css` | Todo el diseño. Tokens en `:root` (claro) y `:root[data-theme="dark"]` (oscuro); bloques `prefers-contrast: more` (por tema) y `prefers-reduced-motion`. La cabecera del archivo resume las reglas |
 | `fonts/` | `atkinson-hyperlegible-next-latin-wght-normal.woff2` (pesos 200-800) + licencia OFL. Está en `ASSETS` de `sw.js` |
-| `index.html` | Dos `theme-color` (claro `#fbf6ee`, oscuro `#2d353b`), `apple-mobile-web-app-status-bar-style: default` |
+| `index.html` | Un `theme-color` que fija el script clásico del `<head>` (claro `#fbf6ee`, oscuro `#2d353b`) junto con `data-theme`, antes del primer frame; `apple-mobile-web-app-status-bar-style: default`; el botón ⚙︎ (`#settings-btn`) junto al título |
+| `js/theme.js` | Apariencia **Automático / Claro / Oscuro** (copia de `finanzas-ia/src/lib/theme.ts`): clave `gymtracker-theme` en localStorage, `data-theme` en `<html>`, sigue al iPhone en Automático. El script del `<head>` repite su lógica: si cambias uno, cambia el otro |
+| `js/ui/ajustes.js` | Hoja de Ajustes: Apariencia (`.g-segmented`, lo elegido invertido), descanso por defecto, alarma, datos y versión |
 | `manifest.json` | `background_color` / `theme_color` crema |
 | `js/ui/icons.js` | Iconos SVG inline (heredan `currentColor`) |
 

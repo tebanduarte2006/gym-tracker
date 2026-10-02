@@ -50,4 +50,4 @@ Un pedido = un objetivo. Si tu mensaje tiene "y también...", son dos pedidos.
 | Un gesto "verificado" que en el iPhone falla | "¿Lo probaste con eventos táctiles reales o con el ratón?" |
 | Toca cosas que no pediste | "Revierte lo que no era parte del pedido." |
 | Promete widgets, Live Activities o que la alarma suena siempre bloqueado | "Dame el enlace a la documentación oficial." |
-| Te pide borrar y reinstalar la app | **Nunca.** Progresión → DATOS → **Buscar actualización**. |
+| Te pide borrar y reinstalar la app | **Nunca.** ⚙︎ Ajustes → **Buscar actualización**. |

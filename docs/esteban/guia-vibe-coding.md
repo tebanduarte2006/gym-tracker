@@ -88,7 +88,7 @@ Reglas:
 3. Prohibido sin tu permiso explícito: `git push --force`, `git reset --hard`, `git clean`, borrar ramas. Pueden borrar trabajo. Si un agente las propone, pregunta "¿qué se pierde si haces eso?".
 4. Si algo se perdió, no rehagas nada: pide "busca el trabajo perdido con git reflog".
 5. Para deshacer algo que ya está en `main`: "revierte ese commit con git revert". Crea un commit nuevo que deshace el anterior sin borrar historia.
-6. **Tus entrenamientos NO están en git**: viven en el iPhone. Git guarda la app, no tus datos. Exporta un respaldo antes de cualquier cambio que toque datos (Progresión → DATOS → Exportar).
+6. **Tus entrenamientos NO están en git**: viven en el iPhone. Git guarda la app, no tus datos. Exporta un respaldo antes de cualquier cambio que toque datos (⚙︎ Ajustes → DATOS → Exportar).
 
 ## 5. Verificar sin saber programar
 
@@ -125,7 +125,7 @@ Fuente: 28 Failure Patterns; 14 Security, «Hallucinated Security Functions»; 0
 | Espagueti (28, Pattern 2) | Arreglar algo rompe otra cosa; el mismo cálculo en varios lados | "¿Esto sigue docs/convenciones.md? ¿Hay dos formas de hacer lo mismo?" |
 | Promesas imposibles (14) | Widgets en la pantalla de inicio, Live Activities, vibración, "suena siempre con la pantalla bloqueada" | "Dame el enlace a la documentación oficial." Cruza con `docs/proyecto/decisiones.md`. |
 | Arreglo en círculos | Tercer intento con el mismo error, cada vez con otra teoría | Para. Sesión nueva, reporte con la plantilla de la sección 5. |
-| Te pide reinstalar la app | "Bórrala y vuélvela a instalar" | **Nunca.** Borra tus datos. Progresión → DATOS → **Buscar actualización**. |
+| Te pide reinstalar la app | "Bórrala y vuélvela a instalar" | **Nunca.** Borra tus datos. ⚙︎ Ajustes → **Buscar actualización**. |
 | Conocimiento que solo está en un chat (28, Pattern 11) | Nadie sabe por qué algo es así | Exige que quede en `decisiones.md` o en la ruta del tema. |
 
 ## 7. Plantilla para pedir una función nueva

@@ -23,7 +23,7 @@ El CI de GitHub Actions (`.github/workflows/ci.yml`) repite `npm test` y `npm ru
 - 0 errores de consola y 0 desbordes horizontales (`scrollWidth <= innerWidth`).
 
 ## Verificar en el iPhone (lo hace Esteban)
-Cada función tiene su lista en `docs/esteban/pruebas-iphone.md`; agrégala o actualízala en la misma entrega. Para ver la versión nueva: salir de la app y volver; si hay una sesión de gym a medias aparece el aviso **✨ Nueva versión lista** → **Actualizar**. Progresión → DATOS muestra la versión instalada.
+Cada función tiene su lista en `docs/esteban/pruebas-iphone.md`; agrégala o actualízala en la misma entrega. Para ver la versión nueva: salir de la app y volver; si hay una sesión de gym a medias aparece el aviso **✨ Nueva versión lista** → **Actualizar**. Ajustes (⚙︎) → VERSIÓN muestra la versión instalada.
 
 ## Lecciones que aplican
 20, 44, 51.

@@ -10,7 +10,7 @@ El temporizador de descanso entre series, la alarma que avisa cuando termina (ta
 | `js/audio.js` | `buildAlarmWav` / `crearWav` (clip silencio + tono), `installAudioUnlock`, `scheduleAlarm`, `cancelAlarm`, `alarmWasLost`, `beep` (respaldo Web Audio), `setBackgroundAlarm` / `backgroundAlarmEnabled` |
 | `js/wakelock.js` | `keepAwake`, `releaseAwake` |
 | `js/ui/entrenar.js` | `setupRestBar`, `resolveRest`, `openRestConfigModal` (descanso por ejercicio o solo esta sesión) |
-| `js/ui/progresion.js` | `buildAlarmCard`: interruptor `alarma_fondo` y botón de probar |
+| `js/ui/ajustes.js` | `buildAlarmCard`: interruptor `alarma_fondo` y botón de probar (Ajustes → ALARMA DE DESCANSO). `buildGlobalRestCard`: descanso por defecto (`rest_default`) |
 
 ## Reglas de producto
 - Descanso por defecto 90 s (`rest_default`), configurable por ejercicio (`rest_sec`, persistente) o solo esta sesión (en memoria), desde la sesión activa o desde el detalle del ejercicio.
@@ -74,8 +74,8 @@ Cinco cosas que parecen detalles y no lo son:
 
 **El coste, y por qué hay un interruptor.** Mientras dura el descanso la app
 ocupa el "now playing" de iOS y **puede pausar la música que estés oyendo**. Eso
-no se puede decidir por él: es la preferencia `alarma_fondo` (Progresión →
-ALARMA DE DESCANSO), encendida por defecto. Apagada, la app **no toca el
+no se puede decidir por él: es la preferencia `alarma_fondo` (Ajustes →
+ALARMA DE DESCANSO, `buildAlarmCard` en `js/ui/ajustes.js`), encendida por defecto. Apagada, la app **no toca el
 reproductor del sistema ni para autorizar el elemento** — apagar tiene que
 significar eso exactamente, no "casi". Junto al interruptor hay un botón de
 **probar**, porque el volumen de una alarma no se evalúa en una sala en

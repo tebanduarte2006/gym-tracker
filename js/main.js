@@ -11,6 +11,8 @@ import { renderEntrenar, suspendEntrenar } from './ui/entrenar.js';
 import { renderEjercicios } from './ui/ejercicios.js';
 import { renderProgresion } from './ui/progresion.js';
 import { sheet, confirmRow, once } from './ui/modals.js';
+import { openSettings } from './ui/ajustes.js';
+import { startThemeSync } from './theme.js';
 import { planMuscleMigration } from './muscles.js';
 
 const TABS = [
@@ -24,11 +26,14 @@ const TABS = [
 // sin ellos el arranque en frío de la PWA era una pantalla negra de segundos.
 // No los muevas de vuelta a JS "por limpieza" — ver docs/rutas/arranque-y-actualizaciones.md.
 function boot() {
+  // Apariencia: el <head> ya pintó el modo correcto; esto lo mantiene al día si
+  // el iPhone cambia de modo con la app abierta (Ajustes → Apariencia).
+  startThemeSync();
   installAudioUnlock();
   // La alarma de fin de descanso puede sonar con la pantalla bloqueada a costa
   // de ocupar el reproductor del sistema (y pausar tu música). Es una decisión
   // suya, así que vive en una preferencia; se lee aquí y no en el rest timer
-  // para que audio.js no dependa de IndexedDB. Ver js/audio.js y Progresión.
+  // para que audio.js no dependa de IndexedDB. Ver js/audio.js y Ajustes.
   prefGet('alarma_fondo', true)
     .then((v) => setBackgroundAlarm(v !== false))
     .catch(() => {});
@@ -46,6 +51,16 @@ function boot() {
     panels[tab.id] = panel;
     content.appendChild(panel);
   });
+
+  // Ajustes (⚙︎ junto al título). Si se importa un backup desde ahí, se repinta
+  // la pestaña visible para que muestre los datos nuevos.
+  const settingsBtn = document.getElementById('settings-btn');
+  if (settingsBtn) settingsBtn.addEventListener('click', () => openSettings({
+    onDataImported: () => {
+      const tab = TABS.find((t) => t.id === _tabActivo);
+      if (tab) paintTab(tab, panels[tab.id]);
+    }
+  }));
 
   // SOLO se pinta el tab visible. Antes se pintaban los tres al arrancar: nueve
   // lecturas completas de IndexedDB (sesiones, sets, ejercicios, cardio…) antes

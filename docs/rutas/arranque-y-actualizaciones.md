@@ -53,7 +53,7 @@ sería un import circular). Seis piezas, y hacen falta las seis:
 4. `reg.update()` al abrir y al volver del background (throttle 60 s) → una PWA
    que queda abierta días detecta la versión nueva sin reiniciarse.
 5. Recarga por `controllerchange` **solo si ya había controller** (ver arriba).
-6. **Versión visible + botón manual** en Progresión → DATOS. `APP_VERSION`
+6. **Versión visible + botón manual** en Ajustes → VERSIÓN (⚙︎ junto al título). `APP_VERSION`
    (lo que este JS cree ser) contra la constante `CACHE` que el service worker
    responde por `postMessage('VERSION')` (lo que se sirve de verdad). Si
    divergen, sale ⚠️. **Sin esto era imposible diagnosticar "no se actualizó"**:
@@ -79,7 +79,7 @@ en los cuatro.
 
 ## Reglas
 - **En cada publicación**: `CACHE` en `sw.js` y `APP_VERSION` en `js/swupdate.js` con el MISMO valor `YYYYMMDD-N`. Archivo nuevo → a `ASSETS`. Olvidar `CACHE` = la PWA sirve código viejo; olvidar `APP_VERSION` = la pantalla de versión marca ⚠️ sin motivo.
-- Nunca le pidas a Esteban borrar la app o "limpiar caché". Si la app no se actualiza: Progresión → DATOS → **Buscar actualización**; si está trabada en el esqueleto, el vigilante ofrece **Reparar y recargar** (borra cachés y el service worker, **no** toca IndexedDB).
+- Nunca le pidas a Esteban borrar la app o "limpiar caché". Si la app no se actualiza: ⚙︎ Ajustes → **Buscar actualización**; si está trabada en el esqueleto, el vigilante ofrece **Reparar y recargar** (borra cachés y el service worker, **no** toca IndexedDB).
 - Si un patrón defectuoso aparece en una pieza del mecanismo, búscalo en TODAS (lección 19).
 
 ## Cómo probar

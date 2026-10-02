@@ -1,14 +1,14 @@
 # Ruta: datos, IndexedDB y respaldos
 
 ## Qué es
-Dónde viven los datos de Esteban y cómo se respaldan. **Hoy todo vive en el teléfono** (IndexedDB de la PWA): si se borra la app, se borran los datos. El único respaldo es exportar un JSON a mano (Progresión → DATOS). Cualquier cambio aquí toca datos reales: las migraciones destructivas requieren permiso (CLAUDE.md §5).
+Dónde viven los datos de Esteban y cómo se respaldan. **Hoy todo vive en el teléfono** (IndexedDB de la PWA): si se borra la app, se borran los datos. El único respaldo es exportar un JSON a mano (⚙︎ Ajustes → DATOS, `exportData` en `js/ui/ajustes.js`). Cualquier cambio aquí toca datos reales: las migraciones destructivas requieren permiso (CLAUDE.md §5).
 
 ## Archivos y funciones
 | Dónde | Qué |
 |---|---|
 | `js/db.js` | UNA conexión cacheada con `withDB()` (reabre si iOS la mata: lección 12), `dbGet/Put/Delete/GetAll/GetAllBy`, `dbDeleteSessionCascade`, `dbBulkImport` (transaccional, preferencias con lista blanca), `prefGet` / `prefSet` |
 | `js/importer.js` [puro] | `normalizeBackup` (backups v2 de habitos-app, con su deuda, y v3 nativo), `buildExport`, `EXPORT_VERSION`, `PREFS_IMPORTABLES` |
-| `js/ui/progresion.js` | `exportData` (`<a download>` sobre un blob), `importData` |
+| `js/ui/ajustes.js` | `exportData` (`<a download>` sobre un blob), `importData` (cierra Ajustes, confirma en su propia hoja y repinta la pestaña visible) |
 | `js/main.js` | `maybeOfferSeed`: con la base vacía ofrece restaurar `data/seed.json` |
 | `data/seed.json` | Backup real de habitos-app (2026-07-28): 35 sesiones, 578 sets. Datos de prueba de todos los scripts |
 
@@ -38,7 +38,7 @@ preferencias { clave, valor }
              · musculos_migrados (bool): ya se ofreció la migración de `ejercicios-y-musculos.md`
              · alarma_fondo (bool, default true): la alarma de descanso puede
                ocupar el reproductor del sistema para sonar con la pantalla
-               bloqueada. Se apaga desde Progresión → ALARMA DE DESCANSO. Ver `descanso-y-alarma.md`
+               bloqueada. Se apaga desde Ajustes → ALARMA DE DESCANSO. Ver `descanso-y-alarma.md`
              · TODA clave nueva va también a PREFS_IMPORTABLES en importer.js,
                o restaurar un backup la pierde en silencio (hay test que lo exige).
 ```
