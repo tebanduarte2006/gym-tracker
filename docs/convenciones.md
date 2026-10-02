@@ -16,7 +16,8 @@ fonts/                Atkinson Hyperlegible Next (woff2 local, licencia OFL)
 manifest.json         PWA (es-CO, standalone, iconos 192/512/maskable)
 sw.js                 Service worker: CACHE versionado, ASSETS, responde VERSION y SKIP_WAITING
 js/
-  main.js             Arranque, pestañas (switchTab), ofertas de seed y de migración de músculos
+  main.js             Arranque, pestañas (switchTab), botón de Ajustes, ofertas de seed y de migración de músculos
+  theme.js            Apariencia Automático/Claro/Oscuro (data-theme en <html>, clave en localStorage); copia de Plata
   swupdate.js         Registro del SW, detección y aplicación de versiones, APP_VERSION
   db.js               IndexedDB: una conexión cacheada (withDB), bulk import transaccional, preferencias
   dom.js              el() / clear() / toast() / guard() / sinMovimiento()
@@ -30,7 +31,8 @@ js/
   resttimer.js        Descanso por timestamp fijo
   ui/entrenar.js      Pestaña Entrenar (sesión activa, sets, cardio, finalizar)
   ui/ejercicios.js    Pestaña Ejercicios (directorio, crear/editar, selector de músculos)
-  ui/progresion.js    Pestaña Progresión (hero, PR, gráfica, alarma, exportar/importar)
+  ui/progresion.js    Pestaña Progresión (hero, PR, gráfica, sets por músculo, cardio)
+  ui/ajustes.js       Hoja de Ajustes (⚙︎): apariencia, descanso global, alarma, exportar/importar, versión
   ui/modals.js        Bottom sheets, confirmaciones, autocompletar
   ui/icons.js         Iconos SVG inline
   ui/dragorder.js     Reordenar por pulsación larga + arrastre
@@ -49,7 +51,8 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 | Cálculo (PR, volumen, fechas, unidades) | Módulo puro `js/<tema>.js`: sin DOM ni IndexedDB | `js/plates.js` → `plateBreakdown` |
 | Prueba automática | `tests/<tema>.test.js` con `node:test` | `tests/plates.test.js` |
 | Leer o escribir datos | Funciones de `js/db.js` (`dbGet`, `dbPut`, `dbGetAllBy`…) | Nunca `indexedDB.open` fuera de `db.js` |
-| Preferencia nueva | `prefGet` / `prefSet` + agregarla a `PREFS_IMPORTABLES` en `js/importer.js` | `alarma_fondo` |
+| Preferencia nueva | `prefGet` / `prefSet` + agregarla a `PREFS_IMPORTABLES` en `js/importer.js`. Única excepción: la apariencia, que vive en localStorage (`js/theme.js`) porque hay que leerla antes del primer frame | `alarma_fondo` |
+| Ajuste nuevo | Una sección más en `openSettings` de `js/ui/ajustes.js` (`g-modal-sub` + tarjeta `g-list-card g-settings-card`). Nada de ajustes al final de una pestaña | `buildAlarmCard` |
 | Cambio de esquema | Subir `DB_VERSION`, migrar en `onupgradeneeded`, actualizar `importer.js` + pruebas + `rutas/datos-y-respaldos.md`, todo en el mismo commit | — |
 | Pantalla o sección | La pestaña en `js/ui/`; su `render*` **devuelve una promesa** que resuelve con los datos ya en el DOM | `renderEjercicios` |
 | Hoja modal (bottom sheet) | `sheet()` de `js/ui/modals.js`; confirmaciones con `confirmAction` | `openRestModal` |
@@ -91,7 +94,7 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 
 ## Instrucciones para Esteban
 
-- Su iPhone está **en inglés**. En los pasos, los nombres de iOS van en inglés y en negrilla tal como aparecen (**Settings**, **Share** → **Add to Home Screen**). Los textos de la app van en español, como se ven (**Progresión** → **DATOS** → **Buscar actualización**).
+- Su iPhone está **en inglés**. En los pasos, los nombres de iOS van en inglés y en negrilla tal como aparecen (**Settings**, **Share** → **Add to Home Screen**). Los textos de la app van en español, como se ven (**Ajustes** → **VERSIÓN** → **Buscar actualización**).
 - Pasos numerados, uno por acción, diciendo qué debe aparecer en pantalla después.
 - Si no pudiste comprobar el nombre exacto de un botón de iOS, dilo en "Qué no pude comprobar".
 

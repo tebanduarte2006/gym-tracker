@@ -118,7 +118,7 @@ Cada regla trae la cita de Apple, cómo se cumple en cada app y cómo se verific
 | Regla de Apple | Excepción | Por qué | Decidido |
 |---|---|---|---|
 | Letra del sistema y Bold Text (F/typography.md, F/branding.md) | Letra Atkinson Hyperlegible Next en todo. Bold Text no tiene equivalente en la web | Astigmatismo de Esteban. Apple permite letras propias si cumplen Dynamic Type, y lo cumplen (D2) | 2026-09-26 · 2026-10-02 |
-| "Avoid offering an app-specific appearance setting" (F/dark-mode.md) | Plata tiene **Ajustes → Apariencia** (Automático, Claro u Oscuro). Viene en Automático, que es lo que pide Apple | La pidió Esteban | 2026-10-01 · 2026-10-02 |
+| "Avoid offering an app-specific appearance setting" (F/dark-mode.md) | Las dos apps tienen **Ajustes → Apariencia** (Automático, Claro u Oscuro). Viene en Automático, que es lo que pide Apple | La pidió Esteban | Plata: 2026-10-01 · gym: 2026-10-02 |
 | Fondos y colores del sistema (F/color.md) | Tema crema con naranja (claro) y Everforest (oscuro) | Diseño parecido a MonAi. Se compensa con D4 y D5 | 2026-09-26 |
 | No hay botón flotante en la HIG | Micrófono flotante en Plata | Patrón de MonAi. Cuenta como la acción principal (D9) y tiene 66×66 | 2026-09-25 |
 | 44×44 (D1) | Gym: botones lbs/kg, pastillas de filtro y 🗑 de quitar ejercicio (`EXCEPCIONES_44` en su script). Se miden contra 28×28 | Estrechos a propósito, medidos el 2026-09-13 | 2026-09-13 |

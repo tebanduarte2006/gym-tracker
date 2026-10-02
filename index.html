@@ -5,9 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Gym Tracker</title>
   <link rel="manifest" href="manifest.json">
-  <!-- Un color por tema: el fondo de cada uno (styles.css › :root). -->
-  <meta name="theme-color" content="#fbf6ee" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#2d353b" media="(prefers-color-scheme: dark)">
+  <!-- Color de la barra de estado = fondo del tema. Lo fija el script de abajo
+       (y js/theme.js al cambiar de modo en Ajustes). -->
+  <meta name="theme-color" content="#fbf6ee">
+  <!-- Apariencia ANTES de pintar: Automático (sigue al iPhone), Claro u Oscuro
+       (Ajustes → Apariencia). Script clásico y en el <head> para que el primer
+       frame ya salga del color correcto; repite la lógica de js/theme.js: si
+       cambias la clave o la regla allá, cámbiala aquí. -->
+  <script>
+    (function () {
+      var stored = null;
+      try { stored = localStorage.getItem('gymtracker-theme'); } catch (error) {}
+      var dark = stored === 'dark' || (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#2d353b' : '#fbf6ee';
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- `apple-mobile-web-app-capable` está deprecado; el estándar es
        `mobile-web-app-capable`. Se mandan los dos: iOS viejo sigue leyendo el
@@ -41,7 +54,13 @@
        js/main.js. NO lo devuelvas a JS "por limpieza": era la causa #2 de la
        pantalla negra al abrir. Ver docs/rutas/arranque-y-actualizaciones.md. -->
   <div id="app">
-    <h1 class="g-screen-title">Gym Tracker</h1>
+    <header class="g-title-row">
+      <h1 class="g-screen-title">Gym Tracker</h1>
+      <!-- Ajustes: estático como el resto del shell; main.js le engancha el toque. -->
+      <button class="g-settings-btn" id="settings-btn" type="button" aria-label="Ajustes">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </header>
     <div id="tab-content">
       <div class="g-boot-skeleton" aria-hidden="true">
         <div class="g-boot-bar"></div>

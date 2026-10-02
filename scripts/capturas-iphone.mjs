@@ -172,6 +172,18 @@ for (const tema of ['light', 'dark']) {
     await page.waitForSelector('.g-chart-card', { timeout: 5000 }).catch(() => {});
     await capturar(page, tema, '09-progresion-grafica');
   }
+
+  // Ajustes (⚙︎) y Apariencia: forzar el modo contrario al del iPhone tiene que
+  // cambiar los colores al instante.
+  await page.click('#settings-btn');
+  await page.waitForSelector('.g-settings', { timeout: 5000 });
+  await capturar(page, tema, '10-ajustes');
+  const contrario = tema === 'dark' ? 'Claro' : 'Oscuro';
+  await page.click(`.g-segmented button:has-text("${contrario}")`);
+  const aplicado = await page.evaluate(() => document.documentElement.dataset.theme);
+  if (aplicado !== (tema === 'dark' ? 'light' : 'dark')) errores.push(`${tema}: Apariencia → ${contrario} no cambió el tema (quedó ${aplicado})`);
+  await capturar(page, tema, '11-ajustes-forzado');
+  await page.click('.g-segmented button:has-text("Automático")');
   await contexto.close();
 }
 

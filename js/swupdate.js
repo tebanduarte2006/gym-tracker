@@ -1,14 +1,14 @@
 // swupdate.js — registro del service worker, detección y aplicación de nuevas
-// versiones. Vive aparte de main.js porque el tab Progresión necesita
-// swVersion()/forceUpdateCheck() y main.js ya importa Progresión: juntarlos
+// versiones. Vive aparte de main.js porque Ajustes (js/ui/ajustes.js) necesita
+// swVersion()/forceUpdateCheck() y main.js ya importa Ajustes: juntarlos
 // crearía un import circular.
 
 import { el } from './dom.js';
 import { dbGetAll } from './db.js';
 
 // Versión de la app que este JS cree ser. Debe coincidir con CACHE en sw.js.
-// Se muestra en Progresión → DATOS junto a la que sirve el SW de verdad.
-export const APP_VERSION = '20261002-1';
+// Se muestra en Ajustes → VERSIÓN junto a la que sirve el SW de verdad.
+export const APP_VERSION = '20261002-2';
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
 // Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para
@@ -28,8 +28,8 @@ export const APP_VERSION = '20261002-1';
 //      usuario lo vea y lo toque es frágil: si no lo ve, se queda en la
 //      versión vieja sin enterarse. Entrenando sí se pregunta (una recarga en
 //      mitad de una serie es peor que esperar).
-//   6. Botón manual "Buscar actualización" + versión visible en Progresión →
-//      DATOS. Sin eso no hay forma de saber qué versión estás corriendo, que
+//   6. Botón manual "Buscar actualización" + versión visible en Ajustes →
+//      VERSIÓN. Sin eso no hay forma de saber qué versión estás corriendo, que
 //      es exactamente lo que hace imposible diagnosticar "no se actualizó".
 const UPDATE_CHECK_MS = 60 * 1000;
 let _lastUpdateCheck = 0;
@@ -144,7 +144,7 @@ function waitForInstalled(worker, timeoutMs) {
   });
 }
 
-// La usa el botón "Buscar actualización" del tab Progresión.
+// La usa el botón "Buscar actualización" de Ajustes.
 export function forceUpdateCheck() {
   if (!_reg) return Promise.resolve('sin-sw');
   return checkForUpdate(true)

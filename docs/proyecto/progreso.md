@@ -11,6 +11,7 @@ App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pag
 - Que la alarma de descanso suene con la pantalla bloqueada (verificada solo en Chromium). Si no suena, la siguiente parada es Web Push, que exige un servidor.
 - Que **Exportar** funcione con la app instalada (en modo standalone iOS puede ignorar `<a download>` sin avisar).
 - El tema nuevo (crema/Everforest) en claro y oscuro, con la letra nueva.
+- Ajustes (⚙︎) y Apariencia del 2026-10-02: forzar Claro u Oscuro y que se mantenga al reabrir.
 - Las reglas de Apple del 2026-10-02: texto grande desde **Settings**, Volver con ‹ y Deshacer que no se va solo (`docs/esteban/pruebas-iphone.md`).
 
 ## Pendientes técnicos conocidos

@@ -1,7 +1,7 @@
 /* ─── Gym Tracker — sistema visual de Plata ─────────────────────────────────
    El mismo sistema que Plata, la app hermana (finanzas-ia/src/styles.css):
    tema claro crema con acento naranja y tema oscuro Everforest, que siguen el
-   modo del iPhone (`prefers-color-scheme`). Letra Atkinson Hyperlegible Next,
+   modo del iPhone o el que se elija en Ajustes → Apariencia (`data-theme`). Letra Atkinson Hyperlegible Next,
    diseñada para baja visión: Esteban tiene astigmatismo. Sustituye a "Vidrio
    Negro" (negro puro + Liquid Glass + platino): ya no hay material
    translúcido, todas las superficies son SÓLIDAS.
@@ -76,7 +76,7 @@
      es el `fill` de Plata (texto secundario encima: 5,10:1). */
   --color-inset: var(--color-fill);
 
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* Radios concéntricos: hijo = padre − separación */
   --r-xs: 8px;
@@ -106,32 +106,34 @@
   --tabbar-h: 60px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Everforest oscuro: valores EXACTOS de Plata. */
-    --color-background: #2d353b;
-    --color-grouped-background: #272e33;
-    --color-surface: #343f44;
-    --color-fill: #3d484d;
-    --color-fill-strong: #475258;
-    --color-text: #e4dac1;
-    --color-text-secondary: #a9b3aa;
-    --color-text-tertiary: #859289;
-    --color-separator: rgba(211, 198, 170, 0.16);
-    --color-accent: #e69875;
-    --color-on-accent: #232a2e;
-    --color-on-danger: #232a2e;
-    --color-expense: #e67e80;
-    --color-link: #e69875;
-    --color-shadow: rgba(0, 0, 0, 0.28);
-    --color-overlay: rgba(10, 14, 16, 0.5);
-    --color-toast: rgba(71, 82, 88, 0.97);
-    --color-toast-action: #e69875;
-    /* En oscuro el pozo va HUNDIDO (más oscuro que la tarjeta) y no con
-       `--color-fill`: el texto secundario sobre fill se queda en 4,35:1, y
-       sobre el fondo agrupado sube a 6,37:1. */
-    --color-inset: var(--color-grouped-background);
-  }
+:root[data-theme="dark"] {
+  /* El modo lo fija js/theme.js con data-theme en <html> (y el script del
+     <head> antes del primer frame): sigue al iPhone o lo elige Esteban en
+     Ajustes → Apariencia. Mismo mecanismo que Plata. */
+  color-scheme: dark;
+  /* Everforest oscuro: valores EXACTOS de Plata. */
+  --color-background: #2d353b;
+  --color-grouped-background: #272e33;
+  --color-surface: #343f44;
+  --color-fill: #3d484d;
+  --color-fill-strong: #475258;
+  --color-text: #e4dac1;
+  --color-text-secondary: #a9b3aa;
+  --color-text-tertiary: #859289;
+  --color-separator: rgba(211, 198, 170, 0.16);
+  --color-accent: #e69875;
+  --color-on-accent: #232a2e;
+  --color-on-danger: #232a2e;
+  --color-expense: #e67e80;
+  --color-link: #e69875;
+  --color-shadow: rgba(0, 0, 0, 0.28);
+  --color-overlay: rgba(10, 14, 16, 0.5);
+  --color-toast: rgba(71, 82, 88, 0.97);
+  --color-toast-action: #e69875;
+  /* En oscuro el pozo va HUNDIDO (más oscuro que la tarjeta) y no con
+     `--color-fill`: el texto secundario sobre fill se queda en 4,35:1, y
+     sobre el fondo agrupado sube a 6,37:1. */
+  --color-inset: var(--color-grouped-background);
 }
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
@@ -206,10 +208,59 @@ body.g-modal-open {
   font-size: min(calc(30rem / 17), 40px);
   font-weight: 700;
   letter-spacing: -0.028em;
-  margin: 0 0 14px;
-  padding: 0 20px;
+  margin: 0;
   color: var(--color-text);
 }
+/* Título + botón de Ajustes, como el encabezado de Plata. */
+.g-title-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 14px;
+  padding: 0 20px;
+}
+.g-settings-btn {
+  position: relative;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-separator), 0 2px 8px var(--color-shadow);
+  color: var(--color-text);
+}
+/* Área de 44 sin agrandar el círculo (regla de 44 px). */
+.g-settings-btn::after { content: ''; position: absolute; inset: -4px; }
+.g-settings-btn:active { background: var(--color-fill-strong); }
+
+/* ─── Ajustes (js/ui/ajustes.js) ──────────────────────────────────────────── */
+.g-settings-card { background: var(--color-inset); }
+.g-settings-foot {
+  font-size: calc(13rem / 17);
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  margin: 8px 4px 0;
+}
+.g-settings-rest { display: flex; align-items: center; gap: 8px; padding: 8px; }
+.g-settings-rest .g-modal-input { flex: 1; min-width: 0; margin: 0; }
+.g-settings-rest .g-secondary-btn { flex: 0 0 auto; padding: 14px 18px; }
+.g-settings-unit { color: var(--color-text-secondary); font-size: calc(15rem / 17); }
+/* Control segmentado: lo elegido va INVERTIDO, no en naranja (regla 2). */
+.g-segmented {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  padding: 3px;
+  border-radius: var(--r-sm);
+  background: var(--color-inset);
+}
+.g-segmented button {
+  min-height: 44px;
+  border: none; border-radius: var(--r-xs);
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: calc(15rem / 17); font-weight: 600;
+}
+.g-segmented button.active { background: var(--color-text); color: var(--color-background); }
+.g-segmented button:not(.active):active { background: var(--color-fill-strong); }
 
 /* ─── Barra de pestañas FLOTANTE (abajo) ────────────────────────────────────
    Estaba arriba del todo: en un iPhone 11 sostenido con una mano el pulgar no
@@ -1463,8 +1514,8 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
     --color-separator: rgba(92, 70, 48, 0.34);
   }
 }
-@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
-  :root {
+@media (prefers-contrast: more) {
+  :root[data-theme="dark"] {
     --color-text-secondary: #cdd3c8;
     --color-text-tertiary: #a9b3aa;
     --color-separator: rgba(211, 198, 170, 0.34);

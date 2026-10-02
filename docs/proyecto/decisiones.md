@@ -84,3 +84,10 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Para después:** volver deslizando desde el borde.
 - **La skill** (2,5 MB) vive en la cuenta de Claude de Esteban, no en el repo.
 
+## 2026-10-02 · Hoja de Ajustes y Apariencia elegible
+- **Por qué:** Esteban: la alarma de descanso, exportar/importar y la versión "no pegan" al final de Progresión. Ahora viven en una hoja de Ajustes que abre el botón ⚙︎ junto al título (como el engranaje de Plata), con Apariencia y el descanso por defecto.
+- **Engranaje y no cuarta pestaña:** Apple reserva la barra de pestañas para secciones principales ("Use a tab bar to support navigation, not to provide actions") y cuatro pestañas aprietan el texto grande. Lo eligió Esteban.
+- **Apariencia en localStorage, no en IndexedDB:** hay que saber el modo antes del primer frame (script clásico en el `<head>`), e IndexedDB contesta tarde. Perderla no hace daño: vuelve a Automático. Por eso tampoco va en `PREFS_IMPORTABLES`. Mismo mecanismo que Plata (`js/theme.js` es su copia).
+- **Excepción a Apple** ("Avoid offering an app-specific appearance setting"): anotada en `docs/diseno-ios.md`, igual que en Plata.
+- **Descanso por defecto** queda en dos lugares (Ajustes y la hoja de descanso de cada ejercicio) porque ambos son naturales: la misma preferencia `rest_default` y los mismos límites.
+

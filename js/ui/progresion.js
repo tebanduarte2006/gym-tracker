@@ -1,17 +1,14 @@
-// progresion.js — Tab 3: hero semanal, progresión por ejercicio, cardio, datos.
+// progresion.js — Tab 3: hero semanal, progresión por ejercicio y cardio.
+// La alarma, los datos (exportar/importar) y la versión viven en Ajustes (js/ui/ajustes.js).
 // TODOS los cálculos usan solo sets Done (stats.js). PR doble: peso y reps.
 
-import { el, clear, toast, guard } from '../dom.js';
-import { dbGetAll, dbBulkImport, prefGet, prefSet } from '../db.js';
+import { el, clear, guard } from '../dom.js';
+import { dbGetAll } from '../db.js';
 import { fmtWeight, fmtDateShort, fmtDateLong, fmtInt, kgToLbs } from '../format.js';
 import {
   isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs, setsPerMuscle
 } from '../stats.js';
-import { normalizeBackup, buildExport } from '../importer.js';
-import { sheet, confirmRow, once } from './modals.js';
 import { backButton } from './icons.js';
-import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
-import { beep, setBackgroundAlarm } from '../audio.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -29,44 +26,6 @@ export function renderProgresion(panel) {
   wrap.appendChild(noHistSlot);
   const cardioSlot = el('div', {});
   wrap.appendChild(cardioSlot);
-
-  wrap.appendChild(el('div', { class: 'g-section-label' }, ['ALARMA DE DESCANSO']));
-  wrap.appendChild(buildAlarmCard());
-
-  wrap.appendChild(el('div', { class: 'g-section-label' }, ['DATOS']));
-  const eiWrap = el('div', { class: 'g-export-row' });
-  const exportBtn = el('button', { class: 'g-secondary-btn', type: 'button' }, ['📤 Exportar']);
-  exportBtn.addEventListener('click', exportData);
-  const importBtn = el('button', { class: 'g-secondary-btn', type: 'button' }, ['📥 Importar']);
-  importBtn.addEventListener('click', () => importData(panel));
-  eiWrap.appendChild(exportBtn);
-  eiWrap.appendChild(importBtn);
-  wrap.appendChild(eiWrap);
-
-  // Versión + actualización manual. Sin esto no había forma de saber qué
-  // versión estabas corriendo, que es justo lo que vuelve indiagnosticable un
-  // "no se actualizó": el banner puede no salir simplemente porque ya estabas
-  // al día, y se ve idéntico a estar trabado en la versión vieja.
-  const verLine = el('div', { class: 'g-version-line' }, ['Versión ' + APP_VERSION]);
-  wrap.appendChild(verLine);
-  swVersion().then((sw) => {
-    if (!sw) { verLine.textContent = 'Versión ' + APP_VERSION + ' · sin service worker'; return; }
-    const servida = String(sw).replace('gymtracker-', '');
-    verLine.textContent = servida === APP_VERSION
-      ? 'Versión ' + APP_VERSION + ' · al día'
-      : 'Versión ' + APP_VERSION + ' · el service worker sirve ' + servida + ' ⚠️';
-  });
-
-  const updBtn = el('button', { class: 'g-secondary-btn', type: 'button', style: 'width:100%;' }, ['🔄 Buscar actualización']);
-  once(updBtn, () => {
-    toast('Buscando…');
-    return forceUpdateCheck().then((r) => {
-      if (r === 'actualizando') toast('Instalando versión nueva…');
-      else if (r === 'al-dia') toast('Ya tienes la última versión');
-      else toast('Service worker no disponible');
-    });
-  });
-  wrap.appendChild(updBtn);
 
   panel.appendChild(wrap);
 
@@ -180,61 +139,6 @@ export function renderProgresion(panel) {
         cardioSlot.appendChild(card);
       }
     });
-}
-
-// ─── Alarma de descanso ───────────────────────────────────────────────────────
-// Dos controles y ninguno es decorativo. El de PROBAR existe porque el volumen
-// de una alarma no se puede evaluar en la sala: hay que oírla en el gimnasio,
-// con su música, antes de confiarle un descanso. El interruptor existe porque
-// sonar con la pantalla bloqueada tiene un precio real — la app ocupa el
-// reproductor del sistema durante el descanso y puede pausar tu música. Ver
-// js/audio.js para el mecanismo y sus límites.
-function buildAlarmCard() {
-  const card = el('div', { class: 'g-list-card' });
-
-  const estado = el('div', { class: 'g-list-sub' }, ['Cargando…']);
-  const toggleRow = el('button', { class: 'g-list-row', type: 'button' }, [
-    el('div', {}, [
-      el('div', { class: 'g-list-name' }, ['Sonar con la pantalla bloqueada']),
-      estado
-    ]),
-    el('span', { class: 'g-list-pr' }, ['—'])
-  ]);
-  const valor = toggleRow.lastChild;
-
-  let activo = true;
-  const pintar = () => {
-    valor.textContent = activo ? 'Sí' : 'No';
-    estado.textContent = activo
-      ? 'Puede pausar tu música mientras dura el descanso.'
-      : 'La alarma solo suena con la app abierta.';
-  };
-
-  guard(prefGet('alarma_fondo', true), 'preferencia de alarma').then((v) => {
-    activo = v !== false;
-    setBackgroundAlarm(activo);
-    pintar();
-  });
-
-  toggleRow.addEventListener('click', () => {
-    activo = !activo;
-    pintar();
-    setBackgroundAlarm(activo);
-    guard(prefSet('alarma_fondo', activo), 'guardando preferencia');
-  });
-  card.appendChild(toggleRow);
-
-  const probar = el('button', { class: 'g-list-row', type: 'button' }, [
-    el('div', {}, [
-      el('div', { class: 'g-list-name' }, ['Probar la alarma']),
-      el('div', { class: 'g-list-sub' }, ['Súbele el volumen al teléfono antes.'])
-    ]),
-    el('span', { class: 'g-list-arrow' }, ['▶'])
-  ]);
-  probar.addEventListener('click', () => beep());
-  card.appendChild(probar);
-
-  return card;
 }
 
 // Sets por músculo de los últimos 7 días. Sirve para ver de un vistazo qué
@@ -494,76 +398,4 @@ function buildSessionDetails(row) {
   });
   details.appendChild(body);
   return details;
-}
-
-// ─── Export / Import ──────────────────────────────────────────────────────────
-function exportData() {
-  guard(Promise.all([
-    dbGetAll('sesiones'), dbGetAll('ejercicios'), dbGetAll('sets'),
-    dbGetAll('cardio'), dbGetAll('preferencias')
-  ]), 'exportando').then(([sesiones, ejercicios, sets, cardio, preferencias]) => {
-    const payload = buildExport({ sesiones, ejercicios, sets, cardio, preferencias });
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'gym-tracker-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('Backup descargado');
-  });
-}
-
-function importData(panel) {
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json,application/json';
-  fileInput.style.display = 'none';
-  document.body.appendChild(fileInput);
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    fileInput.remove();
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      let norm;
-      try {
-        norm = normalizeBackup(JSON.parse(e.target.result));
-      } catch (err) {
-        toast(err.message || 'Archivo no válido');
-        return;
-      }
-      const s = sheet('Importar backup');
-      s.modal.appendChild(el('div', { class: 'g-confirm-summary' }, [
-        confirmRow('Versión', 'v' + norm.version),
-        confirmRow('Sesiones', String(norm.sesiones.length)),
-        confirmRow('Ejercicios', String(norm.ejercicios.length)),
-        confirmRow('Sets', String(norm.sets.length)),
-        confirmRow('Cardio', String(norm.cardio.length))
-      ]));
-      if (norm.warnings.length > 0) {
-        s.modal.appendChild(el('div', { class: 'g-confirm-warn' }, [norm.warnings.join(' · ')]));
-      }
-      s.modal.appendChild(el('div', { class: 'g-modal-body' }, [
-        'Los registros con el mismo ID se sobrescribirán. Los demás datos no se tocan.'
-      ]));
-      const ok = el('button', { class: 'g-btn-primary', type: 'button' }, ['Importar']);
-      ok.addEventListener('click', () => {
-        s.close();
-        guard(dbBulkImport(norm), 'importando').then(() => {
-          toast(norm.sesiones.length + ' sesiones, ' + norm.ejercicios.length + ' ejercicios, ' + norm.sets.length + ' sets importados');
-          renderProgresion(panel);
-        });
-      });
-      const cancel = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Cancelar']);
-      cancel.addEventListener('click', () => s.close());
-      s.modal.appendChild(ok);
-      s.modal.appendChild(cancel);
-      s.open();
-    };
-    reader.readAsText(file);
-  });
-  fileInput.click();
 }

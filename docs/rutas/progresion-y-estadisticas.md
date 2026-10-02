@@ -1,12 +1,12 @@
 # Ruta: progresión, estadísticas y cálculos
 
 ## Qué es
-La pestaña Progresión (hero semanal, PR doble peso/reps, gráfica SVG, cardio, sets por músculo de la semana, preferencias de alarma y la sección DATOS con versión, exportar e importar) y los cálculos puros que la alimentan, junto con la calculadora de discos.
+La pestaña Progresión (hero semanal, PR doble peso/reps, gráfica SVG, cardio y sets por músculo de la semana; la alarma, exportar/importar y la versión pasaron a Ajustes el 2026-10-02) y los cálculos puros que la alimentan, junto con la calculadora de discos.
 
 ## Archivos y funciones
 | Dónde | Qué |
 |---|---|
-| `js/ui/progresion.js` | `renderProgresion` (devuelve promesa), `buildHero`, `buildMuscleCard`, `renderDetail`, `buildChart` (colores por clases `.g-chart-*`, nunca `setAttribute` con color), `buildSessionDetails`, `buildAlarmCard`, `exportData` / `importData` (ver [datos-y-respaldos.md](datos-y-respaldos.md)) |
+| `js/ui/progresion.js` | `renderProgresion` (devuelve promesa), `buildHero`, `buildMuscleCard`, `renderDetail`, `buildChart` (colores por clases `.g-chart-*`, nunca `setAttribute` con color), `buildSessionDetails` |
 | `js/stats.js` [puro] | `isCountable` (**solo `Done` cuenta**), `weightPR`, `repsPR`, `epley1RM`, `volumeKg`, `sessionRows`, `sessionTs`, `weekSummary`, `setsPerMuscle`, `markRunningPRs` |
 | `js/plates.js` [puro] | `plateBreakdown`: discos por lado en **enteros de 0,2 lb** (lección 26), barra en `bar_lbs` |
 | `js/format.js` [puro] | `kgToLbs`, `fmtWeight` (muestra `—` con null: lección 4), fechas es-CO, `fmtDuration` |

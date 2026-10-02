@@ -32,7 +32,7 @@ El proyecto tiene **una estructura fija y una sola forma de hacer cada cosa**, p
    - **Qué tienes que hacer tú**, en pasos numerados y exactos: dónde tocar y qué debe aparecer en pantalla. Si no tiene que hacer nada, dilo.
    - **Qué no pude comprobar**, si hay algo (todo lo que solo confirma el iPhone real va aquí).
 4. **Lenguaje de abogado, no de programador.** Cada término técnico se explica la primera vez con una analogía ("rama = borrador paralelo del expediente").
-5. **Su iPhone está en inglés.** Nombres de iOS en inglés y en negrilla, tal como aparecen (**Settings**, **Share** → **Add to Home Screen**). Los textos de la app, en español (**Progresión** → **DATOS**).
+5. **Su iPhone está en inglés.** Nombres de iOS en inglés y en negrilla, tal como aparecen (**Settings**, **Share** → **Add to Home Screen**). Los textos de la app, en español (**Ajustes** → **DATOS**).
 6. **Español de Colombia, sin voseo.** Sé directo: si una idea suya es mala o imposible, díselo con la razón.
 
 ## 3. Ahorro de tokens: lee solo lo necesario

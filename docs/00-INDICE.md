@@ -10,7 +10,7 @@ Lee **solo** la fila de tu tarea. Cada ruta dice qué archivos abrir, qué funci
 | Pestaña Ejercicios, crear o editar ejercicios, músculos | [rutas/ejercicios-y-musculos.md](rutas/ejercicios-y-musculos.md) |
 | Pestaña Progresión, PR, volumen, gráfica, calculadora de discos | [rutas/progresion-y-estadisticas.md](rutas/progresion-y-estadisticas.md) |
 | IndexedDB, esquema, preferencias, exportar/importar, respaldos, seed | [rutas/datos-y-respaldos.md](rutas/datos-y-respaldos.md) |
-| Colores, letra, tema claro/oscuro, componentes, accesibilidad | [rutas/interfaz-y-diseno.md](rutas/interfaz-y-diseno.md) |
+| Colores, letra, tema claro/oscuro, **Ajustes (⚙︎) y Apariencia**, componentes, accesibilidad | [rutas/interfaz-y-diseno.md](rutas/interfaz-y-diseno.md) |
 | Animaciones, cambio de pestaña, abrir/cerrar tarjetas y sheets, "se siente brusco" | [rutas/movimiento-y-transiciones.md](rutas/movimiento-y-transiciones.md) |
 | La app no arranca, pantalla negra, actualizaciones, service worker, "no veo los cambios" | [rutas/arranque-y-actualizaciones.md](rutas/arranque-y-actualizaciones.md) |
 | Publicar, CI, capturas, cómo verificar | [rutas/publicar-y-verificar.md](rutas/publicar-y-verificar.md) |
