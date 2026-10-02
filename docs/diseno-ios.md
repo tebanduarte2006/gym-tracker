@@ -48,7 +48,8 @@ Cada regla trae la cita de Apple, cómo se cumple en cada app y cómo se verific
 - **Cómo**:
   - Texto secundario con 4,5:1 o más en los dos temas.
   - El terciario (≈3,3:1) es solo para lo apagado a propósito y **nunca para información**.
-  - **El texto y los íconos sobre el naranja son oscuros** (`--color-on-accent` = `#2b2420` en claro): el blanco daba 2,95:1.
+  - **El texto y los íconos sobre el naranja son oscuros** (`--color-on-accent` = `#2b2420` en claro): el blanco daba 2,95:1. `--color-on-accent` es **solo** para el naranja.
+  - Sobre verde, rojo o ámbar sólidos (el + y el − del balance, la cuenta de la bandeja, un botón destructivo) va blanco en claro y oscuro en oscuro: `--color-on-status` en Plata y `--color-on-danger` en el gym. Usar `--color-on-accent` ahí dejó el + oscuro sobre verde (3,4:1) el 2026-10-02.
   - Ningún color se escribe a mano fuera de `:root`. Hay tokens para el aviso (`--color-toast-text`) y para el ícono de las filas de Ajustes (`--color-on-icon-tile`).
 - **Verificación**: calcular la proporción al crear una combinación nueva; capturas en claro y oscuro.
 
