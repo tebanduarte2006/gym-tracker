@@ -70,7 +70,7 @@ Cada regla trae la cita de Apple, cómo se cumple en cada app y cómo se verific
   - Un círculo de 36 (área de 44) con ‹ para volver y ✕ para cerrar, con `aria-label` "Atrás" o "Cerrar" para VoiceOver.
   - Plata: `leadingButton={{ label, symbol: "back" | "close" }}` en `Sheet`.
   - Gym: `backButton()` de `js/ui/icons.js` y `.g-modal-close`.
-  - "Cancelar" y "Guardar" sí van con texto: Cancelar a la izquierda y la acción principal a la derecha ("the Cancel button belongs on the leading edge", C/presentation/sheets.md).
+  - "Cancelar" y "Guardar" sí van con texto: Cancelar a la izquierda y la acción principal a la derecha ("the Cancel button belongs on the leading edge", C/presentation/sheets.md). En Plata van dentro de un óvalo (`.sheet-header-button`): Cancelar neutro y Guardar en naranja sólido, que es la acción principal (D9).
 
 ### D8. "Deshacer" no se va con un reloj
 - **Apple**: "Minimize use of time-boxed interface elements" y "Prefer dismissing views with an explicit action" (F/accessibility.md).
