@@ -17,7 +17,7 @@ git push -u origin <tu-rama>
 El CI de GitHub Actions (`.github/workflows/ci.yml`) repite `npm test` y `npm run check` en cada push y PR. **Un CI rojo se corrige de inmediato.**
 
 ## Verificar en navegador
-- `node scripts/capturas-iphone.mjs [carpeta]` sirve el repo, restaura el seed real y guarda capturas a tamaño iPhone 11 (414×896 @2x) en claro y oscuro de las pantallas principales. Si tu cambio es en otra pantalla, **agrega su captura a ese script**; no crees otro. Mira las imágenes antes de dar algo por terminado.
+- `node scripts/capturas-iphone.mjs [carpeta]` sirve el repo, restaura el seed real y guarda capturas a tamaño iPhone 11 (414×896 @2x) en claro y oscuro de las pantallas principales, más tres con el texto del iPhone en grande. Falla si hay errores de consola, desbordes, texto de menos de 11 px o áreas táctiles de menos de 44×44 (`docs/diseno-ios.md`). Si tu cambio es en otra pantalla, **agrega su captura a ese script**; no crees otro. Mira las imágenes antes de dar algo por terminado.
 - Todo lo táctil (gestos, scroll, áreas de toque): eventos táctiles reales por CDP, nunca `page.mouse`. Protocolo en [gestos-y-reordenar.md](gestos-y-reordenar.md).
 - Áreas táctiles: se miden con `elementFromPoint` en las esquinas, no leyendo el CSS (lección 51).
 - 0 errores de consola y 0 desbordes horizontales (`scrollWidth <= innerWidth`).

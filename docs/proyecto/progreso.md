@@ -4,12 +4,14 @@
 App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pages. Entrenar con autollenado, registro por botón, cardio, descanso con alarma, reordenar arrastrando, directorio de ejercicios con 18 músculos, Progresión con PR, gráfica, sets por músculo y exportar/importar. 86 pruebas automáticas. El detalle de cada entrega está en `historial.md`.
 
 ## Lo que sigue
+- **Volver deslizando desde el borde izquierdo** (Apple lo espera; las PWA instaladas no lo traen). Esteban lo dejó para después el 2026-10-02: choca con el arrastre para reordenar. Ya estaba anotado abajo como "Sin historial del navegador".
 - **Respaldo de datos fuera del teléfono** (en evaluación, 2026-09-26): hoy todo vive en IndexedDB del iPhone y exportar en la PWA instalada no está verificado. Opciones evaluadas con Esteban; la decisión quedará en `decisiones.md`.
 
 ## Pendiente de probar en el iPhone (Esteban)
 - Que la alarma de descanso suene con la pantalla bloqueada (verificada solo en Chromium). Si no suena, la siguiente parada es Web Push, que exige un servidor.
 - Que **Exportar** funcione con la app instalada (en modo standalone iOS puede ignorar `<a download>` sin avisar).
 - El tema nuevo (crema/Everforest) en claro y oscuro, con la letra nueva.
+- Las reglas de Apple del 2026-10-02: texto grande desde **Settings**, Volver con ‹ y Deshacer que no se va solo (`docs/esteban/pruebas-iphone.md`).
 
 ## Pendientes técnicos conocidos
 - **Lo tecleado se pierde al reordenar o agregar ejercicio.** `refreshExercises()` reconstruye la lista entera, así que un peso a medio escribir en otra tarjeta se borra. Detectado 2026-08-02; exige reescribir el render de la lista.

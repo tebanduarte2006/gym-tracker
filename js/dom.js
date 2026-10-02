@@ -28,6 +28,7 @@ export function clear(node) {
 }
 
 let _toastTimer = null;
+let _toastTouchListener = null;
 
 // `accion` opcional: { label, onAction }. Convierte el toast en el patrón de
 // deshacer de Apple — una acción destructiva de un solo toque (borrar un set en
@@ -37,6 +38,8 @@ export function toast(msg, accion) {
   const prev = document.querySelector('.toast');
   if (prev) prev.remove();
   if (_toastTimer) clearTimeout(_toastTimer);
+  if (_toastTouchListener) document.removeEventListener('pointerdown', _toastTouchListener, true);
+  _toastTouchListener = null;
 
   const t = el('div', { class: 'toast' }, [el('span', { class: 'toast-msg' }, [msg])]);
   const hide = () => {
@@ -45,17 +48,28 @@ export function toast(msg, accion) {
     setTimeout(() => t.remove(), 300);
   };
 
-  let vida = 2500;
   if (accion && accion.label && typeof accion.onAction === 'function') {
     const btn = el('button', { class: 'toast-action', type: 'button' }, [accion.label]);
     btn.addEventListener('click', () => { hide(); accion.onAction(); });
     t.appendChild(btn);
-    vida = 6000; // hay que darle tiempo real de reaccionar y apuntar el dedo
   }
 
   document.body.appendChild(t);
   requestAnimationFrame(() => t.classList.add('visible'));
-  _toastTimer = setTimeout(hide, vida);
+  if (t.querySelector('.toast-action')) {
+    // Con acción (Deshacer) NO se va con un reloj: se queda hasta el siguiente
+    // toque fuera de él. Apple pide no esconder con un temporizador algo que la
+    // persona tiene que alcanzar a usar (docs/diseno-ios.md). Igual que Plata.
+    _toastTouchListener = (event) => {
+      if (event.target instanceof Element && event.target.closest('.toast')) return;
+      document.removeEventListener('pointerdown', _toastTouchListener, true);
+      _toastTouchListener = null;
+      hide();
+    };
+    document.addEventListener('pointerdown', _toastTouchListener, true);
+  } else {
+    _toastTimer = setTimeout(hide, 2500);
+  }
 }
 
 // Toda promesa de datos que alimente UI pasa por aquí: error visible, no

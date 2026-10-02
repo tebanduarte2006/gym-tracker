@@ -79,7 +79,7 @@ Esteban autorizó (2026-09-26) que **cada agente una su rama a `main` sin pregun
 - **Cálculos en módulos puros** (`format.js`, `stats.js`, `plates.js`, `muscles.js`, `importer.js`) con pruebas.
 - **Render quirúrgico**: una acción puntual actualiza solo su tarjeta.
 - **Toda preferencia nueva** va a `PREFS_IMPORTABLES`.
-- **Diseño**: tema crema con acentos naranjas (claro) y Everforest (oscuro), superficies sólidas, letra Atkinson Hyperlegible Next, colores solo por variables de `styles.css`. Prohibido el estilo genérico "hecho con IA": degradados morados, emojis decorativos en títulos, sombras exageradas. Detalle en `docs/rutas/interfaz-y-diseno.md`.
+- **Diseño**: tema crema con acentos naranjas (claro) y Everforest (oscuro), superficies sólidas, letra Atkinson Hyperlegible Next, colores solo por variables de `styles.css`. **Reglas de Apple obligatorias para cualquier cambio de interfaz: `docs/diseno-ios.md`** (áreas de 44, texto que sigue al iPhone, contraste; mismo archivo que en Plata; para dudas, la skill `apple-design-skill`). Prohibido el estilo genérico "hecho con IA": degradados morados, emojis decorativos en títulos, sombras exageradas. Detalle en `docs/rutas/interfaz-y-diseno.md`.
 - **Alcance**: no agregues funciones ni refactors que no se pidieron. Un propósito por commit. Las ideas van a `docs/proyecto/progreso.md`.
 
 ## 7. graphify (mapa del código, ahorra tokens)

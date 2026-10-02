@@ -59,6 +59,8 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 | Botón que guarda o crea algo (contra el doble toque) | `once(boton, acción)` de `js/ui/modals.js` | `openRenameModal` |
 | Actualizar una tarjeta | Su `updateSets()` interno (render quirúrgico). **Nunca** re-renderizar la lista entera por una acción puntual | `buildExerciseCard` |
 | Estilos | `styles.css`, clases `g-*`, colores solo por variables `--color-*` | — |
+| Tamaño de letra | `font-size: calc(<px a tamaño normal>rem / 17)`; campos `max(16px, …)`; cifras gigantes `min(…, techo)`; glifos en círculos fijos, `px` | Nunca `px` suelto, tampoco en JS: el texto sigue al iPhone (`diseno-ios.md`, D2) |
+| Botón Volver de una pantalla interna | `backButton()` de `js/ui/icons.js` (círculo con ‹, sin texto) | `renderDetail` en `ejercicios.js` |
 | Colores de SVG | Clases CSS (`.g-chart-*`); el JS pone clases, nunca `setAttribute('fill', '#…')` | `buildChart` |
 | Espera programada en JS alrededor de una animación | Consultar `sinMovimiento()` | cierre del sheet |
 | Archivo nuevo servido a la app | Agregarlo a `ASSETS` en `sw.js` | — |

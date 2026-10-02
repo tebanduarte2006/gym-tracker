@@ -76,3 +76,11 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 
 ## 2026-09-26 · Merge automático por defecto
 - **Por qué:** Esteban no quiere gastar un mensaje (y los tokens de releer la conversación) en decir "sí, haz merge". Los agentes unen su rama a `main` cuando las verificaciones pasan. Excepciones en CLAUDE.md §5.
+
+## 2026-10-02 · Reglas de Apple (HIG), compartidas con Plata
+- **Por qué:** Esteban instaló la skill [apple-design-skill](https://github.com/NutshellEngineering/apple-design-skill) (copia de las Human Interface Guidelines) y pidió revisar sus dos apps con ella y estandarizar. Las reglas exigibles quedaron en `docs/diseno-ios.md`, **idéntico** en `finanzas-ia` y aquí: un solo sistema visual.
+- **Letra:** Atkinson se queda (astigmatismo), pero sigue el tamaño de texto del iPhone (Dynamic Type). Descartado: SF Pro, y los tamaños fijos (Apple los considera falla de accesibilidad).
+- **Volver** es un símbolo sin texto (antes "‹ Ejercicios"): Apple pide no rotular Atrás/Cerrar. **Deshacer** ya no tiene reloj.
+- **Para después:** volver deslizando desde el borde.
+- **La skill** (2,5 MB) vive en la cuenta de Claude de Esteban, no en el repo.
+

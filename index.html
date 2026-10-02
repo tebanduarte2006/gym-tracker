@@ -80,7 +80,7 @@
         var t = document.createElement('div');
         // Sin color escrito a mano: sirve en los dos temas. Si styles.css no
         // cargó, la variable no existe y el color se hereda (legible igual).
-        t.style.cssText = 'font-size:16px;font-weight:600;color:var(--color-text);margin-bottom:8px;';
+        t.style.cssText = 'font-size:calc(16rem / 17);font-weight:600;color:var(--color-text);margin-bottom:8px;';
         t.appendChild(document.createTextNode('La app no terminó de cargar'));
         var d = document.createElement('div');
         d.appendChild(document.createTextNode(

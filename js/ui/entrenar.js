@@ -23,7 +23,7 @@ import {
 import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
-import { ICON } from './icons.js';
+import { ICON, backButton } from './icons.js';
 import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
 import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
 import { enableDragOrder } from './dragorder.js';
@@ -164,7 +164,7 @@ function buildSessionCards(panel, sesiones, fromAll) {
 function renderAllSessions(panel) {
   clear(panel);
   const wrap = el('div', { class: 'g-start' });
-  const back = el('button', { class: 'g-back-inline', type: 'button' }, ['Entrenar']);
+  const back = backButton();
   back.addEventListener('click', () => renderEntrenar(panel));
   wrap.appendChild(back);
   wrap.appendChild(el('h2', { class: 'g-detail-title', style: 'margin-left:4px;' }, ['Todas las sesiones']));
@@ -184,9 +184,7 @@ function renderAllSessions(panel) {
 function renderSessionDetail(panel, sesionId, fromAll) {
   clear(panel);
   const wrap = el('div', { class: 'g-start' });
-  const back = el('button', { class: 'g-back-inline', type: 'button' }, [
-    fromAll ? 'Todas las sesiones' : 'Entrenar'
-  ]);
+  const back = backButton();
   back.addEventListener('click', () => (fromAll ? renderAllSessions(panel) : renderEntrenar(panel)));
   wrap.appendChild(back);
   panel.appendChild(wrap);
