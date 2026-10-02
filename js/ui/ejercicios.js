@@ -4,7 +4,7 @@ import { el, clear, toast, guard } from '../dom.js';
 import { dbGetAll, dbGetAllBy, dbPut, prefGet, prefSet } from '../db.js';
 import { fmtWeight, fmtDateLong, normalizeKey } from '../format.js';
 import { weightPR, isCountable, sessionTs } from '../stats.js';
-import { ICON } from './icons.js';
+import { ICON, backButton } from './icons.js';
 import { sheet, attachSuggest, once } from './modals.js';
 import { MUSCLE_GROUPS, MUSCLES, canonicalMuscle } from '../muscles.js';
 
@@ -137,7 +137,7 @@ function renderList(listEl, panel, data) {
 function renderDetail(panel, ej) {
   clear(panel);
   const wrap = el('div', { class: 'g-detail-screen' });
-  const back = el('button', { class: 'g-back-inline', type: 'button' }, ['Ejercicios']);
+  const back = backButton();
   back.addEventListener('click', () => renderEjercicios(panel));
   wrap.appendChild(back);
   wrap.appendChild(el('h2', { class: 'g-detail-title' }, [ej.nombre]));

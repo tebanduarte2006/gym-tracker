@@ -136,12 +136,24 @@
 
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
+/* Tamaño del texto del iPhone (Dynamic Type), igual que Plata. La raíz mide
+   17px, el cuerpo de iOS con el tamaño por defecto; en el iPhone,
+   `-apple-system-body` la cambia según Settings → Display & Brightness → Text
+   Size. Todo `font-size` se escribe como `calc(<px a tamaño normal>rem / 17)`;
+   los campos, `max(16px, …)` (por debajo iOS hace zoom); las cifras grandes,
+   `min(…, techo)`; los glifos dentro de un círculo fijo (✕, +, ›) quedan en px.
+   `-webkit-touch-callout` deja fuera el Safari de Mac (cuerpo de 13px).
+   Detalle y fuentes: docs/diseno-ios.md. */
+html { font-size: 17px; }
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  html { font: -apple-system-body; }
+}
+
 html, body {
   margin: 0; padding: 0;
   background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-system);
-  font-size: 17px;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -191,7 +203,7 @@ body.g-modal-open {
    Baja de 34px a 30px: a 34 ocupaba un quinto de la pantalla del iPhone 11 sin
    aportar nada — el contenido manda. */
 .g-screen-title {
-  font-size: 30px;
+  font-size: min(calc(30rem / 17), 40px);
   font-weight: 700;
   letter-spacing: -0.028em;
   margin: 0 0 14px;
@@ -225,7 +237,7 @@ body.g-modal-open {
   min-height: 44px;              /* área táctil mínima de Apple HIG */
   padding: 10px 6px;
   border-radius: var(--pill);
-  font-size: 13px;
+  font-size: calc(13rem / 17);
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--color-text-secondary);
@@ -280,17 +292,17 @@ body.g-modal-open {
 }
 .g-session-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .g-session-rt {
-  font-size: 10.5px; font-weight: 800;
+  font-size: calc(11rem / 17); font-weight: 800;
   color: var(--color-text-secondary);
   letter-spacing: 1.5px;
   text-transform: uppercase;
 }
-.g-session-name { font-size: 16px; font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
+.g-session-name { font-size: calc(16rem / 17); font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
 .g-session-timer-wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.g-session-timer-label { font-size: 10.5px; font-weight: 700; color: var(--color-text-secondary); letter-spacing: 1.2px; margin-bottom: 2px; }
+.g-session-timer-label { font-size: calc(11rem / 17); font-weight: 700; color: var(--color-text-secondary); letter-spacing: 1.2px; margin-bottom: 2px; }
 .g-session-timer {
   font-family: var(--font-rounded);
-  font-size: 46px; font-weight: 700;
+  font-size: min(calc(46rem / 17), 64px); font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -321,10 +333,10 @@ body.g-modal-open {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: none; }
 }
-.g-rest-label { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.g-rest-label { font-size: calc(13rem / 17); font-weight: 600; color: var(--color-text); }
 .g-rest-time {
   font-family: var(--font-rounded);
-  font-size: 17px; font-weight: 700;
+  font-size: calc(17rem / 17); font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   color: var(--color-text);
@@ -336,7 +348,7 @@ body.g-modal-open {
 .g-rest-skip {
   background: transparent; border: none;
   color: var(--color-text-secondary);
-  font-size: 13px; font-weight: 600;
+  font-size: calc(13rem / 17); font-weight: 600;
   padding: 12px 6px; margin: -12px -2px;   /* 44px táctiles sin engordar el dibujo */
 }
 
@@ -423,12 +435,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-text);
   text-align: left;
 }
-.g-ex-name { font-size: 16px; font-weight: 620; letter-spacing: -0.012em; }
-.g-ex-muscle { font-size: 13px; color: var(--color-text-secondary); margin-top: 1px; }
+.g-ex-name { font-size: calc(16rem / 17); font-weight: 620; letter-spacing: -0.012em; }
+.g-ex-muscle { font-size: calc(13rem / 17); color: var(--color-text-secondary); margin-top: 1px; }
 .g-ex-head-right { display: flex; align-items: center; gap: 10px; }
 .g-ex-count {
   font-family: var(--font-rounded);
-  font-size: 14px; font-weight: 600;
+  font-size: calc(14rem / 17); font-weight: 600;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -497,7 +509,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-text-secondary);
   padding: 8px 12px;
   border-radius: var(--r-xs);
-  font-size: 13px; font-weight: 600;
+  font-size: calc(13rem / 17); font-weight: 600;
   /* 44, no 40: aquí vive el 🗑 que quita el ejercicio entero de la sesión, y es
      la fila que se toca con el pulgar sudado entre series (docs/rutas/interfaz-y-diseno.md, regla de 44 px). */
   min-height: 44px;
@@ -509,7 +521,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-last-toggle {
   background: none; border: none;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: calc(13rem / 17);
   padding: 12px 4px;
   min-height: 44px;
   display: flex; align-items: center; gap: 6px;
@@ -525,11 +537,11 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 10px 12px;
   margin-bottom: 10px;
 }
-.g-last-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.g-last-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: calc(13rem / 17); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 .g-last-row b { color: var(--color-text); font-family: var(--font-rounded); font-weight: 700; font-variant-numeric: tabular-nums; }
-.g-last-empty { font-size: 13px; color: var(--color-text-secondary); text-align: center; padding: 6px 0; }
+.g-last-empty { font-size: calc(13rem / 17); color: var(--color-text-secondary); text-align: center; padding: 6px 0; }
 .g-last-header {
-  font-size: 10.5px; color: var(--color-text-secondary);
+  font-size: calc(11rem / 17); color: var(--color-text-secondary);
   letter-spacing: 0.8px;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -544,29 +556,32 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 11px;
   min-height: 44px;
   color: var(--color-text);
-  font-size: 13px; font-weight: 600;
+  font-size: calc(13rem / 17); font-weight: 600;
 }
 
 /* Sets */
 .g-sets-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .g-set-row {
   display: flex; align-items: center; gap: 9px;
+  /* 44 de alto: así el ✓, el × y el valor (44 reales con margen negativo) no
+     se meten en la fila de al lado ni en "Última sesión" (docs/diseno-ios.md). */
+  min-height: 44px;
   padding: 8px 10px 8px 12px;
   background: var(--color-inset);
   border-radius: var(--r-sm);
   transition: background var(--fast);
 }
-.g-set-n { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); width: 40px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.g-set-info { font-size: 14px; color: var(--color-text); font-family: var(--font-rounded); font-variant-numeric: tabular-nums; }
+.g-set-n { font-size: calc(12rem / 17); font-weight: 600; color: var(--color-text-secondary); width: 40px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.g-set-info { font-size: calc(14rem / 17); color: var(--color-text); font-family: var(--font-rounded); font-variant-numeric: tabular-nums; }
 .g-set-val { font-family: var(--font-rounded); font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; }
-.g-set-val b { font-size: 17px; font-weight: 700; color: var(--color-text); letter-spacing: -0.02em; }
-.g-set-val span { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); margin-left: 2px; }
-.g-set-times { color: var(--color-text-secondary); font-size: 13px; margin: 0 3px; }
+.g-set-val b { font-size: calc(17rem / 17); font-weight: 700; color: var(--color-text); letter-spacing: -0.02em; }
+.g-set-val span { font-size: calc(11rem / 17); font-weight: 500; color: var(--color-text-secondary); margin-left: 2px; }
+.g-set-times { color: var(--color-text-secondary); font-size: calc(13rem / 17); margin: 0 3px; }
 /* Zona táctil para corregir un set ya guardado (peso/reps). */
 .g-set-edit {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none;
-  padding: 11px 8px; margin: -11px -4px;   /* 44px reales */
+  padding: 11px 8px; margin: -8px -4px;   /* 44px reales, dentro de los 44 de la fila (8 + 28 + 8) */
   border-radius: var(--r-xs);
   color: inherit;
 }
@@ -594,7 +609,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   margin-left: auto;
   flex-shrink: 0;
   width: 44px; height: 44px;
-  margin-top: -11px; margin-bottom: -11px; margin-right: -6px;
+  margin-top: -8px; margin-bottom: -8px; margin-right: -6px;
   padding: 0;
   background: none;
   border: none;
@@ -629,7 +644,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   line-height: 1;
   /* Medía 26px: se toca por error con el pulgar. Ahora 44 sin crecer el dibujo. */
   width: 44px; height: 44px;
-  margin: -11px -8px -11px 0;
+  margin: -8px -8px -8px 0;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -645,7 +660,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 12px 8px;
   min-height: 44px;
   color: var(--color-text);
-  font-size: 16px;   /* < 16px hace que iOS haga zoom al enfocar el campo */
+  font-size: max(16px, calc(16rem / 17));   /* < 16px hace que iOS haga zoom al enfocar el campo */
   font-family: var(--font-rounded);
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -666,7 +681,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   background: none; border: none;
   padding: 8px 9px;
   color: var(--color-text-secondary);
-  font-size: 11px; font-weight: 650;
+  font-size: calc(11rem / 17); font-weight: 650;
   border-radius: var(--r-xs);
   min-height: 38px;
   transition: background var(--fast), color var(--fast);
@@ -693,7 +708,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-lg);
   padding: 15px;
   color: var(--color-text);
-  font-size: 15px; font-weight: 550;
+  font-size: calc(15rem / 17); font-weight: 550;
   display: flex; align-items: center; justify-content: center;
   gap: 6px;
   margin-bottom: 10px;
@@ -708,7 +723,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border: none;
   border-radius: var(--r-lg);
   padding: 15px;
-  font-size: 15px; font-weight: 620;
+  font-size: calc(15rem / 17); font-weight: 620;
   color: var(--color-expense);
   display: flex; align-items: center; justify-content: center;
   gap: 8px;
@@ -724,7 +739,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border: none;
   border-radius: var(--r-lg);
   padding: 17px;
-  font-size: 17px; font-weight: 700;
+  font-size: calc(17rem / 17); font-weight: 700;
   letter-spacing: -0.015em;
   margin-top: 16px;
   box-shadow: 0 2px 8px var(--color-shadow);
@@ -733,12 +748,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-start-cta:active { transform: scale(.985); opacity: .9; }
 
 /* Listas / cards */
-.g-head-row { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.g-head-row { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; margin-bottom: 8px; }
 .g-link-btn {
   background: none; border: 0;
   color: var(--color-text);
-  font-size: 13px; font-weight: 620;
-  padding: 12px 0; margin: -12px 0;
+  font-size: calc(13rem / 17); font-weight: 620;
+  padding: 12px 0; margin: -12px 0 0; /* abajo no se mete en la tarjeta de la primera sesión */
   min-height: 44px;
 }
 .g-recent-list { display: flex; flex-direction: column; gap: 8px; }
@@ -751,11 +766,11 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   transition: background var(--fast);
 }
 .g-recent-card:active { background: var(--color-fill-strong); }
-.g-recent-name { font-size: 15px; font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
-.g-recent-sub { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.g-recent-name { font-size: calc(15rem / 17); font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
+.g-recent-sub { font-size: calc(13rem / 17); color: var(--color-text-secondary); margin-top: 2px; }
 .g-recent-meta {
   font-family: var(--font-rounded);
-  font-size: 13px; font-weight: 600; color: var(--color-text-secondary);
+  font-size: calc(13rem / 17); font-weight: 600; color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .g-empty-card {
@@ -763,7 +778,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 24px;
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: calc(14rem / 17);
   line-height: 1.5;
 }
 .g-actions-col { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
@@ -784,7 +799,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-search {
   background: none; border: none; outline: none;
   color: var(--color-text);
-  font-size: 16px;   /* evita el zoom automático de iOS al enfocar */
+  font-size: max(16px, calc(16rem / 17));   /* evita el zoom automático de iOS al enfocar */
   flex: 1; min-width: 0;
   align-self: stretch;
   min-height: 44px;
@@ -808,14 +823,14 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   min-height: 38px;
   border-radius: var(--pill);
   color: var(--color-text-secondary);
-  font-size: 13px; font-weight: 620;
+  font-size: calc(13rem / 17); font-weight: 620;
   box-shadow: inset 0 0 0 1px var(--color-separator);
   transition: background var(--fast), color var(--fast);
 }
 /* Filtro elegido = invertido, no acento (regla 1). */
 .g-pill.active { background: var(--color-text); color: var(--color-background); box-shadow: none; }
 .g-section-label {
-  font-size: 11px; font-weight: 750;
+  font-size: calc(11rem / 17); font-weight: 750;
   color: var(--color-text-secondary);
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -840,12 +855,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 }
 .g-list-row:last-child { box-shadow: none; }
 .g-list-row:active { background: var(--color-fill-strong); }
-.g-list-name { font-size: 16px; font-weight: 550; color: var(--color-text); letter-spacing: -0.012em; }
-.g-list-sub { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.g-list-name { font-size: calc(16rem / 17); font-weight: 550; color: var(--color-text); letter-spacing: -0.012em; }
+.g-list-sub { font-size: calc(13rem / 17); color: var(--color-text-secondary); margin-top: 2px; }
 .g-list-right { display: flex; align-items: center; gap: 8px; }
 .g-list-pr {
   font-family: var(--font-rounded);
-  font-size: 14px; font-weight: 600;
+  font-size: calc(14rem / 17); font-weight: 600;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
   /* Atkinson es más ancha que la del sistema: junto a un nombre largo, "250 × 18"
@@ -860,7 +875,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-lg);
   padding: 15px;
   color: var(--color-text);
-  font-size: 15px; font-weight: 620;
+  font-size: calc(15rem / 17); font-weight: 620;
   display: flex; align-items: center; justify-content: center;
   gap: 6px;
   margin-top: 16px;
@@ -878,62 +893,62 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-prog-hero { margin: 4px 0 16px; }
 .g-pr-card { margin: 0 16px 18px; }
 .g-prog-hero-label, .g-pr-card-label {
-  font-size: 10.5px; font-weight: 800;
+  font-size: calc(11rem / 17); font-weight: 800;
   color: var(--color-text-secondary);
   letter-spacing: 1.5px;
   text-transform: uppercase;
 }
-.g-prog-hero-name { font-size: 16px; font-weight: 620; color: var(--color-text); margin-top: 6px; letter-spacing: -0.012em; }
+.g-prog-hero-name { font-size: calc(16rem / 17); font-weight: 620; color: var(--color-text); margin-top: 6px; letter-spacing: -0.012em; }
 .g-prog-hero-num, .g-pr-card-value { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; font-family: var(--font-rounded); }
 .g-prog-hero-big, .g-pr-num {
-  font-size: 52px; font-weight: 700;
+  font-size: min(calc(52rem / 17), 72px); font-weight: 700;
   letter-spacing: -0.05em;
   line-height: 1.05;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
-.g-prog-hero-unit, .g-pr-unit { font-size: 15px; font-weight: 600; color: var(--color-text-secondary); }
-.g-prog-hero-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+.g-prog-hero-unit, .g-pr-unit { font-size: calc(15rem / 17); font-weight: 600; color: var(--color-text-secondary); }
+.g-prog-hero-sub { font-size: calc(12rem / 17); color: var(--color-text-secondary); margin-top: 4px; }
 .g-pr-card-meta {
-  font-size: 12px; color: var(--color-text-secondary);
+  font-size: calc(12rem / 17); color: var(--color-text-secondary);
   box-shadow: inset 0 0.5px 0 var(--color-separator);
   padding-top: 10px;
   margin-top: 12px;
 }
 .g-prog-spark { display: block; width: 100%; height: 52px; margin-top: 12px; }
-.g-prog-hero-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-secondary); letter-spacing: 0.4px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.g-prog-hero-axis { display: flex; justify-content: space-between; font-size: calc(11rem / 17); color: var(--color-text-secondary); letter-spacing: 0.4px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 /* Volumen por grupo muscular (Progresión) */
 .g-muscle-card { border-radius: var(--r-lg); padding: 16px 18px; }
 .g-muscle-row { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; }
 .g-muscle-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.g-muscle-name { font-size: 14px; font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
+.g-muscle-name { font-size: calc(14rem / 17); font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
 .g-muscle-count {
   font-family: var(--font-rounded);
-  font-size: 13px; font-weight: 600;
+  font-size: calc(13rem / 17); font-weight: 600;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 .g-muscle-track { height: 5px; border-radius: 5px; background: var(--color-inset); overflow: hidden; }
 .g-muscle-fill { height: 100%; border-radius: 5px; background: var(--color-accent); opacity: .85; }
-.g-muscle-foot { font-size: 12px; color: var(--color-text-secondary); padding-top: 10px; margin-top: 6px; box-shadow: inset 0 0.5px 0 var(--color-separator); }
+.g-muscle-foot { font-size: calc(12rem / 17); color: var(--color-text-secondary); padding-top: 10px; margin-top: 6px; box-shadow: inset 0 0.5px 0 var(--color-separator); }
 
 /* Calculadora de discos */
 .g-plate-total {
   font-family: var(--font-rounded);
-  font-size: 40px; font-weight: 700;
+  font-size: min(calc(40rem / 17), 56px); font-weight: 700;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
   line-height: 1.1;
 }
-.g-plate-total span { font-size: 15px; font-weight: 600; color: var(--color-text-secondary); margin-left: 6px; letter-spacing: 0; }
+.g-plate-total span { font-size: calc(15rem / 17); font-weight: 600; color: var(--color-text-secondary); margin-left: 6px; letter-spacing: 0; }
 .g-plate-stack { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
 .g-plate {
   font-family: var(--font-rounded);
   font-variant-numeric: tabular-nums;
-  font-size: 15px; font-weight: 700;
+  font-size: calc(15rem / 17); font-weight: 700;
   padding: 10px 14px;
   min-height: 44px;
   display: inline-flex; align-items: center;
@@ -941,28 +956,30 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   background: var(--color-inset);
   color: var(--color-text);
 }
-.g-plate-note { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; margin-top: 10px; }
+.g-plate-note { font-size: calc(13rem / 17); color: var(--color-text-secondary); line-height: 1.5; margin-top: 10px; }
 .g-plate-warn { color: var(--color-expense); }
 
 /* Detalle */
 .g-detail-screen { padding-bottom: 24px; }
 .g-back-inline {
-  display: inline-flex; align-items: center;
-  background: transparent; border: none;
+  /* Volver: círculo de 36 con ‹ (backButton en js/ui/icons.js), como el de
+     Plata. El ÁREA táctil es 44: la extiende el ::after (regla de 44 px). */
+  position: relative;
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  margin: 4px 16px 6px;
+  padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--color-inset);
   color: var(--color-text);
-  font-size: 17px; font-weight: 500;
-  padding: 10px 16px;
-  min-height: 44px;
-  margin-bottom: 2px;
-  letter-spacing: -0.015em;
 }
-.g-back-inline::before { content: '‹'; font-size: 26px; font-weight: 300; margin-right: 5px; line-height: 1; }
-.g-detail-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 2px 20px 2px; color: var(--color-text); }
-.g-detail-sub { font-size: 14px; color: var(--color-text-secondary); margin: 0 20px 16px; }
+.g-back-inline::after { content: ''; position: absolute; inset: -4px; }
+.g-detail-title { font-size: min(calc(30rem / 17), 40px); font-weight: 700; letter-spacing: -0.03em; margin: 2px 20px 2px; color: var(--color-text); }
+.g-detail-sub { font-size: calc(14rem / 17); color: var(--color-text-secondary); margin: 0 20px 16px; }
 .g-info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0 16px 16px; }
 .g-info-item { border-radius: var(--r-md); padding: 12px 13px; }
-.g-info-label { font-size: 10.5px; font-weight: 750; color: var(--color-text-secondary); letter-spacing: 0.8px; text-transform: uppercase; }
-.g-info-value { font-size: 16px; font-weight: 700; color: var(--color-text); margin-top: 4px; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+.g-info-label { font-size: calc(11rem / 17); font-weight: 750; color: var(--color-text-secondary); letter-spacing: 0.8px; text-transform: uppercase; }
+.g-info-value { font-size: calc(16rem / 17); font-weight: 700; color: var(--color-text); margin-top: 4px; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
 .g-edit-muscles {
   margin: 0 16px 10px;
   padding: 13px 14px;
@@ -971,7 +988,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border: 1px dashed var(--color-text-tertiary);
   border-radius: var(--r-md);
   color: var(--color-text);
-  font-size: 14px; font-weight: 600;
+  font-size: calc(14rem / 17); font-weight: 600;
   width: calc(100% - 32px);
   display: inline-flex; align-items: center; justify-content: center;
   gap: 6px;
@@ -992,7 +1009,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-chart-axis {
   display: flex; justify-content: space-between;
   margin-top: 6px;
-  font-size: 11px; color: var(--color-text-secondary);
+  font-size: calc(11rem / 17); color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .g-chart-axis-mid { color: var(--color-text); }
@@ -1015,7 +1032,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 9px 12px;
   background: var(--color-inset);
   border-radius: var(--r-sm);
-  font-size: 14px;
+  font-size: calc(14rem / 17);
   font-family: var(--font-rounded);
   font-variant-numeric: tabular-nums;
 }
@@ -1023,7 +1040,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   margin-left: auto;
   padding: 4px 9px;
   border-radius: var(--pill);
-  font-size: 11px; font-weight: 750;
+  font-size: calc(11rem / 17); font-weight: 750;
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 0 0 1px var(--color-separator);
@@ -1038,7 +1055,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 14px;
   min-height: 44px;
   color: var(--color-text);
-  font-size: 14px; font-weight: 550;
+  font-size: calc(14rem / 17); font-weight: 550;
 }
 
 /* ─── Modales (bottom sheet) ────────────────────────────────────────────────*/
@@ -1077,7 +1094,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 @keyframes modal-out { to { transform: translateY(100%); } }
 .g-modal-handle { width: 38px; height: 5px; border-radius: 3px; background: var(--color-fill-strong); margin: 8px auto 16px; }
 .g-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
-.g-modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: var(--color-text); }
+.g-modal-title { font-size: calc(20rem / 17); font-weight: 700; letter-spacing: -0.025em; color: var(--color-text); }
 .g-modal-close {
   background: var(--color-inset);
   border: none;
@@ -1103,7 +1120,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   top: -6px; left: -6px; right: -6px; bottom: -6px;
 }
 .g-modal-sub {
-  font-size: 11px; font-weight: 750;
+  font-size: calc(11rem / 17); font-weight: 750;
   color: var(--color-text-secondary);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -1117,12 +1134,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 14px 16px;
   min-height: 48px;
   color: var(--color-text);
-  font-size: 17px;
+  font-size: max(16px, calc(17rem / 17));
   outline: none;
   font-family: inherit;
 }
 .g-modal-input::placeholder { color: var(--color-text-tertiary); }
-.g-modal-body { font-size: 14px; color: var(--color-text-secondary); line-height: 1.55; margin-bottom: 16px; }
+.g-modal-body { font-size: calc(14rem / 17); color: var(--color-text-secondary); line-height: 1.55; margin-bottom: 16px; }
 .g-btn-primary {
   width: 100%;
   border: none;
@@ -1131,7 +1148,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   min-height: 50px;
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: 17px; font-weight: 700;
+  font-size: calc(17rem / 17); font-weight: 700;
   letter-spacing: -0.015em;
   margin-top: 10px;
   font-family: inherit;
@@ -1152,7 +1169,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-text);
   border: none;
   border-radius: var(--r-md);
-  font-size: 16px; font-weight: 600;
+  font-size: calc(16rem / 17); font-weight: 600;
   font-family: inherit;
 }
 /* Secundario que borra: sin pozo y con contorno, porque el rojo como texto
@@ -1171,7 +1188,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-expense);
   border: none;
   border-radius: var(--r-md);
-  font-size: 16px; font-weight: 600;
+  font-size: calc(16rem / 17); font-weight: 600;
   font-family: inherit;
 }
 
@@ -1191,7 +1208,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 13px 14px;
   min-height: 44px;
   color: var(--color-text);
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   text-align: left;
   display: flex; align-items: flex-start; gap: 8px; flex-direction: column;
   box-shadow: inset 0 -0.5px 0 var(--color-separator);
@@ -1199,9 +1216,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 }
 .g-suggest-row:last-child { box-shadow: none; }
 .g-suggest-row:active { background: var(--color-fill-strong); }
-.g-suggest-row .g-suggest-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.g-suggest-row .g-suggest-meta { font-size: calc(12rem / 17); color: var(--color-text-secondary); margin-top: 2px; }
 .g-suggest-row .g-suggest-create { color: var(--color-text); font-weight: 620; }
-.g-suggest-empty { padding: 14px; font-size: 13px; color: var(--color-text-secondary); text-align: center; }
+.g-suggest-empty { padding: 14px; font-size: calc(13rem / 17); color: var(--color-text-secondary); text-align: center; }
 
 /* ─── Selector de músculos ──────────────────────────────────────────────────
    Lista CERRADA de 18, agrupada por patrón de movimiento. Antes era un buscador
@@ -1210,7 +1227,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
    directamente — ni buscar ni crear. Taxonomía en js/muscles.js. */
 .g-muscle-picker { margin-bottom: 4px; }
 .g-muscle-group-label {
-  font-size: 10.5px; font-weight: 750;
+  font-size: calc(11rem / 17); font-weight: 750;
   color: var(--color-text-secondary);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -1225,7 +1242,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border: none;
   background: var(--color-inset);
   color: var(--color-text-secondary);
-  font-size: 13px; font-weight: 600;
+  font-size: calc(13rem / 17); font-weight: 600;
   font-family: inherit;
   transition: background var(--fast), color var(--fast);
 }
@@ -1246,7 +1263,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   margin-bottom: 16px;
 }
 .g-resume-meta {
-  font-size: 11px; font-weight: 750;
+  font-size: calc(11rem / 17); font-weight: 750;
   color: var(--color-text-secondary);
   letter-spacing: 0.8px;
   margin-bottom: 12px;
@@ -1256,12 +1273,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-resume-stats > div { display: flex; flex-direction: column; gap: 2px; }
 .g-resume-num {
   font-family: var(--font-rounded);
-  font-size: 26px; font-weight: 700;
+  font-size: min(calc(26rem / 17), 36px); font-weight: 700;
   letter-spacing: -0.035em;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
-.g-resume-unit { font-size: 11px; color: var(--color-text-secondary); }
+.g-resume-unit { font-size: calc(11rem / 17); color: var(--color-text-secondary); }
 .g-confirm-summary {
   background: var(--color-inset);
   border-radius: var(--r-md);
@@ -1273,7 +1290,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   gap: 12px;
   padding: 13px 0;
   box-shadow: inset 0 -0.5px 0 var(--color-separator);
-  font-size: 15px;
+  font-size: calc(15rem / 17);
 }
 .g-confirm-row:last-child { box-shadow: none; }
 .g-confirm-row span { color: var(--color-text-secondary); }
@@ -1284,7 +1301,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   font-variant-numeric: tabular-nums;
 }
 .g-confirm-warn {
-  font-size: 13px;
+  font-size: calc(13rem / 17);
   color: var(--color-text);
   background: var(--color-fill-strong);
   padding: 12px 14px;
@@ -1307,7 +1324,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-toast-text);
   padding: 13px 20px;
   border-radius: var(--pill);
-  font-size: 14px;
+  font-size: calc(14rem / 17);
   font-weight: 500;
   opacity: 0;
   transition: opacity var(--base) ease, transform var(--base) var(--ease);
@@ -1325,7 +1342,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .toast-action {
   background: none; border: none;
   color: var(--color-toast-action);
-  font-size: 14px; font-weight: 700;
+  font-size: calc(14rem / 17); font-weight: 700;
   padding: 13px 4px;
   margin: -13px 0;
   flex-shrink: 0;
@@ -1351,7 +1368,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-lg);
   padding: 16px 16px 16px 18px;
   color: var(--color-background);
-  font-size: 16px; font-weight: 700;
+  font-size: calc(16rem / 17); font-weight: 700;
   letter-spacing: -0.015em;
   z-index: 300;
   box-shadow: 0 8px 24px var(--color-shadow);
@@ -1368,7 +1385,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border: none;
   border-radius: var(--pill);
   padding: 12px 20px;
-  font-size: 15px; font-weight: 700;
+  font-size: calc(15rem / 17); font-weight: 700;
   min-height: 44px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1426,7 +1443,7 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
 
 /* Versión de la app (Progresión → DATOS). Diagnóstico de actualizaciones. */
 .g-version-line {
-  font-size: 12px;
+  font-size: calc(12rem / 17);
   color: var(--color-text-secondary);
   text-align: center;
   padding: 14px 20px 8px;
@@ -1478,7 +1495,7 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
   margin-bottom: 18px;
 }
 .g-week-label {
-  font-size: 10.5px; font-weight: 800;
+  font-size: calc(11rem / 17); font-weight: 800;
   color: var(--color-text-secondary);
   letter-spacing: 1.5px;
   margin-bottom: 12px;
@@ -1487,13 +1504,13 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
 .g-week-stat { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .g-week-num {
   font-family: var(--font-rounded);
-  font-size: 30px; font-weight: 700;
+  font-size: min(calc(30rem / 17), 40px); font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
-.g-week-unit { font-size: 11.5px; color: var(--color-text-secondary); letter-spacing: 0.2px; }
+.g-week-unit { font-size: calc(11.5rem / 17); color: var(--color-text-secondary); letter-spacing: 0.2px; }
 
 /* Tira de actividad: siete días, un punto por día entrenado. */
 .g-week-days {
@@ -1503,7 +1520,7 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
   box-shadow: inset 0 0.5px 0 var(--color-separator);
 }
 .g-week-day { display: flex; flex-direction: column; align-items: center; gap: 7px; flex: 1; }
-.g-week-day-l { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); }
+.g-week-day-l { font-size: calc(11rem / 17); font-weight: 600; color: var(--color-text-secondary); }
 .g-week-day.hoy .g-week-day-l { color: var(--color-text); }
 .g-week-dot {
   width: 9px; height: 9px;

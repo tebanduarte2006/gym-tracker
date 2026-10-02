@@ -1,5 +1,7 @@
 // icons.js — iconos SVG line-style (estética SF Symbols), sin dependencias.
 
+import { el } from '../dom.js';
+
 const NS = 'http://www.w3.org/2000/svg';
 
 function svgEl(tag, attrs) {
@@ -29,6 +31,7 @@ function makeIcon(opts) {
 export const ICON = {
   dumbbell: (o = {}) => makeIcon({ ...o, paths: ['M6.5 6v12M3 9v6M17.5 6v12M21 9v6M6.5 12h11'] }),
   chevronDown: (o = {}) => makeIcon({ ...o, paths: ['M6 9l6 6 6-6'] }),
+  chevronLeft: (o = {}) => makeIcon({ ...o, paths: ['M15 6l-6 6 6 6'] }),
   check: (o = {}) => makeIcon({ ...o, stroke: o.stroke != null ? o.stroke : 2.4, paths: ['M5 12.5l4.5 4.5L19 7.5'] }),
   search: (o = {}) => makeIcon({
     ...o,
@@ -45,3 +48,12 @@ export const ICON = {
     paths: ['M12 20s-7-4.5-9-9c-1.3-3 .8-6.5 4-6.5 2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.2 0 5.3 3.5 4 6.5-2 4.5-9 9-9 9z']
   })
 };
+
+// Botón Volver de las pantallas internas: un círculo con ‹, sin texto, como en
+// iOS 26 (Apple: "don't use a text label that says Back", docs/diseno-ios.md).
+// VoiceOver lo lee como "Atrás". Mismo patrón que Plata.
+export function backButton() {
+  return el('button', { class: 'g-back-inline', type: 'button', 'aria-label': 'Atrás' }, [
+    ICON.chevronLeft({ size: 20, stroke: 2.4 })
+  ]);
+}

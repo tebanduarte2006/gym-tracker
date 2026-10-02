@@ -9,6 +9,7 @@ import {
 } from '../stats.js';
 import { normalizeBackup, buildExport } from '../importer.js';
 import { sheet, confirmRow, once } from './modals.js';
+import { backButton } from './icons.js';
 import { APP_VERSION, swVersion, forceUpdateCheck } from '../swupdate.js';
 import { beep, setBackgroundAlarm } from '../audio.js';
 
@@ -333,7 +334,7 @@ function buildHero(panel, ej, prSet, rows) {
 function renderDetail(panel, ej) {
   clear(panel);
   const wrap = el('div', { class: 'g-detail-screen' });
-  const back = el('button', { class: 'g-back-inline', type: 'button' }, ['Progresión']);
+  const back = backButton();
   back.addEventListener('click', () => renderProgresion(panel));
   wrap.appendChild(back);
   wrap.appendChild(el('h2', { class: 'g-detail-title' }, [ej.nombre]));
@@ -397,7 +398,7 @@ function buildChart(rows) {
     'PESO MÁX · ÚLTIMAS ' + rows.length + (rows.length === 1 ? ' SESIÓN' : ' SESIONES')
   ]));
   if (rows.length === 0) {
-    card.appendChild(el('div', { style: 'color:var(--color-text-secondary);font-size:13px;padding:20px 0;text-align:center;' }, ['Sin datos.']));
+    card.appendChild(el('div', { style: 'color:var(--color-text-secondary);font-size:calc(13rem / 17);padding:20px 0;text-align:center;' }, ['Sin datos.']));
     return card;
   }
   const W = 320, H = 120, padX = 14, padY = 14;

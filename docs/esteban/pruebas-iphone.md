@@ -40,3 +40,10 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 ## Arranque
 - [ ] Al abrir la app en frío no hay pantalla negra larga: se ve el ícono y luego el título y las pestañas.
 - [ ] Si alguna vez queda congelada en el esqueleto, a los 8 segundos aparecen **Reintentar** y **Reparar y recargar** (este último no borra mis datos).
+
+## Reglas de Apple (2026-10-02)
+- [ ] **Settings** → **Display & Brightness** → **Text Size**: muevo la barra a la derecha y vuelvo a la app. Todo el texto se ve más grande y nada se monta ni se corta. Lo devuelvo al centro.
+- [ ] En el detalle de un ejercicio (pestaña **Ejercicios** → un ejercicio), arriba hay un círculo con **‹** (antes decía "‹ Ejercicios"). Al tocarlo vuelvo a la lista.
+- [ ] Borro un set con la **×**: el aviso con **Deshacer** no se va solo; desaparece cuando toco cualquier otra cosa.
+- [ ] En una tarjeta abierta, el ✓ y la × de cada set responden al primer toque y nunca marcan el set de al lado.
+

@@ -20,6 +20,8 @@ Lee **solo** la fila de tu tarea. Cada ruta dice qué archivos abrir, qué funci
 
 [convenciones.md](convenciones.md): mapa de archivos, dónde va cada cosa y la única forma aceptada de resolver cada problema recurrente (regla dorada, CLAUDE.md §0). Léelo siempre que vayas a programar.
 
+[diseno-ios.md](diseno-ios.md): las reglas de Apple (HIG) que la interfaz debe cumplir, con su cita y cómo se verifican. Es el mismo archivo en el repo de Plata (`finanzas-ia`). Léelo siempre que toques algo que se ve.
+
 ## Memoria del proyecto
 
 | Documento | Qué tiene | Cuándo leerlo |
