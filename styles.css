@@ -409,6 +409,11 @@ body.g-modal-open {
    Si vuelves a poner `margin-bottom` en `.g-ex-card`, el arrastre calcula mal
    la posición de destino. */
 .g-ex-list { display: flex; flex-direction: column; gap: 10px; }
+/* Ritmo vertical: 10 px entre bloques apilados, también bajo la última tarjeta
+   (antes pegaba con "+ Agregar ejercicio"). El cardio sigue la misma medida. */
+.g-ex-list, .g-cardio-list { margin-bottom: 10px; }
+.g-cardio-list { display: flex; flex-direction: column; gap: 10px; }
+.g-cardio-list:empty { display: none; }
 
 /* Exercise card */
 .g-ex-card {
@@ -612,6 +617,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 
 /* Sets */
 .g-sets-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.g-sets-list:empty { margin-bottom: 0; }
 .g-set-row {
   display: flex; align-items: center; gap: 9px;
   /* 44 de alto: así el ✓, el × y el valor (44 reales con margen negativo) no
@@ -799,7 +805,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-start-cta:active { transform: scale(.985); opacity: .9; }
 
 /* Listas / cards */
-.g-head-row { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; margin-bottom: 8px; }
+.g-head-row { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; margin-bottom: 8px; }
 .g-link-btn {
   background: none; border: 0;
   color: var(--color-text);
@@ -807,9 +813,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   padding: 12px 0; margin: -12px 0 0; /* abajo no se mete en la tarjeta de la primera sesión */
   min-height: 44px;
 }
-.g-recent-list { display: flex; flex-direction: column; gap: 8px; }
+.g-recent-list { display: flex; flex-direction: column; gap: 10px; }
 .g-recent-card {
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   padding: 14px 16px;
   min-height: 44px;
   display: flex; justify-content: space-between; align-items: center;
@@ -825,7 +831,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   font-variant-numeric: tabular-nums;
 }
 .g-empty-card {
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   padding: 24px;
   text-align: center;
   color: var(--color-text-secondary);
@@ -938,8 +944,8 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-prog-hero, .g-pr-card {
   padding: 20px 22px;
   background: var(--color-surface);
-  border-radius: var(--r-xl);
-  box-shadow: 0 0 0 1px var(--color-separator), 0 6px 20px var(--color-shadow);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--color-separator), 0 2px 8px var(--color-shadow);
 }
 .g-prog-hero { margin: 4px 0 16px; }
 .g-pr-card { margin: 0 16px 18px; }
@@ -1066,7 +1072,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-chart-axis-mid { color: var(--color-text); }
 
 /* Sesiones expandibles (Progresión detalle) */
-.g-session-row { border-radius: var(--r-md); margin-bottom: 8px; }
+.g-session-row { border-radius: var(--r-lg); margin-bottom: 10px; }
 .g-session-row[open] .g-session-summary .g-session-chev { transform: rotate(180deg); }
 .g-session-summary {
   list-style: none;

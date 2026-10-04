@@ -54,3 +54,9 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] **ALARMA DE DESCANSO** y **DATOS** (Exportar / Importar) ya no están al final de **Progresión**; están en Ajustes y funcionan igual.
 - [ ] Al final de Ajustes, **Buscar actualización** y la línea "Versión 20261002-2 · al día".
 
+## Sin sets propuestos y espacios (2026-10-04)
+- [ ] Empiezo un día (por ejemplo **Upper A**): las tarjetas de ejercicio aparecen cerradas, sin "0/3" a la derecha.
+- [ ] Abro una tarjeta: no hay filas de sets pendientes; solo **Última sesión** (con su fecha) y la fila para agregar. Al abrir **Última sesión** veo los sets de la última vez de ESE ejercicio y **Copiar estos sets**.
+- [ ] **Copiar estos sets** crea las filas apagadas; registro una con el círculo y el número a la derecha de la tarjeta cerrada pasa a 1.
+- [ ] Entre la última tarjeta y **+ Agregar ejercicio** hay un espacio igual al de entre tarjetas. Lo mismo entre las tarjetas de cardio y **+ Agregar cardio**.
+- [ ] Al finalizar sin registrar nada en un ejercicio, el aviso lo nombra.

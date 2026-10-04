@@ -8,7 +8,7 @@ import { dbGetAll } from './db.js';
 
 // Versión de la app que este JS cree ser. Debe coincidir con CACHE en sw.js.
 // Se muestra en Ajustes → VERSIÓN junto a la que sirve el SW de verdad.
-export const APP_VERSION = '20261002-2';
+export const APP_VERSION = '20261004-1';
 
 // ─── Service Worker + banner de actualización ─────────────────────────────────
 // Objetivo: que Esteban NUNCA tenga que desinstalar y reinstalar la PWA para

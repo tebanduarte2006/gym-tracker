@@ -30,6 +30,16 @@ export function visibleSets(sets) {
   return sets.filter((s) => !isPlaceholder(s));
 }
 
+// Sets propuestos que el autollenado dejaba al empezar la sesión (hasta
+// 2026-10-04): Pending, con orden y con la misma marca de tiempo del inicio de
+// la sesión. Ya no se crean; solo se ocultan los de una sesión abierta antes del
+// cambio (se descartan al finalizar, como todo Pending). Lo que copia el botón
+// "Copiar estos sets" lleva `ts` posterior, así que no cae aquí.
+export function isAutofillLeftover(set, sesion) {
+  return set.status === STATUS.PENDING && Number(set.orden) > 0 &&
+    !!sesion && !!sesion.timestamp_inicio && set.ts === sesion.timestamp_inicio;
+}
+
 // PR por peso: set Done con mayor peso; empate → más reps.
 export function weightPR(sets) {
   const done = sets.filter(isCountable);
