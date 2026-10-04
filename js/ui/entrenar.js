@@ -17,7 +17,7 @@ import {
   inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
 } from '../format.js';
 import {
-  STATUS, visibleSets, volumeKg, sessionTs, suggestNextSet, autofillPlan,
+  STATUS, visibleSets, isAutofillLeftover, volumeKg, sessionTs, suggestNextSet, autofillPlan,
   sessionName, weekSummary
 } from '../stats.js';
 import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
@@ -253,9 +253,11 @@ function renderSessionDetail(panel, sesionId, fromAll) {
 
     if (cardio.length > 0) {
       wrap.appendChild(el('div', { class: 'g-section-label' }, ['CARDIO']));
+      const cardioList = el('div', { class: 'g-cardio-list' });
       cardio.sort((a, b) => (a.orden || a.id) - (b.orden || b.id)).forEach((c) => {
-        wrap.appendChild(buildCardioRow(c, null));
+        cardioList.appendChild(buildCardioRow(c, null));
       });
+      wrap.appendChild(cardioList);
     }
 
     const actions = el('div', { class: 'g-actions-col' });
@@ -508,34 +510,21 @@ function createSession(panel, routineType) {
             _restOverrides = {};
             if (!plan) { renderActiveSession(panel, sesion); return null; }
 
-            // Los sets del plan entran como PROPUESTOS (Pending con peso y reps
-            // reales). No cuentan para nada hasta que los registres, y los que
-            // no registres se borran al finalizar — igual que siempre.
-            const inserts = [];
-            let orden = 0;
-            plan.ejercicios.forEach((e) => {
-              // Ancla del ejercicio, por si borras todos sus sets propuestos y
-              // aun así quieres que la card siga en pantalla.
-              inserts.push(dbPut('sets', {
-                sesion_id: id, ejercicio_id: e.ejercicio_id,
-                peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: now
-              }));
-              e.sets.forEach((st) => {
-                orden += 1;
-                inserts.push(dbPut('sets', {
-                  sesion_id: id, ejercicio_id: e.ejercicio_id,
-                  peso: st.peso, reps: st.reps, orden,
-                  status: STATUS.PENDING, unidad: st.unidad, ts: now
-                }));
-              });
-            });
+            // Cada ejercicio del plan entra solo como ANCLA (set vacío y oculto):
+            // la tarjeta aparece sin sets propuestos. La referencia de pesos es
+            // la última vez que hiciste ESE ejercicio (subtarjeta "Última
+            // sesión"), sin importar el día; se lleva a la sesión con "Copiar".
+            const inserts = plan.ejercicios.map((e) => dbPut('sets', {
+              sesion_id: id, ejercicio_id: e.ejercicio_id,
+              peso: 0, reps: 0, orden: 0, status: STATUS.PENDING, ts: now
+            }));
             // NADA se abre solo: las tarjetas arrancan cerradas siempre y solo
             // las abre un toque suyo. Abrir la primera al empezar parecía
             // cómodo y era justo lo que Esteban reportó como molesto — ver el
             // bloque equivalente (retirado) de refreshExercises.
             return Promise.all(inserts).then(() => {
-              const nSets = plan.ejercicios.reduce((t, e) => t + e.sets.length, 0);
-              toast('Propuesta desde tu último ' + routineType + ': ' + nSets + ' sets');
+              const nEj = plan.ejercicios.length;
+              toast('Tu último ' + routineType + ': ' + nEj + (nEj === 1 ? ' ejercicio' : ' ejercicios'));
               renderActiveSession(panel, sesion);
             });
           });
@@ -585,7 +574,7 @@ function renderActiveSession(panel, sesion) {
   wrap.appendChild(addBtn);
 
   // Cardio
-  const cardioWrap = el('div', {});
+  const cardioWrap = el('div', { class: 'g-cardio-list' });
   wrap.appendChild(cardioWrap);
   const cardioListo = refreshCardio(sesion, cardioWrap);
   const addCardio = el('button', { class: 'g-add-exercise', type: 'button' }, ['+ Agregar cardio']);
@@ -878,15 +867,16 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   // Render quirúrgico: solo esta card re-consulta y re-pinta sus sets.
   function updateSets() {
     guard(dbGetAllBy('sets', 'sesion_id', sesion.id), 'cargando sets').then((all) => {
-      const mine = visibleSets(all.filter((s) => s.ejercicio_id === ej.id))
+      const todos = visibleSets(all.filter((s) => s.ejercicio_id === ej.id));
+      const mine = todos.filter((s) => !isAutofillLeftover(s, sesion))
         .sort((a, b) => (a.orden || a.id) - (b.orden || b.id));
       clear(setsList);
       mine.forEach((st, idx) => {
         setsList.appendChild(buildSetRow(sesion, ej, st, idx + 1, () => updateSets()));
       });
       const done = mine.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE).length;
-      countEl.textContent = done + '/' + mine.length;
-      addRow.setNextOrden(mine.length > 0 ? Math.max(...mine.map((s) => s.orden || 0)) + 1 : 1);
+      countEl.textContent = done > 0 ? String(done) : '';
+      addRow.setNextOrden(todos.length > 0 ? Math.max(...todos.map((s) => s.orden || 0)) + 1 : 1);
       // El fantasma avanza con la serie: tras registrar el set 2, propone lo que
       // hiciste en el set 3 de la última sesión, no otra vez el 1.
       addRow.setDone(mine.length);
@@ -1386,7 +1376,7 @@ export function buildCardioRow(c, onDeleted) {
   const meta = [];
   if (c.velocidad_kmh != null) meta.push(c.velocidad_kmh + ' km/h');
   if (c.inclinacion != null) meta.push('incl. ' + c.inclinacion);
-  const card = el('div', { class: 'g-recent-card', style: 'margin-bottom:8px;' }, [
+  const card = el('div', { class: 'g-recent-card' }, [
     el('div', {}, [
       el('div', { class: 'g-recent-name' }, ['🏃 ' + c.tipo]),
       el('div', { class: 'g-recent-sub' }, [c.duracion_min + ' min' + (meta.length ? ' · ' + meta.join(' · ') : '')])
@@ -1459,7 +1449,7 @@ function confirmFinalize(sesion, panel) {
     dbGetAllBy('sets', 'sesion_id', sesion.id),
     dbGetAllBy('cardio', 'sesion_id', sesion.id)
   ]), 'preparando cierre').then(([sets, cardio]) => {
-    const visible = visibleSets(sets);
+    const visible = visibleSets(sets).filter((s) => !isAutofillLeftover(s, sesion));
     const registrados = visible.filter((s) => (s.status || STATUS.DONE) === STATUS.DONE);
     const sinRegistrar = visible.length - registrados.length;
     const dur = Date.now() - (sesion.timestamp_inicio || Date.now());
@@ -1471,7 +1461,9 @@ function confirmFinalize(sesion, panel) {
     // de la próxima vez ES esta sesión, tampoco se propondrán. Sin este aviso el
     // plan se encogería solo, en silencio, y semanas después.
     const conRegistro = new Set(registrados.map((s) => s.ejercicio_id));
-    const ejSinRegistro = [...new Set(visible.map((s) => s.ejercicio_id))]
+    // Se parte de `sets` (con anclas), no de `visible`: sin propuestos, un
+    // ejercicio sin nada registrado solo tiene su ancla oculta.
+    const ejSinRegistro = [...new Set(sets.map((s) => s.ejercicio_id))]
       .filter((id) => !conRegistro.has(id));
     const nEj = conRegistro.size;
 

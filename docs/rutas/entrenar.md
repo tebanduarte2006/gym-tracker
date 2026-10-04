@@ -39,7 +39,7 @@ app. La distinción sobrevive; lo que desapareció es **administrarla**:
 | | Propuesto | Registrado |
 |---|---|---|
 | `status` en la DB | `Pending` | `Done` |
-| De dónde sale | autollenado o "copiar sets" | lo tecleaste, o tocaste el botón |
+| De dónde sale | solo "Copiar estos sets" (última vez de ESE ejercicio, cualquier día). Desde 2026-10-04 el autollenado ya NO crea sets, solo la lista de ejercicios | lo tecleaste, o tocaste el botón |
 | Aspecto | fila apagada, números en terciario | fondo sólido, números en blanco |
 | ¿Cuenta para PR/volumen? | **no** | sí |
 | Al finalizar la sesión | se borra | se guarda |

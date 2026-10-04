@@ -91,3 +91,8 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Excepción a Apple** ("Avoid offering an app-specific appearance setting"): anotada en `docs/diseno-ios.md`, igual que en Plata.
 - **Descanso por defecto** queda en dos lugares (Ajustes y la hoja de descanso de cada ejercicio) porque ambos son naturales: la misma preferencia `rest_default` y los mismos límites.
 
+## 2026-10-04 · El autollenado propone ejercicios, no sets
+- **Por qué:** al abrir una tarjeta se veían dos "últimas veces" distintas: los sets propuestos (último *día* igual, p. ej. 60 lbs) y la subtarjeta **Última sesión** (última vez del *ejercicio*, 33.1 lbs). Esteban: la referencia es siempre la última vez del ejercicio, sin importar el día.
+- **Qué quedó:** `createSession` sigue usando `autofillPlan` para la lista y el orden de ejercicios, con un ancla oculta por ejercicio; los sets solo aparecen con **Copiar estos sets** o al teclearlos. El contador de la tarjeta cuenta solo registrados.
+- **Compatibilidad:** los propuestos de una sesión abierta antes del cambio se ocultan (`isAutofillLeftover`: Pending con orden y `ts` igual al inicio de la sesión); se descartan al finalizar como todo Pending.
+- **Descartado:** borrarlos al abrir la app (escritura sobre datos sin que él la pida).

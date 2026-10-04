@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isCountable, isPlaceholder, visibleSets, weightPR, repsPR,
+  isCountable, isPlaceholder, visibleSets, isAutofillLeftover, weightPR, repsPR,
   epley1RM, volumeKg, sessionRows, markRunningPRs,
   suggestNextSet, setsPerMuscle, autofillPlan, sessionName, weekSummary
 } from '../js/stats.js';
@@ -356,4 +356,12 @@ test('weekSummary aguanta listas vacías', () => {
   assert.equal(r.sesiones, 0);
   assert.equal(r.volumenKg, 0);
   assert.equal(r.dias.length, 7);
+});
+
+test('isAutofillLeftover detecta solo los propuestos del autollenado viejo', () => {
+  const ses = { timestamp_inicio: 1000 };
+  assert.equal(isAutofillLeftover({ status: 'Pending', orden: 2, ts: 1000 }, ses), true);
+  assert.equal(isAutofillLeftover({ status: 'Pending', orden: 2, ts: 5000 }, ses), false, 'copiado después');
+  assert.equal(isAutofillLeftover({ status: 'Done', orden: 2, ts: 1000 }, ses), false);
+  assert.equal(isAutofillLeftover({ status: 'Pending', orden: 0, ts: 1000 }, ses), false, 'ancla');
 });
