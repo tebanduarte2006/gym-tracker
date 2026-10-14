@@ -96,3 +96,10 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Qué quedó:** `createSession` sigue usando `autofillPlan` para la lista y el orden de ejercicios, con un ancla oculta por ejercicio; los sets solo aparecen con **Copiar estos sets** o al teclearlos. El contador de la tarjeta cuenta solo registrados.
 - **Compatibilidad:** los propuestos de una sesión abierta antes del cambio se ocultan (`isAutofillLeftover`: Pending con orden y `ts` igual al inicio de la sesión); se descartan al finalizar como todo Pending.
 - **Descartado:** borrarlos al abrir la app (escritura sobre datos sin que él la pida).
+
+## 2026-10-14 · REA (ingeniería inversa) como herramienta de los agentes
+
+- **Por qué:** Esteban la pidió para analizar cómo funcionan otras apps desde los agentes. [REA](https://github.com/morluto/rea) (MIT) es un servidor MCP con ~210 herramientas (JavaScript, webs, binarios, APK).
+- **No rompe "cero dependencias":** es herramienta del agente, no de la app. No entra en `package.json` ni en lo que se publica; GitHub Pages no la sirve.
+- **Cómo:** `.mcp.json` con versión fija `rea-agents@6.5.0` (la descarga `npx` al abrir la sesión), `enabledMcpjsonServers: ["rea"]` en `.claude/settings.json` y la skill en `.claude/skills/reverse-engineer-anything/` (con su licencia). Igual que en finanzas-ia.
+- **Seguridad:** skill y referencias revisadas sin instrucciones ocultas (prompt injection); el paquete no tiene `postinstall`. Para subir de versión: cambiar el número en `.mcp.json` y revisar la skill de nuevo.
