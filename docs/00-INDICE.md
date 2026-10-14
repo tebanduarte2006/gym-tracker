@@ -14,6 +14,7 @@ Lee **solo** la fila de tu tarea. Cada ruta dice qué archivos abrir, qué funci
 | Animaciones, cambio de pestaña, abrir/cerrar tarjetas y sheets, "se siente brusco" | [rutas/movimiento-y-transiciones.md](rutas/movimiento-y-transiciones.md) |
 | La app no arranca, pantalla negra, actualizaciones, service worker, "no veo los cambios" | [rutas/arranque-y-actualizaciones.md](rutas/arranque-y-actualizaciones.md) |
 | Publicar, CI, capturas, cómo verificar | [rutas/publicar-y-verificar.md](rutas/publicar-y-verificar.md) |
+| Entender cómo funciona por dentro otra app o web (ingeniería inversa: servidor MCP `rea` + skill `reverse-engineer-anything`) | `.claude/skills/reverse-engineer-anything/SKILL.md` |
 | Función nueva | [rutas/nueva-funcion.md](rutas/nueva-funcion.md) |
 
 ## Antes de escribir código
