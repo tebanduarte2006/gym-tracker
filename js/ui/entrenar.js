@@ -14,7 +14,7 @@ import {
 } from '../db.js';
 import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
-  inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal
+  inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal, dayKey
 } from '../format.js';
 import {
   STATUS, visibleSets, isAutofillLeftover, volumeKg, sessionTs, suggestNextSet, autofillPlan,
@@ -27,6 +27,8 @@ import { ICON, backButton } from './icons.js';
 import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
 import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
 import { enableDragOrder } from './dragorder.js';
+import { renderMobility, mobilityProgress } from './movilidad.js';
+import { MOBILITY_PREF } from '../mobility.js';
 
 const DEFAULT_REST = 90;
 
@@ -62,12 +64,24 @@ export function renderEntrenar(panel) {
 }
 
 // ─── Pantalla inicial (sin sesión activa) ─────────────────────────────────────
+// Texto del botón de movilidad: a medias manda, después si ya la hizo hoy.
+function mobilityLabel(dias) {
+  const prog = mobilityProgress();
+  if (prog) return 'Movilidad · continuar (' + prog.paso + ' de ' + prog.total + ')';
+  if (Array.isArray(dias) && dias.includes(dayKey(Date.now()))) return 'Movilidad · hecha hoy';
+  return 'Movilidad';
+}
+
 // Resumen de la semana + tira de actividad de 7 días.
 // La pantalla de inicio era un 70% de negro vacío: el botón de empezar, tres
 // tarjetas y nada más. Esto lo llena con lo único que merece ocupar sitio ahí,
 // que es saber cómo vas — y sale de datos que ya existían sin pedir nada nuevo.
-function buildWeekCard(sesiones, sets) {
+// `movilidad`: días 'YYYY-MM-DD' con la rutina de movilidad hecha. Van como un
+// segundo punto, más pequeño y sin acento (el naranja es del entreno, y el
+// color nunca es la única señal: diseno-ios.md, D11).
+function buildWeekCard(sesiones, sets, movilidad) {
   const r = weekSummary(sesiones, sets);
+  const conMovilidad = new Set(movilidad || []);
   const volLbs = Math.round(kgToLbs(r.volumenKg) || 0);
 
   const cifra = (valor, unidad) => el('div', { class: 'g-week-stat' }, [
@@ -79,12 +93,16 @@ function buildWeekCard(sesiones, sets) {
   r.dias.forEach((d) => {
     tira.appendChild(el('div', { class: 'g-week-day' + (d.hoy ? ' hoy' : '') }, [
       el('div', { class: 'g-week-day-l' }, [d.letra]),
-      el('div', { class: 'g-week-dot' + (d.entrenado ? ' on' : '') })
+      el('div', { class: 'g-week-dot' + (d.entrenado ? ' on' : '') }),
+      el('div', { class: 'g-week-mob' + (conMovilidad.has(d.clave) ? ' on' : '') })
     ]));
   });
 
   return el('div', { class: 'g-week-card' }, [
-    el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS']),
+    el('div', { class: 'g-week-head' }, [
+      el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS']),
+      el('div', { class: 'g-week-legend' }, [el('span', { class: 'g-week-mob on', 'aria-hidden': 'true' }), 'movilidad'])
+    ]),
     el('div', { class: 'g-week-stats' }, [
       cifra(String(r.sesiones), r.sesiones === 1 ? 'sesión' : 'sesiones'),
       cifra(fmtInt(volLbs), 'lbs'),
@@ -106,9 +124,12 @@ function renderStartScreen(panel, sesiones) {
   // ve al abrir la app.
   const weekSlot = el('div', {});
   wrap.appendChild(weekSlot);
-  pendientes.push(guard(dbGetAll('sets'), 'resumen semanal').then((allSets) => {
-    weekSlot.appendChild(buildWeekCard(sesiones, allSets));
-  }));
+  const mobBtn = el('button', { class: 'g-btn-secondary g-mob-entry', type: 'button' }, [mobilityLabel(null)]);
+  pendientes.push(guard(Promise.all([dbGetAll('sets'), prefGet(MOBILITY_PREF, [])]), 'resumen semanal')
+    .then(([allSets, movilidad]) => {
+      weekSlot.appendChild(buildWeekCard(sesiones, allSets, movilidad));
+      mobBtn.textContent = mobilityLabel(movilidad);
+    }));
 
   if (finalizadas.length > 0) {
     const headRow = el('div', { class: 'g-head-row' }, [
@@ -132,6 +153,12 @@ function renderStartScreen(panel, sesiones) {
   const startBtn = el('button', { class: 'g-start-cta', type: 'button' }, ['▶ Iniciar sesión']);
   startBtn.addEventListener('click', () => showStartModal(panel));
   wrap.appendChild(startBtn);
+  // Secundario a propósito: la acción principal de esta pantalla es entrenar
+  // (una sola en naranja, diseno-ios.md D9). Ver docs/rutas/movilidad.md.
+  mobBtn.addEventListener('click', () => {
+    renderMobility(panel, () => renderEntrenar(panel)).catch(() => {});
+  });
+  wrap.appendChild(mobBtn);
   panel.appendChild(wrap);
   return Promise.all(pendientes).catch(() => {});
 }

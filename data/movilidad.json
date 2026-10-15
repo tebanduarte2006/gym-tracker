@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "nombre": "Movilidad",
+  "vueltas": 2,
+  "fuente": "Rutina de Jeremy Ethier (Built With Science, 2021) y un bloque de equilibrio",
+  "ejercicios": [
+    {
+      "id": "toalla",
+      "nombre": "Estiramiento con toalla",
+      "zona": "Hombros",
+      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "por brazo" },
+      "pasos": [
+        "Toalla detrás de la espalda: una mano arriba, por encima del hombro, y la otra abajo, a la altura de la cintura.",
+        "Para el brazo de arriba, la mano de abajo tira la toalla hacia abajo mientras el de arriba intenta bajar.",
+        "Para el de abajo, al revés: la de arriba tira hacia arriba.",
+        "El hombro no se va hacia adelante. Más repeticiones en el lado más rígido."
+      ],
+      "animacion": "media/movilidad/toalla.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "extension-toracica",
+      "nombre": "Extensión de espalda en banco",
+      "zona": "Espalda alta",
+      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "" },
+      "pasos": [
+        "De rodillas frente a un banco, con los codos encima y las manos juntas.",
+        "Lleva la cadera hacia los talones y deja caer el pecho hacia el piso.",
+        "Quédate 2 segundos abajo, sube y repite."
+      ],
+      "animacion": "media/movilidad/extension-toracica.webp",
+      "credito": "Fitbod"
+    },
+    {
+      "id": "gato-vaca",
+      "nombre": "Gato-vaca",
+      "zona": "Espalda alta",
+      "dosis": { "tipo": "reps", "min": 6, "max": 6, "unidad": "en cada dirección" },
+      "pasos": [
+        "En cuatro apoyos: manos debajo de los hombros y rodillas debajo de la cadera.",
+        "Redondea la espalda hacia el techo (gato) y luego húndela mirando al frente (vaca).",
+        "Lento. El movimiento sale de la mitad de la espalda, no del cuello."
+      ],
+      "animacion": "media/movilidad/gato-vaca.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "noventa-noventa",
+      "nombre": "90/90 de cadera",
+      "zona": "Caderas",
+      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "por lado" },
+      "pasos": [
+        "Sentado en el piso, las dos piernas dobladas a 90°: una adelante y la otra al lado.",
+        "Gira las dos rodillas hacia el otro lado sin mover los pies de su sitio.",
+        "Torso derecho encima de la cadera. Al principio apóyate con las manos.",
+        "Para estirar más, inclínate sobre la pierna de adelante."
+      ],
+      "animacion": "media/movilidad/noventa-noventa.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "tobillo",
+      "nombre": "Tobillo en banco",
+      "zona": "Tobillos",
+      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "por pierna" },
+      "pasos": [
+        "Un pie encima de un banco o un escalón.",
+        "Lleva la rodilla hacia adelante, por encima de los dedos, sin despegar el talón.",
+        "Quédate 1 o 2 segundos y vuelve. Puedes agarrarte del banco para empujarte."
+      ],
+      "animacion": "media/movilidad/tobillo.png",
+      "credito": "Bend"
+    },
+    {
+      "id": "sentadilla-goblet",
+      "nombre": "Sentadilla goblet con balanceo",
+      "zona": "Todo el cuerpo",
+      "dosis": { "tipo": "tiempo", "segundos": 45 },
+      "pasos": [
+        "Una mancuerna o un disco liviano pegado al pecho.",
+        "Baja a una sentadilla profunda con el pecho arriba y quédate abajo.",
+        "Abajo, balancéate de lado a lado: el peso va a un tobillo y luego al otro. La animación solo muestra la bajada."
+      ],
+      "animacion": "media/movilidad/sentadilla-goblet.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "peso-muerto-una-pierna",
+      "nombre": "Peso muerto a una pierna, sin peso",
+      "zona": "Equilibrio",
+      "dosis": { "tipo": "reps", "min": 6, "max": 6, "unidad": "por pierna" },
+      "pasos": [
+        "De pie sobre una pierna, con la rodilla apenas doblada.",
+        "Inclina el torso hacia adelante mientras la otra pierna va hacia atrás, en línea recta con la espalda.",
+        "Baja lento hasta sentir la parte de atrás del muslo y vuelve.",
+        "Si pierdes el equilibrio, toca la pared con un dedo."
+      ],
+      "animacion": "media/movilidad/peso-muerto-una-pierna.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "talon-una-pierna",
+      "nombre": "Elevación de talón a una pierna",
+      "zona": "Equilibrio y tendón de Aquiles",
+      "dosis": { "tipo": "reps", "min": 10, "max": 10, "unidad": "por pierna" },
+      "pasos": [
+        "De pie sobre una pierna. Si hace falta, un dedo en la pared.",
+        "Sube el talón lo más alto que puedas y baja lento, en 2 o 3 segundos.",
+        "Cuando sea fácil, hazlo en el borde de un escalón."
+      ],
+      "animacion": "media/movilidad/talon-una-pierna.webp",
+      "credito": "Fitbod"
+    }
+  ]
+}

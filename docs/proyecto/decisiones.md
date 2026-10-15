@@ -103,3 +103,11 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **No rompe "cero dependencias":** es herramienta del agente, no de la app. No entra en `package.json` ni en lo que se publica; GitHub Pages no la sirve.
 - **Cómo:** `.mcp.json` con versión fija `rea-agents@6.5.0` (la descarga `npx` al abrir la sesión), `enabledMcpjsonServers: ["rea"]` en `.claude/settings.json` y la skill en `.claude/skills/reverse-engineer-anything/` (con su licencia). Igual que en finanzas-ia.
 - **Seguridad:** skill y referencias revisadas sin instrucciones ocultas (prompt injection); el paquete no tiene `postinstall`. Para subir de versión: cambiar el número en `.mcp.json` y revisar la skill de nuevo.
+
+## 2026-10-15 · Rutina de movilidad guiada, con animaciones
+- **Qué:** botón **Movilidad** en el inicio de Entrenar que abre una rutina aparte (portada y un paso por pantalla, con animación en bucle). Rutina inicial de Jeremy Ethier más un bloque de equilibrio. Ver `rutas/movilidad.md` y `movilidad/fuentes-y-proceso.md`.
+- **La rutina es un archivo (`data/movilidad.json`), no una entidad editable.** Esteban la refina pidiéndoselo a un agente. Coherente con 2026-08-12 (nada que crear, nombrar ni mantener en la app).
+- **Solo se guarda el día** (`movilidad_dias` en preferencias, dentro del respaldo). No crea sesiones ni sets: no contamina PR ni volumen, y el formato del export no cambia. Esteban eligió que no aparezca en el registro de Obsidian.
+- **WebP animado en `<img>`, no video.** Un `<video>` servido por el service worker puede no reproducirse en Safari, porque Safari pide el video por rangos y la caché responde el archivo entero; además, el modo de bajo consumo de iOS bloquea la reproducción automática. El WebP pesa ~5 veces menos que el GIF original y anima siempre.
+- **Las animaciones van dentro de la app** (en la caché, sin señal desde el primer día), elegido por Esteban. Las fuentes (fitnessprogramer, Fitbod, Bend) están acreditadas en el JSON.
+- **Descartado:** enlazar las animaciones a la web de origen (necesitaría señal y se rompe si cambian sus enlaces); recortar el video de YouTube (YouTube bloquea las descargas desde la nube); sacar los videos de la app de Bend con ingeniería inversa (no están en su web: vienen de su servidor, detrás de la suscripción).

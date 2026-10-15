@@ -39,6 +39,8 @@ preferencias { clave, valor }
              · alarma_fondo (bool, default true): la alarma de descanso puede
                ocupar el reproductor del sistema para sonar con la pantalla
                bloqueada. Se apaga desde Ajustes → ALARMA DE DESCANSO. Ver `descanso-y-alarma.md`
+             · movilidad_dias ([ 'YYYY-MM-DD' ], máx. 400): días con la rutina de
+               movilidad hecha. Ver `movilidad.md`
              · TODA clave nueva va también a PREFS_IMPORTABLES en importer.js,
                o restaurar un backup la pierde en silencio (hay test que lo exige).
 ```

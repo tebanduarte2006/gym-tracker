@@ -98,3 +98,11 @@ export function tsToDatetimeLocal(ms) {
     'T' + pad(d.getHours()) + ':' + pad(d.getMinutes())
   );
 }
+
+// Día local 'YYYY-MM-DD'. Local y no UTC: a las 8 p. m. en Colombia ya es el
+// día siguiente en UTC, y la movilidad de la noche caería en mañana.
+export function dayKey(ts) {
+  const d = new Date(ts);
+  const pad = (n) => (n < 10 ? '0' + n : '' + n);
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}

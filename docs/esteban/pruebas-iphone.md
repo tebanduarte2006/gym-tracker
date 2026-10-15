@@ -60,3 +60,14 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] **Copiar estos sets** crea las filas apagadas; registro una con el círculo y el número a la derecha de la tarjeta cerrada pasa a 1.
 - [ ] Entre la última tarjeta y **+ Agregar ejercicio** hay un espacio igual al de entre tarjetas. Lo mismo entre las tarjetas de cardio y **+ Agregar cardio**.
 - [ ] Al finalizar sin registrar nada en un ejercicio, el aviso lo nombra.
+
+## Movilidad (pendiente, 2026-10-15)
+- [ ] En **Entrenar**, debajo de **▶ Iniciar sesión**, aparece el botón **Movilidad**.
+- [ ] Lo toco: veo **Movilidad**, "8 ejercicios · 2 vueltas" y la lista. Toco **Empezar**.
+- [ ] La animación se mueve en bucle. Debajo están el nombre, cuántas repeticiones y las instrucciones; **Anterior** y **Siguiente** se ven sin bajar la pantalla.
+- [ ] Con el modo de bajo consumo encendido (**Settings** → **Battery** → **Low Power Mode**), las animaciones se siguen moviendo. **(pendiente: no lo pude comprobar)**
+- [ ] En el paso 6 (sentadilla goblet) toco **Iniciar 45 s**: cuenta hacia atrás y al llegar a cero suena la alarma y dice **Listo**.
+- [ ] La pantalla no se apaga sola mientras hago la rutina.
+- [ ] A mitad de la rutina toco ‹ dos veces: vuelvo al inicio y el botón dice **Movilidad · continuar (n de 16)**. Al tocarlo sigo donde iba.
+- [ ] Con el teléfono en modo avión, la rutina abre y las animaciones se ven.
+- [ ] Al final toco **Terminar**: aparece **Movilidad registrada**, el botón dice **Movilidad · hecha hoy** y en **ÚLTIMOS 7 DÍAS** el día de hoy tiene un punto pequeño debajo del de entreno.

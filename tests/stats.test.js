@@ -365,3 +365,10 @@ test('isAutofillLeftover detecta solo los propuestos del autollenado viejo', () 
   assert.equal(isAutofillLeftover({ status: 'Done', orden: 2, ts: 1000 }, ses), false);
   assert.equal(isAutofillLeftover({ status: 'Pending', orden: 0, ts: 1000 }, ses), false, 'ancla');
 });
+
+test('weekSummary da la clave local de cada día (la usa la marca de movilidad)', () => {
+  const ahora = new Date(2026, 9, 15, 22, 0, 0).getTime();
+  const r = weekSummary([], [], ahora);
+  assert.equal(r.dias[6].clave, '2026-10-15');
+  assert.equal(r.dias[0].clave, '2026-10-09');
+});

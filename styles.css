@@ -75,6 +75,9 @@
   /* Pozo: el fondo de lo que va dentro de una tarjeta o de un sheet. En claro
      es el `fill` de Plata (texto secundario encima: 5,10:1). */
   --color-inset: var(--color-fill);
+  /* Fondo de las animaciones de movilidad: las fuentes vienen con fondo blanco,
+     así que es blanco en los dos temas (docs/rutas/movilidad.md). */
+  --color-media-bg: #ffffff;
 
   color-scheme: light;
 
@@ -1585,3 +1588,127 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
   background: var(--color-fill-strong);
 }
 .g-week-dot.on { background: var(--color-accent); }
+
+/* Segundo punto de la tira semanal: días con la rutina de movilidad
+   (docs/rutas/movilidad.md). Más pequeño y en texto secundario, no en acento:
+   el naranja es del entreno (regla 1) y la forma distinta, más la leyenda,
+   evita que el color sea la única señal (diseno-ios.md, D11). */
+.g-week-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.g-week-head .g-week-label { margin-bottom: 0; }
+.g-week-legend {
+  display: flex; align-items: center; gap: 6px;
+  font-size: calc(11.5rem / 17); color: var(--color-text-secondary);
+}
+.g-week-mob {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--color-separator);
+}
+.g-week-mob.on { background: var(--color-text-secondary); box-shadow: none; }
+
+/* ─── Movilidad (js/ui/movilidad.js) ────────────────────────────────────────
+   Portada con la lista y un paso por pantalla. Se sigue con el teléfono en el
+   piso: animación grande, dosis grande, botones abajo de 50. */
+.g-mob-entry { margin-top: 10px; }
+.g-mob-sub {
+  font-size: calc(14rem / 17); color: var(--color-text-secondary);
+  margin: 2px 4px 16px;
+}
+.g-mob-list {
+  display: flex; flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--color-separator);
+  padding: 4px 0;
+}
+.g-mob-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+.g-mob-row + .g-mob-row { box-shadow: inset 0 0.5px 0 var(--color-separator); }
+.g-mob-row-n {
+  flex: none;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--color-inset);
+  font-family: var(--font-rounded);
+  font-size: calc(13rem / 17); font-weight: 700; color: var(--color-text-secondary);
+}
+.g-mob-row-text { min-width: 0; }
+.g-mob-source {
+  font-size: calc(12rem / 17); color: var(--color-text-secondary);
+  text-align: center; margin: 14px 8px 0; line-height: 1.45;
+}
+
+.g-mob-top { display: flex; align-items: center; gap: 4px; }
+.g-mob-top .g-back-inline { margin: 4px 8px 6px 4px; flex: none; }
+.g-mob-progress { flex: 1; min-width: 0; padding-right: 4px; }
+.g-mob-progress-l {
+  font-size: calc(11rem / 17); font-weight: 800; letter-spacing: 1.2px;
+  color: var(--color-text-secondary); margin-bottom: 6px;
+}
+.g-mob-bar { height: 6px; border-radius: 3px; background: var(--color-fill-strong); overflow: hidden; }
+.g-mob-bar-fill { height: 100%; background: var(--color-text-secondary); border-radius: 3px; }
+
+/* La animación: cuadrada y, como las fuentes traen fondo blanco o de estudio,
+   va sobre una tarjeta en los dos temas en vez de flotar sobre el crema. */
+.g-mob-media {
+  /* Tope por alto: en el iPhone 11 la animación, el nombre, la dosis y los
+     botones caben en una pantalla. */
+  width: min(100%, 300px, 36vh); aspect-ratio: 1 / 1;
+  margin: 10px auto 14px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--color-media-bg);
+  box-shadow: 0 0 0 1px var(--color-separator);
+}
+.g-mob-media img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.g-mob-media-empty {
+  display: grid; place-items: center;
+  background: var(--color-inset);
+  color: var(--color-text-secondary);
+  font-size: calc(14rem / 17);
+}
+.g-mob-zone {
+  font-size: calc(12rem / 17); font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--color-text-secondary); margin: 0 4px;
+}
+.g-mob-name {
+  font-size: min(calc(24rem / 17), 34px); font-weight: 700; letter-spacing: -0.02em;
+  color: var(--color-text); margin: 2px 4px 2px; line-height: 1.2;
+}
+.g-mob-dose {
+  font-family: var(--font-rounded);
+  font-size: min(calc(20rem / 17), 30px); font-weight: 700;
+  color: var(--color-text); margin: 4px 4px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.g-mob-timer {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--color-surface);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--color-separator);
+  padding: 10px 14px; margin: 6px 0 10px;
+}
+.g-mob-timer-num {
+  font-family: var(--font-rounded);
+  font-size: min(calc(34rem / 17), 48px); font-weight: 700;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  color: var(--color-text); min-width: 4ch;
+}
+.g-mob-timer .g-btn-secondary { margin-top: 0; flex: 1; }
+.g-mob-cues {
+  margin: 4px 0 16px; padding: 0 4px 0 26px;
+  font-size: calc(16rem / 17); line-height: 1.5; color: var(--color-text);
+}
+.g-mob-cues li + li { margin-top: 6px; }
+.g-mob-nav {
+  display: flex; gap: 10px; align-items: stretch;
+  /* Pegada encima de la barra de pestañas: con el teléfono en el piso, cada
+     paso se pasa sin tener que bajar hasta el final de las instrucciones. */
+  position: sticky; z-index: 5;
+  bottom: calc(max(env(safe-area-inset-bottom), 10px) + var(--tabbar-h) + 10px);
+  background: var(--color-background);
+  padding: 8px 0;
+}
+.g-mob-nav .g-btn-secondary, .g-mob-nav .g-btn-primary { margin-top: 0; min-height: 50px; }
+.g-mob-nav .g-btn-secondary { flex: 1; }
+.g-mob-nav .g-btn-primary { flex: 2; }
+.g-btn-secondary:disabled { opacity: .45; }
