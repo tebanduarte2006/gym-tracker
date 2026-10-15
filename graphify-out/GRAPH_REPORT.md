@@ -1,17 +1,17 @@
-# Graph Report - gym-tracker  (2026-10-14)
+# Graph Report - gym-tracker  (2026-10-15)
 
 ## Corpus Check
-- 54 files · ~64,589 words
+- 59 files · ~93,180 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (top: (none) 2, .css 1)
 
 ## Summary
-- 496 nodes · 1513 edges · 27 communities (24 shown, 3 thin omitted)
-- Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 221 edges (avg confidence: 0.94)
+- 535 nodes · 1654 edges · 30 communities (27 shown, 3 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 238 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `66db92dd`
+- Built from commit: `8bd4b5ca`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -23,44 +23,48 @@
 - Reglas obligatorias
 - enableDragOrder
 - Registro de decisiones
-- ejercicios.js
-- entrenar.md
+- muscles.test.js
+- 00-INDICE.md
 - manifest.json
 - gym-tracker: reglas para agentes
 - Guía de vibe coding para gym-tracker
 - Pruebas en el iPhone
-- Ruta: datos, IndexedDB y respaldos
+- movilidad.js
 - package.json
 - Progreso
 - entrenar.js
 - Ruta: ejercicios y taxonomía de músculos
 - Índice: por dónde empezar según la tarea
-- Ruta: movimiento y transiciones
+- plateBreakdown
 - Convenciones: una sola forma de hacer cada cosa
 - Ruta: progresión, estadísticas y cálculos
 - Ruta: publicar y verificar
 - Cómo trabajar en este proyecto (vibe coding, lo esencial)
 - rea
+- Ruta: interfaz y diseño
+- importer.js
+- Movilidad: fuentes, evidencia y cómo mejorar la rutina
+- Ruta: entrenar (sesión activa, sets, autollenado)
 
 ## God Nodes (most connected - your core abstractions)
-1. `el()` - 71 edges
-2. `guard()` - 48 edges
-3. `dbGetAll()` - 32 edges
-4. `toast()` - 31 edges
-5. `clear()` - 30 edges
+1. `el()` - 75 edges
+2. `guard()` - 51 edges
+3. `clear()` - 33 edges
+4. `toast()` - 33 edges
+5. `dbGetAll()` - 32 edges
 6. `Archivos y funciones` - 28 edges
 7. `sheet()` - 27 edges
 8. `renderSessionDetail()` - 26 edges
 9. `buildExerciseCard()` - 25 edges
-10. `dbPut()` - 24 edges
+10. `Registro de decisiones` - 25 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `D8. "Deshacer" no se va con un reloj` --references--> `toast()`  [INFERRED]
   docs/diseno-ios.md → js/dom.js
 - `D6. Reducir movimiento` --references--> `sinMovimiento()`  [INFERRED]
   docs/diseno-ios.md → js/dom.js
-- `Qué es` --references--> `exportData()`  [INFERRED]
-  docs/rutas/datos-y-respaldos.md → js/ui/ajustes.js
+- `Cómo probar` --references--> `weekSummary()`  [INFERRED]
+  docs/rutas/movilidad.md → js/stats.js
 - `Pendientes técnicos conocidos` --references--> `refreshExercises()`  [INFERRED]
   docs/proyecto/progreso.md → js/ui/entrenar.js
 - `Gestos táctiles en iOS (leer antes de tocar cualquier gesto)` --references--> `refreshExercises()`  [INFERRED]
@@ -69,23 +73,23 @@
 ## Import Cycles
 - None detected.
 
-## Communities (27 total, 3 thin omitted)
+## Communities (30 total, 3 thin omitted)
 
 ### Community 0 - "main.js"
-Cohesion: 0.10
-Nodes (62): Dónde va cada cosa, Reglas de código, Lecciones aprendidas, Actualizaciones automáticas (nunca hay que reinstalar la PWA), Archivos y funciones, Archivos y funciones, Archivos y funciones, Reglas (2026-09-13) (+54 more)
+Cohesion: 0.06
+Nodes (59): Lecciones aprendidas, Actualizaciones automáticas (nunca hay que reinstalar la PWA), Archivos y funciones, Arranque (por qué index.html NO está vacío), Cómo probar, graphify, Lecciones que aplican, Qué es (+51 more)
 
 ### Community 1 - "capturas-iphone.mjs"
-Cohesion: 0.05
-Nodes (30): Archivos, Cómo probar, graphify, Lecciones que aplican, Pendiente de confirmar en el iPhone, Qué es, Reglas, Ruta: interfaz y diseño (+22 more)
+Cohesion: 0.12
+Nodes (9): { chromium, devices }, errores, fallas, informe, RAIZ, servidor, TIPOS, jsFiles() (+1 more)
 
 ### Community 2 - "progresion.js"
 Cohesion: 0.14
-Nodes (40): 2026-10-04 · El autollenado propone ejercicios, no sets, Historial de cambios, Cómo probar, Archivos y funciones, fmtDateLong(), fmtDateShort(), fmtHourMin(), fmtInt() (+32 more)
+Nodes (40): Reglas de código, 2026-10-04 · El autollenado propone ejercicios, no sets, Historial de cambios, Cómo probar, Archivos y funciones, fmtDateLong(), fmtDateShort(), fmtHourMin() (+32 more)
 
 ### Community 3 - "Archivos y funciones"
-Cohesion: 0.14
-Nodes (30): Alarma de descanso (reescrita el 2026-09-13), Archivos y funciones, Cómo probar, graphify, Lecciones que aplican, Qué es, Reglas de producto, Ruta: descanso, alarma y pantalla encendida (+22 more)
+Cohesion: 0.11
+Nodes (37): Alarma de descanso (reescrita el 2026-09-13), Archivos y funciones, Cómo probar, graphify, Lecciones que aplican, Qué es, Reglas de producto, Ruta: descanso, alarma y pantalla encendida (+29 more)
 
 ### Community 4 - "Reglas obligatorias"
 Cohesion: 0.10
@@ -96,23 +100,19 @@ Cohesion: 0.14
 Nodes (21): Archivos y funciones, Cómo probar, Gestos táctiles en iOS (leer antes de tocar cualquier gesto), graphify, Lecciones que aplican, Qué es, Reordenar arrastrando (`js/ui/dragorder.js`), Ruta: reordenar arrastrando y gestos táctiles en iOS (+13 more)
 
 ### Community 6 - "Registro de decisiones"
-Cohesion: 0.09
-Nodes (23): 2026-07-28 · Descanso: 90 s por defecto, configurable por ejercicio o por sesión, 2026-07-28 · Nace gym-tracker, separado de habitos-app, 2026-07-28 · Solo sets `Done` cuentan para PR, volumen y gráficas, 2026-07-28 · Stack: HTML + CSS + JS vanilla con ES modules, sin dependencias, 2026-07-28 · Unidades: guardar en kg, mostrar en lbs, teclear en ambas, 2026-08-02 · Actualización automática, nunca reinstalar, 2026-08-12 · Autollenado desde la última sesión, NO plantillas, 2026-08-12 · Estética "Vidrio Negro" (reemplazada el 2026-09-26) (+15 more)
+Cohesion: 0.08
+Nodes (24): 2026-07-28 · Descanso: 90 s por defecto, configurable por ejercicio o por sesión, 2026-07-28 · Nace gym-tracker, separado de habitos-app, 2026-07-28 · Solo sets `Done` cuentan para PR, volumen y gráficas, 2026-07-28 · Stack: HTML + CSS + JS vanilla con ES modules, sin dependencias, 2026-07-28 · Unidades: guardar en kg, mostrar en lbs, teclear en ambas, 2026-08-02 · Actualización automática, nunca reinstalar, 2026-08-12 · Autollenado desde la última sesión, NO plantillas, 2026-08-12 · Estética "Vidrio Negro" (reemplazada el 2026-09-26) (+16 more)
 
-### Community 7 - "ejercicios.js"
-Cohesion: 0.15
-Nodes (29): Archivos y funciones, normalizeKey(), CANON, canonicalizeExercise(), canonicalMuscle(), isCanonical(), isVagueRegion(), key() (+21 more)
-
-### Community 8 - "entrenar.md"
-Cohesion: 0.19
-Nodes (8): graphify, Lecciones que aplican, Modelo de sets: propuesto vs registrado (leer antes de tocar `entrenar.js`), Qué es, Render quirúrgico (regla de UI), Ruta: entrenar (sesión activa, sets, autollenado), Antes de programar, Ruta: función nueva
+### Community 7 - "muscles.test.js"
+Cohesion: 0.26
+Nodes (14): CANON, canonicalizeExercise(), canonicalMuscle(), isCanonical(), isVagueRegion(), key(), MUSCLE_GROUPS, MUSCLES (+6 more)
 
 ### Community 9 - "manifest.json"
 Cohesion: 0.17
 Nodes (11): background_color, description, display, icons, lang, name, orientation, scope (+3 more)
 
 ### Community 10 - "gym-tracker: reglas para agentes"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (11): 0. Regla dorada: estandarizar (antes de escribir una línea), 1. Quién es el dueño y qué quiere, 2. Cómo comunicarte con Esteban, 3. Ahorro de tokens: lee solo lo necesario, 4. Flujo de trabajo estándar, 5. Merge automático: autorización permanente de Esteban, 6. Reglas técnicas (resumen; detalle en `docs/convenciones.md`), 7. graphify (mapa del código, ahorra tokens) (+3 more)
 
 ### Community 11 - "Guía de vibe coding para gym-tracker"
@@ -120,24 +120,24 @@ Cohesion: 0.20
 Nodes (10): 0. La idea en una frase, 1. Cómo pedir algo: cuatro partes, 2. Pasos pequeños y verificables, 3. La documentación que el agente mantiene, 4. Git sin tecnicismos: nunca perder trabajo, 5. Verificar sin saber programar, 6. Patrones de falla y cómo detectarlos, 7. Plantilla para pedir una función nueva (+2 more)
 
 ### Community 12 - "Pruebas en el iPhone"
-Cohesion: 0.20
-Nodes (10): Actualizaciones (nunca reinstalar), Ajustes y Apariencia (2026-10-02), Arranque, Descanso y alarma, Entrenar, Pruebas en el iPhone, Reglas de Apple (2026-10-02), Respaldo (pendiente) (+2 more)
+Cohesion: 0.18
+Nodes (11): Actualizaciones (nunca reinstalar), Ajustes y Apariencia (2026-10-02), Arranque, Descanso y alarma, Entrenar, Movilidad (pendiente, 2026-10-15), Pruebas en el iPhone, Reglas de Apple (2026-10-02) (+3 more)
 
-### Community 13 - "Ruta: datos, IndexedDB y respaldos"
-Cohesion: 0.12
-Nodes (15): Arranque (por qué index.html NO está vacío), Cómo probar, graphify, Lecciones que aplican, Qué es, Reglas, Ruta: arranque y actualizaciones automáticas, Cómo probar (+7 more)
+### Community 13 - "movilidad.js"
+Cohesion: 0.17
+Nodes (25): Archivos y funciones, dayKey(), addMobilityDay(), buildSteps(), dosisText(), estimateMinutes(), MOBILITY_PREF, validateRoutine() (+17 more)
 
 ### Community 14 - "package.json"
 Cohesion: 0.25
 Nodes (7): description, name, private, scripts, check, test, type
 
 ### Community 15 - "Progreso"
-Cohesion: 0.33
+Cohesion: 0.29
 Nodes (6): Estado (2026-09-26), Ideas anotadas (sin compromiso; requieren OK de Esteban), Lo que sigue, Pendiente de probar en el iPhone (Esteban), Pendientes técnicos conocidos, Progreso
 
 ### Community 16 - "entrenar.js"
-Cohesion: 0.16
-Nodes (50): Archivos y funciones, Las tarjetas de ejercicio NO se abren solas (2026-09-13), dbDelete(), dbDeleteSessionCascade(), dbGet(), dbGetAll(), dbGetAllBy(), dbPut() (+42 more)
+Cohesion: 0.14
+Nodes (79): Dónde va cada cosa, Archivos y funciones, Archivos y funciones, Las tarjetas de ejercicio NO se abren solas (2026-09-13), Cómo construirla, dbDelete(), dbGetAll(), dbGetAllBy() (+71 more)
 
 ### Community 17 - "Ruta: ejercicios y taxonomía de músculos"
 Cohesion: 0.29
@@ -147,12 +147,12 @@ Nodes (6): Cómo probar, graphify, Lecciones que aplican, Qué es, Ruta: ejercic
 Cohesion: 0.33
 Nodes (6): Antes de escribir código, Documentos para Esteban (lenguaje sencillo), Mantener este índice, Memoria del proyecto, Referencias viejas "README §N", Índice: por dónde empezar según la tarea
 
-### Community 19 - "Ruta: movimiento y transiciones"
-Cohesion: 0.40
-Nodes (5): Cómo probar, graphify, Lecciones que aplican, Qué es, Ruta: movimiento y transiciones
+### Community 19 - "plateBreakdown"
+Cohesion: 0.23
+Nodes (4): ALARM_PATTERN_SEC, DEFAULT_BAR_LBS, DEFAULT_PLATES_LBS, plateBreakdown()
 
 ### Community 20 - "Convenciones: una sola forma de hacer cada cosa"
-Cohesion: 0.40
+Cohesion: 0.33
 Nodes (5): Commits y ramas, Convenciones: una sola forma de hacer cada cosa, Instrucciones para Esteban, Mapa de archivos, Verificar (no negociable)
 
 ### Community 21 - "Ruta: progresión, estadísticas y cálculos"
@@ -164,28 +164,44 @@ Cohesion: 0.33
 Nodes (6): Cómo se publica hoy, Lecciones que aplican, Pasos de cada entrega, Ruta: publicar y verificar, Verificar en el iPhone (lo hace Esteban), Verificar en navegador
 
 ### Community 23 - "Cómo trabajar en este proyecto (vibe coding, lo esencial)"
-Cohesion: 0.33
+Cohesion: 0.20
 Nodes (6): 1. Cada pedido tiene cuatro partes, 2. Rutina de cada sesión, 3. Señales de alarma, Cómo trabajar en este proyecto (vibe coding, lo esencial), Estado, Gym Tracker
+
+### Community 25 - "Ruta: interfaz y diseño"
+Cohesion: 0.18
+Nodes (11): Archivos, Cómo probar, graphify, Lecciones que aplican, Pendiente de confirmar en el iPhone, Qué es, Reglas, Ruta: interfaz y diseño (+3 more)
+
+### Community 27 - "importer.js"
+Cohesion: 0.31
+Nodes (7): KG_PER_LB, EXPORT_VERSION, normalizeBackup(), parseMuscles(), PREFS_IMPORTABLES, toKg(), ROOT
+
+### Community 28 - "Movilidad: fuentes, evidencia y cómo mejorar la rutina"
+Cohesion: 0.25
+Nodes (8): 1. Proceso estándar para cambiar la rutina, 2. Evidencia (qué sabemos y qué no), 3. Dónde conseguir animaciones (de mejor a peor), 4. Sacar el contenido de un video sin verlo, 5. Ideas para después (sin compromiso), 6. Registro de cambios de la rutina, Movilidad: fuentes, evidencia y cómo mejorar la rutina, Receta para convertir (ffmpeg, ya instalado en la nube)
+
+### Community 29 - "Ruta: entrenar (sesión activa, sets, autollenado)"
+Cohesion: 0.33
+Nodes (6): graphify, Lecciones que aplican, Modelo de sets: propuesto vs registrado (leer antes de tocar `entrenar.js`), Qué es, Render quirúrgico (regla de UI), Ruta: entrenar (sesión activa, sets, autollenado)
 
 ## Knowledge Gaps
 - **1 isolated node(s):** `npx`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 184 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 197 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Registro de decisiones` connect `Registro de decisiones` to `progresion.js`, `00-INDICE.md`?**
-  _High betweenness centrality (0.084) - this node is a cross-community bridge._
+- **Why does `Registro de decisiones` connect `Registro de decisiones` to `progresion.js`?**
+  _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `el()` (e.g. with `6. Reglas técnicas (resumen; detalle en `docs/convenciones.md`)` and `Dónde va cada cosa`) actually correct?**
   _`el()` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `npx` to the rest of the system?**
   _1 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `main.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.10359964881474978 - nodes in this community are weakly interconnected._
-- **Why does `el()` connect `main.js` to `progresion.js`, `Archivos y funciones`, `ejercicios.js`, `gym-tracker: reglas para agentes`, `entrenar.js`?**
-  _High betweenness centrality (0.083) - this node is a cross-community bridge._
+  _Cohesion score 0.06299603174603174 - nodes in this community are weakly interconnected._
+- **Why does `el()` connect `entrenar.js` to `main.js`, `progresion.js`, `Archivos y funciones`, `gym-tracker: reglas para agentes`, `movilidad.js`?**
+  _High betweenness centrality (0.080) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `guard()` (e.g. with `6. Reglas técnicas (resumen; detalle en `docs/convenciones.md`)` and `Dónde va cada cosa`) actually correct?**
   _`guard()` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Should `capturas-iphone.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.05061224489795919 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12418300653594772 - nodes in this community are weakly interconnected._

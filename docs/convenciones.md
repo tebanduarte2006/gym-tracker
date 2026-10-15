@@ -25,6 +25,7 @@ js/
   stats.js            [PURO] isCountable, PR, Epley, volumen, autollenado, set fantasma, resumen semanal
   plates.js           [PURO] calculadora de discos (enteros de 0,2 lb)
   muscles.js          [PURO] 18 músculos + migración del etiquetado viejo
+  mobility.js         [PURO] rutina de movilidad: pasos, dosis, días hechos, validación
   importer.js         [PURO] backups v2 (habitos-app) y v3 (nativo), PREFS_IMPORTABLES
   audio.js            Alarma de descanso (clip WAV generado por <audio> + Web Audio de respaldo)
   wakelock.js         Screen Wake Lock durante la sesión
@@ -32,6 +33,7 @@ js/
   ui/entrenar.js      Pestaña Entrenar (sesión activa, sets, cardio, finalizar)
   ui/ejercicios.js    Pestaña Ejercicios (directorio, crear/editar, selector de músculos)
   ui/progresion.js    Pestaña Progresión (hero, PR, gráfica, sets por músculo, cardio)
+  ui/movilidad.js     Rutina de movilidad guiada (portada + un paso por pantalla), se abre desde Entrenar
   ui/ajustes.js       Hoja de Ajustes (⚙︎): apariencia, descanso global, alarma, exportar/importar, versión
   ui/modals.js        Bottom sheets, confirmaciones, autocompletar
   ui/icons.js         Iconos SVG inline
@@ -39,6 +41,8 @@ js/
 tests/                node --test, uno por módulo puro
 scripts/              check-syntax.mjs (npm run check), capturas-iphone.mjs (capturas y verificación)
 data/seed.json        Backup real de habitos-app: datos de prueba
+data/movilidad.json   La rutina de movilidad (la editan agentes, no la app)
+media/movilidad/      Animaciones de la rutina: WebP animado o PNG, ≤ 250 KB
 icons/                Iconos y splashes. NO regenerar sin que Esteban lo pida
 docs/                 Índice, rutas por tarea, convenciones, memoria del proyecto, guías para Esteban
 graphify-out/         Mapa del código (graphify). Se actualiza con `graphify update .`
@@ -67,6 +71,7 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 | Colores de SVG | Clases CSS (`.g-chart-*`); el JS pone clases, nunca `setAttribute('fill', '#…')` | `buildChart` |
 | Espera programada en JS alrededor de una animación | Consultar `sinMovimiento()` | cierre del sheet |
 | Archivo nuevo servido a la app | Agregarlo a `ASSETS` en `sw.js` | — |
+| Animación o demostración de un ejercicio | WebP animado en `<img>` dentro de `media/movilidad/`, 360×360 y ≤ 250 KB; nunca `<video>` ni enlaces a otra web. Receta en `movilidad/fuentes-y-proceso.md` §3 | `.g-mob-media` en `js/ui/movilidad.js` |
 | Script de verificación | `scripts/`; las capturas nuevas se agregan a `capturas-iphone.mjs`, no a otro script | — |
 | Documentación de un área | `docs/rutas/<tema>.md` + fila en `docs/00-INDICE.md` | `rutas/entrenar.md` |
 

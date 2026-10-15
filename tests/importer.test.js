@@ -106,7 +106,7 @@ test('preferencias: solo pasan las claves de la lista blanca', () => {
 // en silencio — el modo de falla que ya se comió las preferencias enteras.
 test('la lista blanca de preferencias cubre todas las claves que la app escribe', () => {
   ['rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs', 'musculos_migrados',
-   'alarma_fondo'].forEach((k) => {
+   'alarma_fondo', 'movilidad_dias'].forEach((k) => {
     assert.ok(PREFS_IMPORTABLES.has(k), 'falta ' + k + ' en PREFS_IMPORTABLES');
   });
 });

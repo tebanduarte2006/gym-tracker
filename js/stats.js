@@ -6,7 +6,7 @@
 // (Bug heredado de habitos-app: filtraba `!== Pending` y los Skipped
 // contaminaban los récords.)
 
-import { normalizeKey } from './format.js';
+import { normalizeKey, dayKey } from './format.js';
 
 // `SKIPPED` sigue existiendo solo para no romper un backup antiguo que lo traiga.
 // La app YA NO lo crea ni lo muestra: desde el 2026-08-12 un set solo puede
@@ -128,7 +128,9 @@ export function sessionName(sesion) {
 // ─── Resumen de la semana (pantalla de inicio) ────────────────────────────────
 // Antes esa pantalla era un 70% de negro vacío. Devuelve lo que se puede decir
 // con datos que ya existen, sin pedir nada nuevo:
-//   { sesiones, volumenKg, sets, dias: [{ letra, entrenado, hoy }] }
+//   { sesiones, volumenKg, sets, dias: [{ letra, entrenado, hoy, clave }] }
+// `clave` es el día local 'YYYY-MM-DD' (dayKey): con ella la tarjeta marca
+// los días de movilidad, que no son sesiones.
 // `dias` son los últimos 7 terminando HOY, para una tira de actividad.
 const LETRA_DIA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
@@ -170,7 +172,8 @@ export function weekSummary(sesiones, sets, ahora) {
     dias.push({
       letra: LETRA_DIA[d.getDay()],
       entrenado: conActividad.has(d.getTime()),
-      hoy: i === 0
+      hoy: i === 0,
+      clave: dayKey(d.getTime())
     });
   }
 

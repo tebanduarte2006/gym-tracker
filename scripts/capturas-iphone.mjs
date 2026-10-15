@@ -24,7 +24,7 @@ mkdirSync(SALIDA, { recursive: true });
 
 const TIPOS = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
-  '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml'
+  '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml'
 };
 const servidor = createServer(async (req, res) => {
   let ruta = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -138,6 +138,25 @@ for (const tema of ['light', 'dark']) {
   await page.waitForTimeout(800);
   await capturar(page, tema, '02-entrenar-inicio');
 
+  // Movilidad: portada, un paso con animación y el paso con cronómetro. Con
+  // toques reales (tap), no clics: es una pantalla para el pulgar.
+  await page.tap('.g-mob-entry');
+  await page.waitForSelector('.g-mob-list', { timeout: 10000 });
+  await capturar(page, tema, '02a-movilidad-portada', true);
+  await page.tap('.g-start-cta');
+  await page.waitForSelector('.g-mob-media img', { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector('.g-mob-media img').complete);
+  await capturar(page, tema, '02b-movilidad-paso');
+  for (let i = 0; i < 5; i++) await page.tap('.g-mob-nav .g-btn-primary');
+  await page.waitForSelector('.g-mob-timer', { timeout: 5000 });
+  await capturar(page, tema, '02c-movilidad-cronometro');
+  await page.tap('.g-mob-top .g-back-inline');
+  await page.waitForSelector('.g-mob-list', { timeout: 5000 });
+  await page.tap('.g-back-inline');
+  await page.waitForSelector('.g-week-card', { timeout: 5000 });
+  const etiqueta = await page.textContent('.g-mob-entry');
+  if (!/continuar \(6 de 16\)/.test(etiqueta)) errores.push(`${tema}: el botón de movilidad no ofrece continuar (dice "${etiqueta}")`);
+
   // Sesión: repetir el primer día de la lista (autollenado).
   await page.click('.g-start-cta');
   await page.waitForSelector('.g-modal .g-list-row', { timeout: 10000 });
@@ -207,6 +226,15 @@ for (const tema of ['light', 'dark']) {
   await page.click('.g-modal .g-btn-primary');
   await page.waitForTimeout(800);
   await capturar(page, 'texto-grande', '02-entrenar-inicio');
+  await page.tap('.g-mob-entry');
+  await page.waitForSelector('.g-mob-list', { timeout: 10000 });
+  await page.tap('.g-start-cta');
+  await page.waitForSelector('.g-mob-media img', { timeout: 10000 });
+  await capturar(page, 'texto-grande', '02b-movilidad-paso');
+  await page.tap('.g-mob-top .g-back-inline');
+  await page.waitForSelector('.g-mob-list', { timeout: 5000 });
+  await page.tap('.g-back-inline');
+  await page.waitForSelector('.g-week-card', { timeout: 5000 });
   await page.click('.g-start-cta');
   await page.waitForSelector('.g-modal .g-list-row', { timeout: 10000 });
   await page.click('.g-modal .g-list-row');

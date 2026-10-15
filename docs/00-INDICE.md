@@ -7,6 +7,7 @@ Lee **solo** la fila de tu tarea. Cada ruta dice qué archivos abrir, qué funci
 | Sesión activa, sets, registrar, autollenado del día, cardio, finalizar, tarjetas de ejercicio, pantalla de inicio | [rutas/entrenar.md](rutas/entrenar.md) |
 | Reordenar arrastrando, **cualquier gesto, scroll o área táctil** | [rutas/gestos-y-reordenar.md](rutas/gestos-y-reordenar.md) |
 | Temporizador de descanso, alarma, sonido, pantalla bloqueada, Wake Lock | [rutas/descanso-y-alarma.md](rutas/descanso-y-alarma.md) |
+| Rutina de movilidad (botón **Movilidad** del inicio), sus animaciones, **cambiar o mejorar la rutina** | [rutas/movilidad.md](rutas/movilidad.md) y, para el contenido, [movilidad/fuentes-y-proceso.md](movilidad/fuentes-y-proceso.md) |
 | Pestaña Ejercicios, crear o editar ejercicios, músculos | [rutas/ejercicios-y-musculos.md](rutas/ejercicios-y-musculos.md) |
 | Pestaña Progresión, PR, volumen, gráfica, calculadora de discos | [rutas/progresion-y-estadisticas.md](rutas/progresion-y-estadisticas.md) |
 | IndexedDB, esquema, preferencias, exportar/importar, respaldos, seed | [rutas/datos-y-respaldos.md](rutas/datos-y-respaldos.md) |

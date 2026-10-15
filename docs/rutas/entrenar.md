@@ -12,6 +12,7 @@ La pestaña Entrenar: pantalla de inicio (últimos 7 días + sesiones recientes)
 | `js/ui/modals.js` | `sheet`, `confirmAction`, `once` (contra el doble toque) |
 | Descanso, alarma y wake lock | ver [descanso-y-alarma.md](descanso-y-alarma.md) |
 | Reordenar arrastrando | ver [gestos-y-reordenar.md](gestos-y-reordenar.md) |
+| Botón **Movilidad** del inicio y su punto en la tarjeta semanal | ver [movilidad.md](movilidad.md) |
 
 ## Render quirúrgico (regla de UI)
 

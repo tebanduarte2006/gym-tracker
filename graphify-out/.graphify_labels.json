@@ -1,16 +1,13 @@
 {
   "0": "main.js",
-  "1": "capturas-iphone.mjs",
   "2": "progresion.js",
   "3": "Archivos y funciones",
   "4": "Reglas obligatorias",
   "5": "enableDragOrder",
   "6": "Registro de decisiones",
-  "8": "entrenar.md",
   "9": "manifest.json",
   "10": "gym-tracker: reglas para agentes",
   "11": "Guía de vibe coding para gym-tracker",
-  "13": "Ruta: datos, IndexedDB y respaldos",
   "14": "package.json",
   "15": "Progreso",
   "16": "entrenar.js",
@@ -20,6 +17,5 @@
   "21": "Ruta: progresión, estadísticas y cálculos",
   "22": "Ruta: publicar y verificar",
   "23": "Cómo trabajar en este proyecto (vibe coding, lo esencial)",
-  "26": "sw.js",
-  "27": "00-INDICE.md"
+  "26": "sw.js"
 }
