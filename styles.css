@@ -1004,27 +1004,82 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-muscle-foot { font-size: calc(12rem / 17); color: var(--color-text-secondary); padding-top: 10px; margin-top: 6px; box-shadow: inset 0 0.5px 0 var(--color-separator); }
 
 /* Calculadora de discos */
-.g-plate-total {
+.g-plate-pick, .g-rest-pick {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 4px 0 14px;
+}
+.g-step-btn {
+  flex-shrink: 0;
+  width: 56px; height: 56px;
+  border: none; border-radius: 50%;
+  background: var(--color-inset); color: var(--color-text);
   font-family: var(--font-rounded);
-  font-size: min(calc(40rem / 17), 56px); font-weight: 700;
+  font-size: calc(19rem / 17); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.g-step-btn:active { background: var(--color-fill-strong); }
+.g-plate-field { display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; }
+.g-plate-field span { font-size: calc(15rem / 17); font-weight: 600; color: var(--color-text-secondary); }
+.g-plate-input, .g-rest-pick-value {
+  font-family: var(--font-rounded);
+  font-size: min(calc(44rem / 17), 60px); font-weight: 700;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
   line-height: 1.1;
+  text-align: center;
 }
-.g-plate-total span { font-size: calc(15rem / 17); font-weight: 600; color: var(--color-text-secondary); margin-left: 6px; letter-spacing: 0; }
-.g-plate-stack { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
-.g-plate {
-  font-family: var(--font-rounded);
-  font-variant-numeric: tabular-nums;
-  font-size: calc(15rem / 17); font-weight: 700;
-  padding: 10px 14px;
-  min-height: 44px;
-  display: inline-flex; align-items: center;
-  border-radius: var(--r-sm);
+.g-plate-input {
+  width: 3.2em; min-height: 56px; padding: 0;
+  background: none; border: none; outline: none;
+  border-bottom: 2px solid var(--color-separator); border-radius: 0;
+}
+.g-plate-input:focus { border-bottom-color: var(--color-accent); }
+/* El dibujo: media barra vista de frente, discos del centro hacia afuera. */
+.g-barbell {
+  position: relative;
+  height: 132px; margin: 6px 0 2px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md);
   background: var(--color-inset);
-  color: var(--color-text);
+  overflow: hidden;
 }
+.g-barbell-bar {
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 8px; margin-top: -4px;
+  background: var(--color-fill-strong);
+}
+.g-barbell-side { position: relative; display: flex; align-items: center; gap: 3px; height: 82%; }
+.g-barbell-plate {
+  width: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-family: var(--font-rounded);
+  font-size: calc(12rem / 17); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.g-barbell-plate span { transform: rotate(-90deg); white-space: nowrap; }
+/* Fichas para elegir de un toque (descanso, barra). */
+.g-chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 16px; }
+.g-chip-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.g-chip {
+  min-height: 48px; padding: 6px 4px;
+  border: none; border-radius: var(--r-sm);
+  background: var(--color-inset); color: var(--color-text);
+  font-family: var(--font-rounded);
+  font-size: calc(16rem / 17); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.g-chip:active { background: var(--color-fill-strong); }
+.g-chip.active { background: var(--color-text); color: var(--color-background); }
+.g-chip-two { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 56px; }
+.g-chip-two b { font-weight: 700; font-size: calc(15rem / 17); }
+.g-chip-two span { font-size: calc(11rem / 17); font-weight: 500; opacity: .75; }
+/* "Por lado: 45 + 25" bajo el campo de peso de la tarjeta. */
+.g-plate-hint { display: none; padding: 8px 4px 0; font-size: calc(13rem / 17); font-weight: 600; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.g-plate-hint.on { display: block; }
 .g-plate-note { font-size: calc(13rem / 17); color: var(--color-text-secondary); line-height: 1.5; margin-top: 10px; }
 .g-plate-warn { color: var(--color-expense); }
 

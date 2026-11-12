@@ -179,6 +179,25 @@ for (const tema of ['light', 'dark']) {
   await page.evaluate(() => document.querySelector('.g-ex-card.open')?.scrollIntoView({ block: 'center' }));
   await capturar(page, tema, '05-tarjeta-abierta-descanso');
 
+  // Descanso de este ejercicio desde el reloj de la tarjeta: un toque en 2:00 lo guarda.
+  await page.tap('.g-ex-card.open .g-tool-btn >> nth=0');
+  await page.waitForSelector('.g-chip-grid', { timeout: 5000 });
+  await capturar(page, tema, '05c-descanso-del-ejercicio');
+  await page.tap('.g-chip[data-seg="120"]');
+  await page.waitForTimeout(500);
+  const descansoNuevo = (await page.textContent('.g-ex-card.open .g-tool-btn >> nth=0')).trim();
+  if (descansoNuevo !== '2:00') errores.push(`${tema}: el reloj de la tarjeta no guardó 2:00 (dice "${descansoNuevo}")`);
+
+  // Discos: dibujo de la barra; al cerrar con "Listo" aparece "Por lado: …" en la tarjeta.
+  await page.tap('.g-ex-card.open .g-tool-btn >> nth=1');
+  await page.waitForSelector('.g-barbell', { timeout: 5000 });
+  await page.fill('.g-plate-input', '205');
+  await capturar(page, tema, '05d-discos');
+  await page.tap('.g-modal .g-btn-primary');
+  await page.waitForTimeout(500);
+  const pista = (await page.textContent('.g-ex-card.open .g-plate-hint')).trim();
+  if (!/^Por lado: /.test(pista)) errores.push(`${tema}: tras elegir la barra no aparece "Por lado" en la tarjeta (dice "${pista}")`);
+
   // Agregar ejercicio: el directorio completo se ve sin teclear, y tocar la
   // TERCERA fila agrega la tercera (el fallo de 2026-11: se elegía la primera).
   await page.evaluate(() => document.querySelector('.g-add-exercise')?.scrollIntoView({ block: 'center' }));

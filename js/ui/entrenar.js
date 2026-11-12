@@ -20,7 +20,7 @@ import {
   STATUS, visibleSets, isAutofillLeftover, volumeKg, sessionTs, suggestNextSet, autofillPlan,
   sessionName, weekSummary, prKind, weekStreak
 } from '../stats.js';
-import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
+import { plateBreakdown, plateSummary, nearestLoadable, DEFAULT_BAR_LBS } from '../plates.js';
 import { startRest, stopRest, adjustRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON, backButton } from './icons.js';
@@ -37,6 +37,7 @@ let _sessionTimerId = null;
 let _openEj = new Set();            // cards abiertas (persiste entre refreshes)
 let _restOverrides = {};            // ejId → sec, solo esta sesión (en memoria)
 let _restDefault = DEFAULT_REST;
+let _barras = {};                   // pref `barras`: ejId → lbs de la barra (0 = sin barra)
 let _dragOff = null;              // desactivador del arrastre del render actual
 let _finArrastre = 0;             // instante del último arrastre (ver head.click)
 
@@ -49,9 +50,10 @@ let _finArrastre = 0;             // instante del último arrastre (ver head.cli
 export function renderEntrenar(panel) {
   clear(panel);
   stopSessionTimer();
-  return guard(Promise.all([dbGetAll('sesiones'), prefGet('rest_default', DEFAULT_REST)]), 'cargando sesiones')
-    .then(([sesiones, restDef]) => {
+  return guard(Promise.all([dbGetAll('sesiones'), prefGet('rest_default', DEFAULT_REST), prefGet('barras', {})]), 'cargando sesiones')
+    .then(([sesiones, restDef, barras]) => {
       _restDefault = Number(restDef) || DEFAULT_REST;
+      _barras = barras && typeof barras === 'object' ? barras : {};
       const activa = sesiones.find((s) => s.finalizada !== true);
       if (activa) {
         if (_ack === activa.id) return renderActiveSession(panel, activa);
@@ -698,42 +700,56 @@ function resolveRest(ej) {
   return _restDefault;
 }
 
+// Descanso de ESTE ejercicio, desde su tarjeta (botón del reloj). Un toque en
+// un tiempo lo deja guardado para siempre en el ejercicio: antes había que
+// teclear segundos y elegir entre "solo esta sesión" y "default", y Esteban
+// terminaba yendo a la pestaña Ejercicios a cambiarlo (2026-11-12).
+const REST_PRESETS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+
 function openRestConfigModal(ej, onSaved) {
   const s = sheet('Descanso · ' + ej.nombre);
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Segundos de descanso']));
-  const input = el('input', {
-    class: 'g-modal-input', type: 'number', inputmode: 'numeric',
-    value: String(resolveRest(ej)), min: '10', step: '5'
-  });
-  s.modal.appendChild(input);
-  s.modal.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:10px;' }, [
-    'Default actual: ' + (ej.rest_sec || _restDefault) + 's. Puedes aplicarlo solo a esta sesión o guardarlo como default del ejercicio.'
-  ]));
-
-  const readVal = () => {
-    const v = parseInt(input.value, 10);
-    if (!(v >= 10 && v <= 3600)) { toast('Entre 10 y 3600 segundos'); return null; }
-    return v;
-  };
-  const onlySession = el('button', { class: 'g-btn-primary', type: 'button' }, ['Solo esta sesión']);
-  onlySession.addEventListener('click', () => {
-    const v = readVal(); if (v == null) return;
-    _restOverrides[ej.id] = v;
-    s.close(); toast('Descanso de ' + v + 's en esta sesión');
-    if (onSaved) onSaved();
-  });
-  const asDefault = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Guardar como default del ejercicio']);
-  asDefault.addEventListener('click', () => {
-    const v = readVal(); if (v == null) return;
-    ej.rest_sec = v;
+  let valor = resolveRest(ej);
+  const cifra = el('div', { class: 'g-rest-pick-value', role: 'status' }, [fmtClock(valor)]);
+  const chips = el('div', { class: 'g-chip-grid' });
+  const guardar = (seg) => {
+    ej.rest_sec = seg;
     delete _restOverrides[ej.id];
     guard(dbPut('ejercicios', ej), 'guardando descanso').then(() => {
-      s.close(); toast('Default de ' + ej.nombre + ': ' + v + 's');
+      s.close();
+      toast(seg == null
+        ? ej.nombre + ' usa el descanso general (' + fmtClock(_restDefault) + ')'
+        : 'Descanso de ' + ej.nombre + ': ' + fmtClock(seg));
       if (onSaved) onSaved();
     });
+  };
+  const pintar = () => {
+    cifra.textContent = fmtClock(valor);
+    [...chips.children].forEach((c) => c.classList.toggle('active', Number(c.dataset.seg) === valor));
+  };
+  REST_PRESETS.forEach((seg) => {
+    const chip = el('button', { class: 'g-chip', type: 'button', 'data-seg': String(seg) }, [fmtClock(seg)]);
+    chip.addEventListener('click', () => guardar(seg));
+    chips.appendChild(chip);
   });
-  s.modal.appendChild(onlySession);
-  s.modal.appendChild(asDefault);
+  const paso = (delta) => {
+    const b = el('button', {
+      class: 'g-step-btn', type: 'button',
+      'aria-label': (delta > 0 ? 'Sumar ' : 'Quitar ') + Math.abs(delta) + ' segundos'
+    }, [(delta > 0 ? '+' : '−') + Math.abs(delta)]);
+    b.addEventListener('click', () => { valor = Math.min(3600, Math.max(10, valor + delta)); pintar(); });
+    return b;
+  };
+  s.modal.appendChild(el('div', { class: 'g-rest-pick' }, [paso(-15), cifra, paso(15)]));
+  s.modal.appendChild(chips);
+  const ok = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar']);
+  ok.addEventListener('click', () => guardar(valor));
+  s.modal.appendChild(ok);
+  if (ej.rest_sec != null) {
+    const general = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Usar el descanso general (' + fmtClock(_restDefault) + ')']);
+    general.addEventListener('click', () => guardar(null));
+    s.modal.appendChild(general);
+  }
+  pintar();
   s.open();
 }
 
@@ -860,7 +876,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   }));
   tools.appendChild(restBtn);
   const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, [ICON.dumbbell({ size: 16 }), 'Discos']);
-  platesBtn.addEventListener('click', () => openPlateModal(addRow.currentLbs()));
+  platesBtn.addEventListener('click', () => openPlateModal(ej, addRow.currentLbs(), pintarDiscos));
   tools.appendChild(platesBtn);
   // Los ↑ / ↓ que vivían aquí los sustituye el arrastre por pulsación larga
   // (dragorder.js), como el homescreen del iPhone. Dejaban la fila con cinco
@@ -911,6 +927,20 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   // Add-set row
   const addRow = buildAddSetRow(sesion, ej, () => updateSets());
   body.appendChild(addRow.row);
+
+  // Discos por lado, bajo el campo de peso. Solo en los ejercicios donde ya
+  // elegiste una barra en "Discos" (pref `barras`): así no aparece en máquinas
+  // de placas ni mancuernas, donde no significa nada. Se actualiza al teclear.
+  const discosHint = el('div', { class: 'g-plate-hint', 'aria-live': 'polite' });
+  body.appendChild(discosHint);
+  function pintarDiscos() {
+    const barra = _barras[ej.id];
+    const lbs = addRow.currentLbs();
+    const resumen = barra == null || lbs == null ? '' : plateSummary(plateBreakdown(lbs, barra));
+    discosHint.textContent = resumen ? 'Por lado: ' + resumen : '';
+    discosHint.classList.toggle('on', !!resumen);
+  }
+  addRow.onWeightChange(pintarDiscos);
 
   card.appendChild(colapsable(body));
 
@@ -1139,6 +1169,7 @@ function buildAddSetRow(sesion, ej, onAdded) {
   // Con los dos se sabe qué proponer (stats.js › suggestNextSet).
   let prevSets = [];
   let yaHechos = 0;
+  let onPeso = () => {};   // la tarjeta lo usa para repintar "Por lado: …"
   const row = el('div', { class: 'g-add-set' });
   const pesoInput = el('input', {
     class: 'g-input-num', type: 'text', placeholder: 'Peso',
@@ -1151,6 +1182,7 @@ function buildAddSetRow(sesion, ej, onAdded) {
     lbsBtn.classList.toggle('active', u === 'lbs');
     kgBtn.classList.toggle('active', u === 'kg');
     paintGhost(); // la sugerencia se muestra en la unidad activa
+    onPeso();
   };
   lbsBtn.addEventListener('click', () => setUnit('lbs'));
   kgBtn.addEventListener('click', () => setUnit('kg'));
@@ -1244,9 +1276,10 @@ function buildAddSetRow(sesion, ej, onAdded) {
     setNextOrden(n) { nextOrden = n; },
     // Cuántos sets llevas hoy en este ejercicio → qué set de la última sesión
     // toca proponer. Lo llama updateSets() en cada render quirúrgico.
-    setDone(n) { yaHechos = n; paintGhost(); },
+    setDone(n) { yaHechos = n; paintGhost(); onPeso(); },
+    onWeightChange(fn) { onPeso = fn; pesoInput.addEventListener('input', fn); },
     // Sets de la última sesión finalizada. Llega asíncrono desde la card.
-    setPrev(sets) { prevSets = Array.isArray(sets) ? sets : []; paintGhost(); },
+    setPrev(sets) { prevSets = Array.isArray(sets) ? sets : []; paintGhost(); onPeso(); },
     // El peso que la calculadora de discos debe abrir por defecto: lo tecleado,
     // o si no la sugerencia del fantasma.
     currentLbs() {
@@ -1262,79 +1295,123 @@ function buildAddSetRow(sesion, ej, onAdded) {
 }
 
 // ─── Calculadora de discos ────────────────────────────────────────────────────
-// Qué poner a cada lado de la barra. Trabaja en libras porque los discos del
-// gimnasio están marcados en libras: el resultado se lee y se coge, sin
-// traducir. El peso de la barra se recuerda en preferencias.
-function openPlateModal(initialLbs) {
-  const s = sheet('Discos por lado');
+// Qué poner a cada lado de la barra, DIBUJADO (se lee de un vistazo, como en
+// Strong y Hevy) y recordando la barra de cada ejercicio. Trabaja en libras
+// porque los discos del gimnasio están marcados en libras.
+//
+// Rehecha el 2026-11-12: la versión anterior era un formulario con dos campos y
+// una lista de texto; Esteban la usó una vez y no volvió. Ahora (1) el dibujo
+// reemplaza la cuenta, (2) la barra se elige con un toque y se recuerda por
+// ejercicio, (3) −/+ saltan al peso cargable siguiente, y (4) una vez elegida
+// la barra, los discos aparecen solos bajo el campo de peso de la tarjeta, sin
+// abrir nada.
+const BARRAS = [
+  { lbs: 45, label: '45', nota: 'olímpica' },
+  { lbs: 35, label: '35', nota: 'corta' },
+  { lbs: 25, label: '25', nota: 'Smith' },
+  { lbs: 0, label: 'Sin barra', nota: 'máquina' }
+];
+// Alto del disco en el dibujo, en % del más grande: el 45 llena, el 2.5 es un aro.
+const ALTO_DISCO = { 45: 100, 35: 86, 25: 72, 10: 54, 5: 42, 2.5: 32 };
 
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso total (lbs)']));
+function openPlateModal(ej, initialLbs, onSaved) {
+  const s = sheet('Discos · ' + ej.nombre);
+  let barra = _barras[ej.id] != null ? Number(_barras[ej.id]) : DEFAULT_BAR_LBS;
+  let peso = initialLbs != null && isFinite(initialLbs) ? Math.round(initialLbs * 10) / 10 : NaN;
+
   const pesoInput = el('input', {
-    class: 'g-modal-input', type: 'text', inputmode: 'decimal', autocomplete: 'off',
-    placeholder: 'Ej. 185', value: initialLbs != null ? String(Math.round(initialLbs)) : ''
+    class: 'g-plate-input', type: 'text', inputmode: 'decimal', autocomplete: 'off',
+    placeholder: '0', 'aria-label': 'Peso total en libras', value: isFinite(peso) ? String(peso) : ''
   });
-  s.modal.appendChild(pesoInput);
+  const paso = (dir) => {
+    const b = el('button', { class: 'g-step-btn', type: 'button', 'aria-label': dir > 0 ? 'Subir al siguiente peso' : 'Bajar al peso anterior' }, [dir > 0 ? '+' : '−']);
+    b.addEventListener('click', () => {
+      const actual = isFinite(peso) ? peso : barra;
+      const cerca = nearestLoadable(actual, barra);
+      // Si el peso no es cargable, el primer toque lo lleva al cargable más
+      // cercano en esa dirección; si ya lo es, salta un paso (5 lbs).
+      peso = dir > 0
+        ? (cerca.arriba > actual ? cerca.arriba : actual + cerca.paso)
+        : Math.max(barra, cerca.abajo < actual ? cerca.abajo : actual - cerca.paso);
+      pesoInput.value = String(peso);
+      render();
+    });
+    return b;
+  };
+  s.modal.appendChild(el('div', { class: 'g-plate-pick' }, [paso(-1), el('div', { class: 'g-plate-field' }, [pesoInput, el('span', {}, ['lbs'])]), paso(1)]));
 
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Peso de la barra (lbs)']));
-  const barInput = el('input', {
-    class: 'g-modal-input', type: 'number', inputmode: 'numeric', min: '0',
-    value: String(DEFAULT_BAR_LBS)
+  const dibujo = el('div', { class: 'g-barbell', role: 'img' });
+  s.modal.appendChild(dibujo);
+  const nota = el('div', { class: 'g-plate-note' });
+  s.modal.appendChild(nota);
+
+  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Barra']));
+  const chips = el('div', { class: 'g-chip-grid g-chip-grid-4' });
+  BARRAS.forEach((b) => {
+    const chip = el('button', { class: 'g-chip g-chip-two', type: 'button', 'data-lbs': String(b.lbs) }, [
+      el('b', {}, [b.label]), el('span', {}, [b.nota])
+    ]);
+    chip.addEventListener('click', () => { barra = b.lbs; render(); });
+    chips.appendChild(chip);
   });
-  s.modal.appendChild(barInput);
-
-  const out = el('div', { style: 'margin-top:18px;' });
-  s.modal.appendChild(out);
+  s.modal.appendChild(chips);
 
   function render() {
-    clear(out);
-    const target = parseDecimal(pesoInput.value);
-    const bar = parseDecimal(barInput.value);
-    const r = plateBreakdown(target, isFinite(bar) ? bar : DEFAULT_BAR_LBS);
-
+    [...chips.children].forEach((c) => c.classList.toggle('active', Number(c.dataset.lbs) === barra));
+    clear(dibujo);
+    nota.className = 'g-plate-note';
+    const r = plateBreakdown(peso, barra);
     if (r.error) {
-      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [r.error]));
+      nota.textContent = isFinite(peso) ? r.error : 'Escribe el peso total que quieres levantar.';
+      dibujo.setAttribute('aria-label', 'Sin discos');
+      dibujo.appendChild(el('div', { class: 'g-barbell-bar' }));
       return;
     }
-    out.appendChild(el('div', { class: 'g-plate-total' }, [
-      String(r.totalLbs), el('span', {}, ['lbs en total'])
-    ]));
-
-    if (r.perSide.length === 0) {
-      out.appendChild(el('div', { class: 'g-plate-note' }, ['Solo la barra, sin discos.']));
-    } else {
-      const stack = el('div', { class: 'g-plate-stack' });
-      r.perSide.forEach((p) => {
-        stack.appendChild(el('div', { class: 'g-plate' }, [
-          p.cantidad > 1 ? p.cantidad + ' × ' + p.disco : String(p.disco)
-        ]));
-      });
-      out.appendChild(stack);
-      out.appendChild(el('div', { class: 'g-plate-note' }, [
-        'A cada lado: ' + r.perSide.map((p) => p.cantidad + '×' + p.disco).join(' + ') +
-        ' = ' + r.usedLbs + ' lbs.'
-      ]));
-    }
+    // Un lado de la barra: del centro hacia afuera, el disco más grande primero.
+    const lado = el('div', { class: 'g-barbell-side' });
+    r.perSide.forEach((p) => {
+      for (let i = 0; i < p.cantidad; i++) {
+        lado.appendChild(el('div', {
+          class: 'g-barbell-plate',
+          style: 'height:' + (ALTO_DISCO[p.disco] || 40) + '%;'
+        }, [el('span', {}, [String(p.disco)])]));
+      }
+    });
+    dibujo.appendChild(el('div', { class: 'g-barbell-bar' }));
+    dibujo.appendChild(lado);
+    const resumen = plateSummary(r);
+    dibujo.setAttribute('aria-label', resumen ? 'Por lado: ' + resumen : 'Solo la barra');
     if (!r.exacto && r.restoLbs > 0) {
-      out.appendChild(el('div', { class: 'g-plate-note g-plate-warn' }, [
-        'No se llega exacto: faltan ' + r.restoLbs + ' lbs por lado con los discos estándar.'
-      ]));
+      nota.className = 'g-plate-note g-plate-warn';
+      nota.textContent = 'No se llega exacto: con estos discos quedan ' + r.totalLbs + ' lbs. Usa − o + para ir al peso cargable.';
+    } else {
+      nota.textContent = resumen
+        ? 'Por lado: ' + resumen + (barra > 0 ? ' · barra de ' + barra : '')
+        : 'Solo la barra, sin discos.';
     }
   }
-
-  pesoInput.addEventListener('input', render);
-  barInput.addEventListener('input', render);
-  guard(prefGet('bar_lbs', DEFAULT_BAR_LBS), 'peso de barra').then((v) => {
-    barInput.value = String(v);
-    render();
-  });
+  pesoInput.addEventListener('input', () => { peso = parseDecimal(pesoInput.value); render(); });
 
   const cerrar = el('button', { class: 'g-btn-primary', type: 'button' }, ['Listo']);
   cerrar.addEventListener('click', () => {
-    const bar = parseInt(barInput.value, 10);
-    if (bar >= 0 && bar <= 200) prefSet('bar_lbs', bar);
-    s.close();
+    // Elegir la barra es lo que enciende "Por lado: …" en la tarjeta.
+    _barras = { ..._barras, [ej.id]: barra };
+    guard(prefSet('barras', _barras), 'guardando la barra').then(() => {
+      s.close();
+      if (onSaved) onSaved();
+    });
   });
   s.modal.appendChild(cerrar);
+  if (_barras[ej.id] != null) {
+    const quitar = el('button', { class: 'g-btn-secondary', type: 'button' }, ['No mostrar discos en este ejercicio']);
+    quitar.addEventListener('click', () => {
+      const resto = { ..._barras };
+      delete resto[ej.id];
+      _barras = resto;
+      guard(prefSet('barras', _barras), 'guardando la barra').then(() => { s.close(); if (onSaved) onSaved(); });
+    });
+    s.modal.appendChild(quitar);
+  }
   render();
   s.open();
 }
