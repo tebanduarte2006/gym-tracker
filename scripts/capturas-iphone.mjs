@@ -169,11 +169,29 @@ for (const tema of ['light', 'dark']) {
   // Abrir una tarjeta y registrar el primer set: propuestos y registrado juntos + descanso.
   await page.click('.g-ex-card .g-ex-head');
   await page.waitForTimeout(500);
-  const registrar = await page.$('.g-ex-card.open .g-set-mark');
-  if (registrar) await registrar.click();
-  await page.waitForTimeout(500);
+  // Registrar con "+" (repite el fantasma de la última sesión): aparece el set
+  // registrado y arranca la barra de descanso con −15 / +15.
+  await page.tap('.g-ex-card.open .g-confirm-set');
+  await page.waitForSelector('.g-rest-bar:not(.hidden)', { timeout: 5000 });
+  await page.tap('.g-rest-adj >> nth=1');
+  const reloj = await page.textContent('.g-rest-time');
+  if (!/^1:4\d$/.test(reloj.trim())) errores.push(`${tema}: +15 no sumó al descanso (dice "${reloj}")`);
   await page.evaluate(() => document.querySelector('.g-ex-card.open')?.scrollIntoView({ block: 'center' }));
   await capturar(page, tema, '05-tarjeta-abierta-descanso');
+
+  // Agregar ejercicio: el directorio completo se ve sin teclear, y tocar la
+  // TERCERA fila agrega la tercera (el fallo de 2026-11: se elegía la primera).
+  await page.evaluate(() => document.querySelector('.g-add-exercise')?.scrollIntoView({ block: 'center' }));
+  await page.tap('.g-add-exercise');
+  await page.waitForSelector('.g-modal-picker .g-suggest-row', { timeout: 5000 });
+  await capturar(page, tema, '05b-agregar-ejercicio');
+  await page.fill('.g-modal-picker .g-search', 'press');
+  await page.waitForTimeout(200);
+  const tercera = (await page.textContent('.g-modal-picker .g-suggest-row >> nth=2 >> b')).trim();
+  await page.tap('.g-modal-picker .g-suggest-row >> nth=2');
+  await page.waitForTimeout(700);
+  const abiertas = await page.$$eval('.g-ex-card .g-ex-name', (n) => n.map((x) => x.textContent.trim()));
+  if (!abiertas.includes(tercera)) errores.push(`${tema}: tocar "${tercera}" en el buscador no lo agregó a la sesión`);
 
   await page.click('#tab-btn-ejercicios');
   await page.waitForTimeout(700);

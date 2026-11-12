@@ -296,3 +296,49 @@ export function markRunningPRs(rows) {
   });
   return rows;
 }
+
+// ¿El set recién registrado es un récord? Se compara SOLO contra lo anterior del
+// mismo ejercicio (`previos`, sin el set nuevo). Sin historial no hay récord:
+// el primer set de un ejercicio no "supera" nada (igual que Hevy). Devuelve el
+// tipo más importante, o null:
+//   'peso' — más peso que nunca
+//   '1rm'  — mejor 1RM estimado (solo hasta 12 reps: por encima Epley no sirve)
+//   'reps' — más reps que nunca con ese mismo peso
+export function prKind(nuevo, previos) {
+  if (!isCountable(nuevo)) return null;
+  const done = (previos || []).filter(isCountable);
+  if (done.length === 0) return null;
+  const peso = Number(nuevo.peso), reps = Number(nuevo.reps);
+  if (!(peso > 0)) return null;   // peso corporal: sin peso no hay récord de peso
+  const maxPeso = Math.max(...done.map((s) => Number(s.peso)));
+  if (peso > maxPeso) return 'peso';
+  if (reps <= 12) {
+    const rm = (s) => Number(s.peso) * (1 + Number(s.reps) / 30);
+    const validos = done.filter((s) => Number(s.reps) <= 12);
+    if (validos.length > 0 && rm(nuevo) > Math.max(...validos.map(rm)) + 1e-9) return '1rm';
+  }
+  const mismos = done.filter((s) => Math.abs(Number(s.peso) - peso) < 0.01);
+  if (mismos.length > 0 && reps > Math.max(...mismos.map((s) => Number(s.reps)))) return 'reps';
+  return null;
+}
+
+// Semanas seguidas (lunes a domingo) con al menos una sesión finalizada,
+// contando hacia atrás desde la semana de `ahora`. La semana en curso no rompe
+// la racha si todavía no has entrenado: aún puedes hacerlo.
+export function weekStreak(sesiones, ahora) {
+  const lunes = (ts) => {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.getTime();
+  };
+  const semanas = new Set((sesiones || [])
+    .filter((s) => s && s.finalizada === true)
+    .map((s) => lunes(sessionTs(s))));
+  const paso = (ts) => { const d = new Date(ts); d.setDate(d.getDate() - 7); return d.getTime(); };
+  let cursor = lunes(ahora == null ? Date.now() : ahora);
+  if (!semanas.has(cursor)) cursor = paso(cursor);
+  let n = 0;
+  while (semanas.has(cursor)) { n++; cursor = paso(cursor); }
+  return n;
+}

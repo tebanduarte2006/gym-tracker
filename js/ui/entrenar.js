@@ -14,17 +14,17 @@ import {
 } from '../db.js';
 import {
   fmtWeight, fmtDateShort, fmtDateLong, fmtDuration, fmtInt, kgToLbs,
-  inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal, dayKey
+  inputToKg, parseDecimal, normalizeKey, tsToDatetimeLocal, dayKey, fmtClock
 } from '../format.js';
 import {
   STATUS, visibleSets, isAutofillLeftover, volumeKg, sessionTs, suggestNextSet, autofillPlan,
-  sessionName, weekSummary
+  sessionName, weekSummary, prKind, weekStreak
 } from '../stats.js';
 import { plateBreakdown, DEFAULT_BAR_LBS } from '../plates.js';
-import { startRest, stopRest, restActive, restState, bindRestUI } from '../resttimer.js';
+import { startRest, stopRest, adjustRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON, backButton } from './icons.js';
-import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
+import { sheet, confirmAction, confirmRow, attachSuggest, once, hideKeyboardOnDrag } from './modals.js';
 import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
 import { enableDragOrder } from './dragorder.js';
 import { renderMobility, mobilityProgress } from './movilidad.js';
@@ -83,6 +83,7 @@ function buildWeekCard(sesiones, sets, movilidad) {
   const r = weekSummary(sesiones, sets);
   const conMovilidad = new Set(movilidad || []);
   const volLbs = Math.round(kgToLbs(r.volumenKg) || 0);
+  const racha = weekStreak(sesiones);
 
   const cifra = (valor, unidad) => el('div', { class: 'g-week-stat' }, [
     el('div', { class: 'g-week-num' }, [valor]),
@@ -100,7 +101,7 @@ function buildWeekCard(sesiones, sets, movilidad) {
 
   return el('div', { class: 'g-week-card' }, [
     el('div', { class: 'g-week-head' }, [
-      el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS']),
+      el('div', { class: 'g-week-label' }, ['ÚLTIMOS 7 DÍAS' + (racha >= 2 ? ' · ' + racha + ' SEMANAS SEGUIDAS' : '')]),
       el('div', { class: 'g-week-legend' }, [el('span', { class: 'g-week-mob on', 'aria-hidden': 'true' }), 'movilidad'])
     ]),
     el('div', { class: 'g-week-stats' }, [
@@ -150,7 +151,7 @@ function renderStartScreen(panel, sesiones) {
     ]));
   }
 
-  const startBtn = el('button', { class: 'g-start-cta', type: 'button' }, ['▶ Iniciar sesión']);
+  const startBtn = el('button', { class: 'g-start-cta', type: 'button' }, [ICON.play({ size: 15 }), 'Iniciar sesión']);
   startBtn.addEventListener('click', () => showStartModal(panel));
   wrap.appendChild(startBtn);
   // Secundario a propósito: la acción principal de esta pantalla es entrenar
@@ -293,7 +294,7 @@ function renderSessionDetail(panel, sesionId, fromAll) {
       openEditDurationModal(sesion, () => renderSessionDetail(panel, sesionId, fromAll));
     });
     actions.appendChild(editBtn);
-    const delBtn = el('button', { class: 'g-btn-secondary g-danger', type: 'button' }, ['🗑️ Eliminar sesión']);
+    const delBtn = el('button', { class: 'g-btn-secondary g-danger', type: 'button' }, ['Eliminar sesión']);
     delBtn.addEventListener('click', () => {
       confirmAction('¿Eliminar sesión?',
         'Se eliminarán la sesión "' + sessionName(sesion) + '", sus ' + visible.length +
@@ -641,33 +642,54 @@ export function suspendEntrenar() {
 // ─── Rest bar UI ──────────────────────────────────────────────────────────────
 function setupRestBar(bar) {
   clear(bar);
-  const icon = ICON.clock({ size: 16, color: 'var(--color-text-secondary)' });
   const label = el('div', { class: 'g-rest-label' }, ['Descanso']);
-  const time = el('div', { class: 'g-rest-time' }, ['']);
+  const time = el('div', { class: 'g-rest-time', role: 'timer' }, ['']);
   const prog = el('div', { class: 'g-rest-progress' });
   const fill = el('div', { class: 'g-rest-progress-fill' });
   prog.appendChild(fill);
+  // −15 / +15 como en Hevy: el descanso real rara vez es exactamente el
+  // configurado, y cambiarlo en Ajustes en mitad de una serie no es opción.
+  const ajuste = (delta) => {
+    const b = el('button', {
+      class: 'g-rest-adj', type: 'button',
+      'aria-label': (delta > 0 ? 'Sumar ' : 'Quitar ') + Math.abs(delta) + ' segundos'
+    }, [(delta > 0 ? '+' : '−') + Math.abs(delta)]);
+    b.addEventListener('click', () => adjustRest(delta));
+    return b;
+  };
   const skip = el('button', { class: 'g-rest-skip', type: 'button' }, ['Saltar']);
   skip.addEventListener('click', () => { stopRest(); bar.classList.add('hidden'); });
-  bar.appendChild(icon); bar.appendChild(label); bar.appendChild(time);
-  bar.appendChild(prog); bar.appendChild(skip);
+  bar.appendChild(el('div', { class: 'g-rest-main' }, [label, time, ajuste(-15), ajuste(15), skip]));
+  bar.appendChild(prog);
 
-  bindRestUI(
-    (remaining, total) => {
-      bar.classList.remove('hidden');
-      time.textContent = remaining + 's';
-      fill.style.width = (total > 0 ? (remaining / total) * 100 : 0) + '%';
-    },
-    () => {
-      bar.classList.add('hidden');
-      toast('Descanso terminado 💪');
-    }
-  );
+  const pintar = (remaining, total) => {
+    if (remaining <= 0) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    time.textContent = fmtClock(remaining);
+    fill.style.width = (total > 0 ? Math.min(100, (remaining / total) * 100) : 0) + '%';
+  };
+  bindRestUI(pintar, () => {
+    bar.classList.add('hidden');
+    toast('Descanso terminado');
+  });
   if (restActive()) {
     const st = restState();
-    bar.classList.remove('hidden');
-    time.textContent = st.remaining + 's';
+    pintar(st.remaining, st.total);
   }
+}
+
+// Lo que muestra la pantalla bloqueada durante el descanso (audio.js › ficha).
+function restFicha(ej, detalle) {
+  return { titulo: 'Descanso · ' + ej.nombre, detalle: detalle || '' };
+}
+
+// Aviso de récord al registrar (como el "Live PR" de Hevy). `previos` son los
+// sets del ejercicio SIN el recién registrado.
+const PR_TEXTO = { peso: 'más peso que nunca', '1rm': 'mejor 1RM estimado', reps: 'más reps con ese peso' };
+function avisarPR(set, previos) {
+  const tipo = prKind(set, previos);
+  if (!tipo) return;
+  toast('Récord · ' + fmtWeight(set.peso) + ' lbs × ' + set.reps + ' · ' + PR_TEXTO[tipo]);
 }
 
 function resolveRest(ej) {
@@ -831,12 +853,13 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
 
   // Tools: descanso · subir · bajar · quitar
   const tools = el('div', { class: 'g-ex-tools' });
-  const restBtn = el('button', { class: 'g-tool-btn', type: 'button' }, ['⏱ ' + resolveRest(ej) + 's']);
+  const restTxt = el('span', {}, [fmtClock(resolveRest(ej))]);
+  const restBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Descanso de este ejercicio' }, [ICON.clock({ size: 16 }), restTxt]);
   restBtn.addEventListener('click', () => openRestConfigModal(ej, () => {
-    restBtn.textContent = '⏱ ' + resolveRest(ej) + 's';
+    restTxt.textContent = fmtClock(resolveRest(ej));
   }));
   tools.appendChild(restBtn);
-  const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, ['🏋 Discos']);
+  const platesBtn = el('button', { class: 'g-tool-btn', type: 'button', title: 'Discos por lado' }, [ICON.dumbbell({ size: 16 }), 'Discos']);
   platesBtn.addEventListener('click', () => openPlateModal(addRow.currentLbs()));
   tools.appendChild(platesBtn);
   // Los ↑ / ↓ que vivían aquí los sustituye el arrastre por pulsación larga
@@ -849,7 +872,7 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
     });
   });
   tools.appendChild(musclesBtn);
-  const delEx = el('button', { class: 'g-tool-btn', type: 'button', title: 'Quitar ejercicio' }, ['🗑']);
+  const delEx = el('button', { class: 'g-tool-btn g-tool-icon', type: 'button', title: 'Quitar ejercicio', 'aria-label': 'Quitar ejercicio' }, [ICON.trash({ size: 17 })]);
   delEx.addEventListener('click', () => {
     confirmAction('Quitar ejercicio', '¿Quitar "' + ej.nombre + '" y sus sets de esta sesión?', () => {
       guard(dbGetAllBy('sets', 'sesion_id', sesion.id), 'quitando ejercicio').then((all) => {
@@ -1078,8 +1101,11 @@ function buildSetRow(sesion, ej, set, num, onChange) {
   }, [ICON.check({ size: 17 })]);
   mark.addEventListener('click', () => {
     set.status = registrado ? STATUS.PENDING : STATUS.DONE;
-    guard(dbPut('sets', set), 'actualizando set').then(() => {
-      if (!registrado) startRest(resolveRest(ej)); // registrar arranca el descanso
+    guard(Promise.all([dbPut('sets', set), dbGetAllBy('sets', 'ejercicio_id', ej.id)]), 'actualizando set').then(([, todos]) => {
+      if (!registrado) {
+        startRest(resolveRest(ej), restFicha(ej, 'Hecho: set ' + num + ' · ' + fmtWeight(set.peso) + ' lbs × ' + set.reps)); // registrar arranca el descanso
+        avisarPR(set, todos.filter((x) => x.id !== set.id));
+      }
       onChange();
     });
   });
@@ -1165,7 +1191,14 @@ function buildAddSetRow(sesion, ej, onAdded) {
     // Se incrementa YA, no cuando vuelva updateSets(): dos toques rápidos
     // creaban dos sets con el mismo `orden` y quedaban en orden aleatorio.
     const orden = nextOrden++;
-    return guard(dbPut('sets', {
+    const nuevo = { peso: pesoKg, reps, status: STATUS.DONE };
+    // Lo que sigue, para la pantalla bloqueada: el set que el fantasma va a
+    // proponer después de este.
+    const sigue = suggestNextSet(prevSets, yaHechos + 1);
+    const ficha = restFicha(ej, sigue
+      ? 'Sigue: set ' + (yaHechos + 2) + ' · ' + fmtWeight(sigue.peso) + ' lbs × ' + sigue.reps
+      : 'Hecho: ' + fmtWeight(pesoKg) + ' lbs × ' + reps);
+    return guard(dbGetAllBy('sets', 'ejercicio_id', ej.id).then((previos) => dbPut('sets', {
       sesion_id: sesion.id, ejercicio_id: ej.id,
       peso: pesoKg, reps, orden,
       // Si repitió el fantasma sin teclear, la unidad que tecleó fue la de aquel
@@ -1173,12 +1206,13 @@ function buildAddSetRow(sesion, ej, onAdded) {
       status: STATUS.DONE,
       unidad: rawPeso ? unit : ((sug && prevSets[Math.min(yaHechos, prevSets.length - 1)].unidad) || unit),
       ts: Date.now()
-    }), 'guardando set').then(() => {
+    }).then(() => previos)), 'guardando set').then((previos) => {
       pesoInput.value = '';
       repsInput.value = '';
       pesoInput.focus();
       onAdded();
-      startRest(resolveRest(ej));
+      startRest(resolveRest(ej), ficha);
+      avisarPR(nuevo, previos);
     });
   });
   row.appendChild(pesoInput);
@@ -1307,14 +1341,18 @@ function openPlateModal(initialLbs) {
 
 // ─── Agregar ejercicio a la sesión ────────────────────────────────────────────
 function showAddExerciseModal(sesion, listEl) {
-  const s = sheet('Agregar ejercicio');
+  const s = sheet('Agregar ejercicio', { picker: true });
   const searchWrap = el('div', { class: 'g-search-wrap' });
   searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
-  const search = el('input', { class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…', autocomplete: 'off' });
+  const search = el('input', {
+    class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…',
+    autocomplete: 'off', autocorrect: 'off', enterkeyhint: 'search'
+  });
   searchWrap.appendChild(search);
   s.modal.appendChild(searchWrap);
   const sugg = el('div', { class: 'g-suggest' });
   s.modal.appendChild(sugg);
+  hideKeyboardOnDrag(sugg, search);
   const newBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['+ Crear ejercicio nuevo']);
   newBtn.addEventListener('click', () => {
     s.close();
@@ -1323,40 +1361,52 @@ function showAddExerciseModal(sesion, listEl) {
   s.modal.appendChild(newBtn);
 
   guard(dbGetAll('ejercicios'), 'cargando directorio').then((all) => {
+    const byName = (a, b) => a.nombre.localeCompare(b.nombre);
+    const row = (e) => {
+      const item = el('button', { class: 'g-suggest-row', type: 'button' }, [
+        el('b', {}, [e.nombre]),
+        el('div', { class: 'g-suggest-meta' }, [(e.tipo || '—') + ' · ' + ((e.musculos || []).join(' · ') || 'sin músculo')])
+      ]);
+      item.addEventListener('click', () => {
+        s.close();
+        attachExercise(sesion, e, listEl);
+      });
+      return item;
+    };
+    // Sin texto se ve el directorio entero (primero los de la rutina de hoy):
+    // antes decía "Escribe para buscar" y obligaba a abrir el teclado para
+    // encontrar un ejercicio que se podía elegir de un toque.
     function render(term) {
       clear(sugg);
-      const t = (term || '').trim();
-      if (!t) {
-        sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Escribe para buscar.']));
+      sugg.scrollTop = 0;
+      const tKey = normalizeKey((term || '').trim());
+      if (!tKey) {
+        const deHoy = all.filter((e) => sesion.routine_type && e.tipo === sesion.routine_type).sort(byName);
+        const resto = all.filter((e) => deHoy.indexOf(e) < 0).sort(byName);
+        if (deHoy.length) {
+          sugg.appendChild(el('div', { class: 'g-suggest-section' }, [sesion.routine_type]));
+          deHoy.forEach((e) => sugg.appendChild(row(e)));
+          if (resto.length) sugg.appendChild(el('div', { class: 'g-suggest-section' }, ['Otros']));
+        }
+        resto.forEach((e) => sugg.appendChild(row(e)));
+        if (!all.length) sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Aún no hay ejercicios. Crea el primero.']));
         return;
       }
-      const tKey = normalizeKey(t);
+      // Primero los que EMPIEZAN por lo escrito, luego los que lo contienen.
       const filtered = all
         .filter((e) => normalizeKey(e.nombre).indexOf(tKey) >= 0)
-        .sort((a, b) => a.nombre.localeCompare(b.nombre))
-        .slice(0, 8);
+        .sort((a, b) => (normalizeKey(a.nombre).indexOf(tKey) === 0 ? 0 : 1) - (normalizeKey(b.nombre).indexOf(tKey) === 0 ? 0 : 1) || byName(a, b));
       if (filtered.length === 0) {
         sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Sin coincidencias. Usa "Crear ejercicio nuevo".']));
         return;
       }
-      filtered.forEach((e) => {
-        const item = el('button', { class: 'g-suggest-row', type: 'button' }, [
-          el('div', { style: 'font-weight:600;color:var(--color-text);' }, [e.nombre]),
-          el('div', { class: 'g-suggest-meta' }, [(e.tipo || '—') + ' · ' + ((e.musculos || []).join(' · ') || 'sin músculo')])
-        ]);
-        item.addEventListener('click', () => {
-          s.close();
-          attachExercise(sesion, e, listEl);
-        });
-        sugg.appendChild(item);
-      });
+      filtered.forEach((e) => sugg.appendChild(row(e)));
     }
     render('');
     search.addEventListener('input', () => render(search.value));
   });
 
   s.open();
-  setTimeout(() => search.focus(), 80);
 }
 
 function attachExercise(sesion, ej, listEl) {

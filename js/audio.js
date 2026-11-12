@@ -242,8 +242,44 @@ export function backgroundAlarmEnabled() {
   return _fondo;
 }
 
+// ─── Ficha en la pantalla bloqueada (Media Session) ───────────────────────────
+// Una PWA no puede tener widgets ni Live Activities en iOS (no existe API web;
+// docs/proyecto/decisiones.md, 2026-11-12). Lo más parecido que SÍ existe: el
+// clip de la alarma ya ocupa el "Now Playing" del sistema durante el descanso,
+// así que basta ponerle título para que la pantalla bloqueada muestre qué
+// ejercicio va y qué set sigue. La barra de progreso de esa ficha es el cabezal
+// del propio clip, que dura exactamente el descanso: la cuenta regresiva sale
+// gratis y la pinta iOS, aunque el JS esté congelado.
+// Solo existe con la alarma de fondo encendida (sin clip no hay ficha).
+let _ficha = null;         // { titulo, detalle } del descanso en curso
+
+function pintarFicha() {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try {
+    if (!_ficha || typeof MediaMetadata === 'undefined') {
+      navigator.mediaSession.metadata = null;
+      return;
+    }
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: _ficha.titulo,
+      artist: _ficha.detalle || '',
+      album: 'Gym Tracker',
+      artwork: [
+        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+      ]
+    });
+    // Pausar o adelantar desde la pantalla bloqueada dejaría el descanso sin
+    // alarma: los botones se anulan en vez de dejar que rompan el conteo.
+    ['pause', 'play', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack'].forEach((accion) => {
+      try { navigator.mediaSession.setActionHandler(accion, () => {}); } catch { /* acción no soportada */ }
+    });
+  } catch { /* la ficha es un extra: nunca debe tumbar la alarma */ }
+}
+
 // Arma la alarma para dentro de `segundos`. Devuelve true si quedó armada.
-export function scheduleAlarm(segundos) {
+// `ficha` opcional: { titulo, detalle } para la pantalla bloqueada.
+export function scheduleAlarm(segundos, ficha) {
   cancelAlarm();
   if (!_fondo) return false;
   const a = getEl();
@@ -253,6 +289,7 @@ export function scheduleAlarm(segundos) {
 
   _url = URL.createObjectURL(new Blob([data], { type: 'audio/wav' }));
   _tono = Number(segundos);
+  _ficha = ficha || null;
   a.src = _url;
   const pedido = Date.now();
   let p;
@@ -260,6 +297,7 @@ export function scheduleAlarm(segundos) {
   if (p && typeof p.then === 'function') {
     p.then(() => {
       _armada = true;
+      pintarFicha();
       // Cargar el clip y arrancar cuesta unos milisegundos, y ese retraso se
       // acumularía entero al final: la alarma sonaría tarde. Se adelanta el
       // cabezal lo que se tardó en empezar.
@@ -270,6 +308,7 @@ export function scheduleAlarm(segundos) {
     }).catch(() => { _armada = false; });
   } else {
     _armada = true;
+    pintarFicha();
   }
   return true;
 }
@@ -282,6 +321,8 @@ export function cancelAlarm() {
   if (_url) { URL.revokeObjectURL(_url); _url = null; }
   _armada = false;
   _tono = 0;
+  _ficha = null;
+  pintarFicha();
 }
 
 // ¿El clip de fondo NO llegó a sonar? El rest timer lo consulta al vencer para

@@ -374,12 +374,12 @@ body.g-modal-open {
   top: max(env(safe-area-inset-top), 6px);
   z-index: 50;
   margin: 0 0 12px;
-  padding: 11px 14px;
-  display: flex; align-items: center; gap: 11px;
+  padding: 4px 8px 10px 16px;
   border-radius: var(--r-md);
   background: var(--color-surface);
   box-shadow: 0 0 0 1px var(--color-separator), 0 6px 20px var(--color-shadow);
 }
+.g-rest-main { display: flex; align-items: center; gap: 2px; }
 /* Aparece justo después de registrar un set, así que aparecía de golpe en medio
    de la pantalla. Entra desde arriba, que es de donde cuelga. */
 .g-rest-bar:not(.hidden) { animation: rest-in .24s var(--ease); }
@@ -387,24 +387,28 @@ body.g-modal-open {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: none; }
 }
-.g-rest-label { font-size: calc(13rem / 17); font-weight: 600; color: var(--color-text); }
+.g-rest-label { font-size: calc(13rem / 17); font-weight: 600; color: var(--color-text-secondary); }
 .g-rest-time {
   font-family: var(--font-rounded);
-  font-size: calc(17rem / 17); font-weight: 700;
+  font-size: calc(22rem / 17); font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   color: var(--color-text);
-  min-width: 38px;
-  text-align: right;
+  margin: 0 auto 0 10px;
 }
-.g-rest-progress { flex: 1; height: 4px; background: var(--color-inset); border-radius: 4px; overflow: hidden; }
+.g-rest-progress { height: 4px; margin-right: 8px; background: var(--color-inset); border-radius: 4px; overflow: hidden; }
 .g-rest-progress-fill { height: 100%; border-radius: 4px; background: var(--color-accent); transition: width .25s linear; }
-.g-rest-skip {
+.g-rest-adj, .g-rest-skip {
   background: transparent; border: none;
-  color: var(--color-text-secondary);
-  font-size: calc(13rem / 17); font-weight: 600;
-  padding: 12px 6px; margin: -12px -2px;   /* 44px táctiles sin engordar el dibujo */
+  min-width: 44px; min-height: 44px;
+  padding: 0 8px;
+  font-size: calc(14rem / 17); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  border-radius: var(--r-xs);
 }
+.g-rest-skip { color: var(--color-text-secondary); }
+.g-rest-adj:active { background: var(--color-fill-strong); }
 
 /* ─── Lista de ejercicios + reordenar arrastrando ───────────────────────────
    El gap va en el contenedor y NO como margin de la card: dragorder.js lo lee
@@ -574,6 +578,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   min-height: 44px;
   transition: background var(--fast);
 }
+.g-tool-btn { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.g-tool-btn svg { flex-shrink: 0; }
+.g-tool-icon { min-width: 44px; justify-content: center; padding: 8px; }
 .g-tool-btn:active { background: var(--color-fill-strong); }
 
 /* Última sesión */
@@ -802,6 +809,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   font-size: calc(17rem / 17); font-weight: 700;
   letter-spacing: -0.015em;
   margin-top: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   box-shadow: 0 2px 8px var(--color-shadow);
   transition: transform var(--fast) var(--ease), opacity var(--fast);
 }
@@ -950,6 +958,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-lg);
   box-shadow: 0 0 0 1px var(--color-separator), 0 2px 8px var(--color-shadow);
 }
+.g-pr-card-label { display: flex; align-items: center; gap: 6px; }
 .g-prog-hero { margin: 4px 0 16px; }
 .g-pr-card { margin: 0 16px 18px; }
 .g-prog-hero-label, .g-pr-card-label {
@@ -1064,7 +1073,29 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-chart-line { stroke: var(--color-accent); }
 /* El relleno es el mismo acento a 16 %: un solo color que cambiar. */
 .g-chart-area { fill: var(--color-accent); fill-opacity: .16; }
-.g-chart-dot { fill: var(--color-accent); }
+.g-chart-frame { position: relative; }
+.g-chart-dots { position: absolute; inset: 0; pointer-events: none; }
+.g-chart-dot {
+  position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%; background: var(--color-accent);
+}
+.g-chart-dot.ultimo {
+  width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px;
+  box-shadow: 0 0 0 3px var(--color-surface);
+}
+.g-chart-range { text-align: center; font-size: calc(12rem / 17); color: var(--color-text-secondary); margin-top: 4px; }
+/* Control segmentado (gráfica de Progresión). */
+.g-seg {
+  display: flex; gap: 2px; padding: 2px; margin-bottom: 14px;
+  background: var(--color-inset); border-radius: var(--r-sm);
+}
+.g-seg button {
+  flex: 1; min-height: 44px; border: none; background: transparent;
+  border-radius: calc(var(--r-sm) - 2px);
+  font-family: inherit; font-size: calc(14rem / 17); font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.g-seg button.active { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px var(--color-shadow); }
 .g-chart-grid { stroke: var(--color-separator); }
 .g-chart-axis {
   display: flex; justify-content: space-between;
@@ -1120,7 +1151,12 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 
 /* ─── Modales (bottom sheet) ────────────────────────────────────────────────*/
 .g-modal-overlay {
-  position: fixed; inset: 0;
+  /* Alto y tope de lo que SE VE (modals.js › syncViewport): con el teclado
+     abierto el overlay termina donde empieza el teclado. Sin teclado, o sin
+     visualViewport, es la pantalla entera. */
+  position: fixed; left: 0; right: 0;
+  top: var(--vv-top, 0px);
+  height: var(--vv-h, 100%);
   background: var(--color-overlay);
   display: flex; align-items: flex-end;
   z-index: 100;
@@ -1136,8 +1172,9 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding: 8px 20px max(env(safe-area-inset-bottom), 28px);
   max-height: 90vh;
-  max-height: 90dvh;
+  max-height: calc(var(--vv-h, 100dvh) * 0.92);
   overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 -6px 30px var(--color-shadow);
   animation: modal-in var(--base) var(--ease);
 }
@@ -1152,6 +1189,25 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-modal-overlay.g-modal-closing .g-modal { animation: modal-out .2s var(--ease-in) forwards; }
 @keyframes overlay-out { to { opacity: 0; } }
 @keyframes modal-out { to { transform: translateY(100%); } }
+/* Sheet con buscador: alto fijo y la lista se queda con el espacio libre. */
+.g-modal-picker {
+  display: flex; flex-direction: column;
+  height: calc(var(--vv-h, 100dvh) * 0.92);
+  overflow: hidden;
+}
+.g-modal-picker > * { flex-shrink: 0; }
+.g-modal-picker > .g-suggest {
+  flex: 1 1 0; min-height: 0; max-height: none;
+  margin: 0 0 12px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.g-suggest-section {
+  padding: 12px 14px 4px;
+  font-size: calc(12rem / 17); font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.g-suggest-row b { font-weight: 600; color: var(--color-text); }
 .g-modal-handle { width: 38px; height: 5px; border-radius: 3px; background: var(--color-fill-strong); margin: 8px auto 16px; }
 .g-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .g-modal-title { font-size: calc(20rem / 17); font-weight: 700; letter-spacing: -0.025em; color: var(--color-text); }
@@ -1270,7 +1326,7 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
   color: var(--color-text);
   font-size: calc(15rem / 17);
   text-align: left;
-  display: flex; align-items: flex-start; gap: 8px; flex-direction: column;
+  display: flex; align-items: flex-start; gap: 2px; flex-direction: column;
   box-shadow: inset 0 -0.5px 0 var(--color-separator);
   font-family: inherit;
 }

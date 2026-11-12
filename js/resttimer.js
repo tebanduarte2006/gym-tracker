@@ -11,6 +11,7 @@ let _totalSec = 0;
 let _intervalId = null;
 let _onTick = null;   // (remainingSec, totalSec) => void
 let _onEnd = null;    // () => void
+let _ficha = null;    // { titulo, detalle } para la pantalla bloqueada (audio.js)
 
 function tick() {
   if (_endTs == null) return;
@@ -27,11 +28,12 @@ function tick() {
   }
 }
 
-export function startRest(seconds) {
+export function startRest(seconds, ficha) {
   clearInterval(_intervalId);
   _totalSec = seconds;
+  _ficha = ficha || null;
   _endTs = Date.now() + seconds * 1000;
-  scheduleAlarm(seconds);
+  scheduleAlarm(seconds, _ficha);
   _intervalId = setInterval(tick, 250);
   tick();
 }
@@ -41,6 +43,20 @@ export function stopRest() {
   _intervalId = null;
   _endTs = null;
   cancelAlarm();
+}
+
+// Sumar o quitar segundos al descanso en curso (botones −15 / +15). El clip de
+// la alarma dura lo que duraba el descanso, así que hay que armarlo otra vez
+// con lo que queda. Se llama desde un toque, que es lo que iOS exige para
+// volver a reproducir.
+export function adjustRest(deltaSec) {
+  if (_endTs == null) return;
+  const quedan = Math.ceil((_endTs + deltaSec * 1000 - Date.now()) / 1000);
+  if (quedan <= 0) { stopRest(); if (_onTick) _onTick(0, _totalSec); return; }
+  _endTs += deltaSec * 1000;
+  _totalSec = Math.max(quedan, _totalSec + deltaSec);
+  scheduleAlarm(quedan, _ficha);
+  tick();
 }
 
 export function restActive() {

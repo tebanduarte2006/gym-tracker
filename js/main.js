@@ -304,7 +304,7 @@ function maybeOfferSeed(panels) {
             s.close();
             guard(dbBulkImport(norm).then(() => prefSet('seed_decidido', true)), 'restaurando historial')
               .then(() => {
-                toast('Historial restaurado 💪');
+                toast('Historial restaurado');
                 renderEntrenar(panels.entrenar);
                 // El chequeo del arranque corrió con la base vacía y no vio
                 // nada que migrar. Ahora que acaban de entrar 36 ejercicios con

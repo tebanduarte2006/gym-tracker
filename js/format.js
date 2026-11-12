@@ -106,3 +106,10 @@ export function dayKey(ts) {
   const pad = (n) => (n < 10 ? '0' + n : '' + n);
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
+
+// Segundos de descanso para leer de reojo: 90 → "1:30", 45 → "0:45".
+export function fmtClock(sec) {
+  const n = Math.max(0, Math.round(Number(sec) || 0));
+  const s = n % 60;
+  return Math.floor(n / 60) + ':' + (s < 10 ? '0' : '') + s;
+}
