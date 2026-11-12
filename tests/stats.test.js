@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   isCountable, isPlaceholder, visibleSets, isAutofillLeftover, weightPR, repsPR,
   epley1RM, volumeKg, sessionRows, markRunningPRs,
-  suggestNextSet, setsPerMuscle, autofillPlan, sessionName, weekSummary
+  suggestNextSet, setsPerMuscle, autofillPlan, sessionName, weekSummary, prKind, weekStreak
 } from '../js/stats.js';
 
 const done = (peso, reps, extra = {}) => ({ peso, reps, status: 'Done', ...extra });
@@ -371,4 +371,30 @@ test('weekSummary da la clave local de cada día (la usa la marca de movilidad)'
   const r = weekSummary([], [], ahora);
   assert.equal(r.dias[6].clave, '2026-10-15');
   assert.equal(r.dias[0].clave, '2026-10-09');
+});
+
+test('prKind: más peso, mejor 1RM, más reps con el mismo peso, o nada', () => {
+  const prev = [
+    { peso: 50, reps: 8, status: 'Done' },
+    { peso: 45, reps: 10, status: 'Done' },
+    { peso: 60, reps: 5, status: 'Pending' }
+  ];
+  assert.equal(prKind({ peso: 52, reps: 3, status: 'Done' }, prev), 'peso');
+  assert.equal(prKind({ peso: 50, reps: 9, status: 'Done' }, prev), '1rm');
+  assert.equal(prKind({ peso: 45, reps: 11, status: 'Done' }, prev), 'reps');
+  assert.equal(prKind({ peso: 50, reps: 8, status: 'Done' }, prev), null, 'igualar no es récord');
+  assert.equal(prKind({ peso: 50, reps: 9, status: 'Done' }, []), null, 'sin historial no hay récord');
+  assert.equal(prKind({ peso: 70, reps: 9, status: 'Pending' }, prev), null, 'sin registrar no cuenta');
+  assert.equal(prKind({ peso: 0, reps: 30, status: 'Done' }, [{ peso: 0, reps: 10, status: 'Done' }]), null);
+});
+
+test('weekStreak cuenta semanas seguidas y perdona la semana en curso', () => {
+  const dia = 24 * 60 * 60 * 1000;
+  const miercoles = new Date(2026, 10, 11, 12, 0, 0).getTime();
+  const ses = (ts) => ({ finalizada: true, timestamp_inicio: ts });
+  assert.equal(weekStreak([], miercoles), 0);
+  assert.equal(weekStreak([ses(miercoles - 7 * dia), ses(miercoles - 14 * dia)], miercoles), 2);
+  assert.equal(weekStreak([ses(miercoles - dia), ses(miercoles - 7 * dia)], miercoles), 2);
+  assert.equal(weekStreak([ses(miercoles - 21 * dia)], miercoles), 0, 'hueco de dos semanas');
+  assert.equal(weekStreak([{ finalizada: false, timestamp_inicio: miercoles }], miercoles), 0);
 });

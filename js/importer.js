@@ -28,7 +28,7 @@ export const EXPORT_VERSION = 3;
 // `movilidad_dias`: días en que hizo la rutina de movilidad (js/mobility.js).
 export const PREFS_IMPORTABLES = new Set([
   'rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs', 'musculos_migrados',
-  'alarma_fondo', 'movilidad_dias'
+  'alarma_fondo', 'movilidad_dias', 'barras'
 ]);
 
 function parseMuscles(raw) {

@@ -88,6 +88,12 @@ se reproduce, dura descanso + patrón, se cancela al saltar el descanso y el
 respaldo salta cuando se simula que el sistema para la reproducción. **El
 comportamiento real con la pantalla bloqueada solo lo confirma el iPhone.**
 
+## Barra de descanso, reloj de la tarjeta y pantalla bloqueada (2026-11-12)
+
+- **Barra**: reloj en `m:ss` (`fmtClock`), botones **−15** y **+15** (`resttimer.js › adjustRest`, que vuelve a armar el clip de la alarma con lo que queda: tiene que llamarse desde un toque) y **Saltar**.
+- **Reloj de la tarjeta** (`entrenar.js › openRestConfigModal`): fichas de 0:30 a 5:00; un toque guarda ese descanso en el ejercicio (`rest_sec`) y cierra. −15/+15 y **Guardar** para un valor intermedio. **Usar el descanso general** lo borra. Ya no existe "solo esta sesión".
+- **Ficha en la pantalla bloqueada** (`audio.js › pintarFicha`, Media Session): el clip de la alarma ya ocupa el *Now Playing* de iOS, así que se le pone título ("Descanso · ejercicio") y detalle ("Sigue: set 3 · 110 lbs × 9"). La barra de progreso la pinta iOS con el cabezal del clip, que dura el descanso. Los botones de pausa y salto se anulan para que no rompan la alarma. Solo existe con la alarma de fondo encendida. **Es lo más cerca que una PWA llega a un widget** (decisiones.md, 2026-11-12) y **solo el iPhone lo confirma**: los reportes de terceros dicen que iOS refresca esa ficha con retraso.
+
 ## Cómo probar
 - `npm test` → `tests/audio.test.js` (el WAV generado: duración, silencio exacto, pico).
 - En Chromium: el clip se arma, dura descanso + patrón, se cancela al saltar el descanso y el respaldo salta si se simula que el sistema paró la reproducción. **Con la pantalla bloqueada, solo el iPhone lo confirma** (pendiente en `docs/esteban/pruebas-iphone.md`).
@@ -96,4 +102,4 @@ comportamiento real con la pantalla bloqueada solo lo confirma el iPhone.**
 1, 2, 45, 46, 47, 48, 49, 50, 52.
 
 ## graphify
-`graphify explain "scheduleAlarm"` · `graphify explain "alarmWasLost"` · `graphify explain "startRest"`
+`graphify explain "adjustRest"` · `graphify explain "pintarFicha"` · `graphify explain "scheduleAlarm"` · `graphify explain "alarmWasLost"` · `graphify explain "startRest"`

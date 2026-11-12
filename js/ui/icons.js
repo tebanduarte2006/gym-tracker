@@ -43,6 +43,10 @@ export const ICON = {
     paths: ['M12 7.5V12l3 2'],
     extras: [(svg, mk) => svg.appendChild(mk('circle', { cx: '12', cy: '12', r: '8.5', fill: 'none', stroke: 'currentColor' }))]
   }),
+  trash: (o = {}) => makeIcon({ ...o, paths: ['M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.8 12.2h9.4L17.500 7M10 10.5v5.5M14 10.5v5.5'] }),
+  trophy: (o = {}) => makeIcon({ ...o, paths: ['M8 4.500h8v5a4 4 0 01-8 0v-5zM8 6H5v1.500a3 3 0 003 3M16 6h3v1.500a3 3 0 01-3 3M12 13.500v3.500M8.500 19.500h7M9.500 17h5'] }),
+  play: (o = {}) => makeIcon({ ...o, fill: 'currentColor', stroke: 0, paths: ['M8 5.5v13a.8.8 0 001.2.7l10.300-6.500a.8.8 0 000-1.400L9.2 4.800A.8.8 0 008 5.500z'] }),
+  flame: (o = {}) => makeIcon({ ...o, paths: ['M12 3.500c.500 3.500 4.500 5 4.500 9.500a4.500 4.500 0 01-9 0c0-1.800.800-3 1.800-4 .2 1.500 1 2.300 1.700 2.500C10.500 8.500 11 6 12 3.500z'] }),
   heart: (o = {}) => makeIcon({
     ...o,
     paths: ['M12 20s-7-4.5-9-9c-1.3-3 .8-6.5 4-6.5 2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.2 0 5.3 3.5 4 6.5-2 4.5-9 9-9 9z']

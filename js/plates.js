@@ -69,3 +69,24 @@ export function plateBreakdown(targetLbs, barLbs, plates) {
     error: null
   };
 }
+
+// "45 + 25 + 10" (dos discos iguales: "2×45"): el resumen de una línea que va
+// bajo el campo de peso de la tarjeta. '' si no hay discos o el peso no sirve.
+export function plateSummary(result) {
+  if (!result || result.error || result.perSide.length === 0) return '';
+  return result.perSide.map((p) => (p.cantidad > 1 ? p.cantidad + '×' : '') + p.disco).join(' + ');
+}
+
+// El peso cargable más cercano por debajo y por encima: con discos por pares
+// solo existen saltos de 2 × el disco más pequeño (5 lbs con el juego estándar).
+export function nearestLoadable(targetLbs, barLbs, plates) {
+  const juego = plates && plates.length ? plates : DEFAULT_PLATES_LBS;
+  const paso = Math.min(...juego) * 2;
+  const bar = Number(barLbs) || 0;
+  const sobre = Math.max(0, Number(targetLbs) - bar);
+  return {
+    abajo: Math.round((bar + Math.floor(sobre / paso + 1e-9) * paso) * 100) / 100,
+    arriba: Math.round((bar + Math.ceil(sobre / paso - 1e-9) * paso) * 100) / 100,
+    paso
+  };
+}

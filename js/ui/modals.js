@@ -12,6 +12,41 @@ let _scrollY = 0;
 // eso pasó la verificación). Lo único que funciona en iOS es sacar el body del
 // flujo con `position:fixed`, lo que a cambio salta el scroll al tope — así que
 // hay que guardar la posición y devolverla al cerrar.
+// ── El teclado del iPhone ──
+// Con el teclado abierto iOS NO encoge la página: lo pinta encima y, para dejar
+// a la vista el campo enfocado, desplaza la ventana visible. Un sheet anclado
+// abajo (`position:fixed; bottom:0`) quedaba con su lista DEBAJO del teclado
+// —había que cerrarlo para elegir un ejercicio— y, peor, con la ventana
+// desplazada el toque caía en una fila distinta de la que se veía (se elegía el
+// primero de la lista). `visualViewport` es la única medida real de lo que se
+// ve: el overlay se ajusta a ella (--vv-top, --vv-h en styles.css) y así el
+// sheet vive siempre ENCIMA del teclado.
+function syncViewport() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  if (!vv || _openCount === 0) {
+    root.style.removeProperty('--vv-h');
+    root.style.removeProperty('--vv-top');
+    return;
+  }
+  root.style.setProperty('--vv-h', Math.round(vv.height) + 'px');
+  root.style.setProperty('--vv-top', Math.round(vv.offsetTop) + 'px');
+}
+if (typeof window !== 'undefined' && window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncViewport);
+  window.visualViewport.addEventListener('scroll', syncViewport);
+}
+
+// Arrastrar la lista esconde el teclado, como en las listas con buscador de iOS
+// (`keyboardDismissMode = .onDrag`): deja ver la lista completa sin buscar la
+// tecla de cerrar. Un toque (sin arrastre) NO lo esconde, para que el toque
+// llegue a la fila y no se pierda en el reacomodo.
+export function hideKeyboardOnDrag(listEl, input) {
+  listEl.addEventListener('touchmove', () => {
+    if (document.activeElement === input) input.blur();
+  }, { passive: true });
+}
+
 function lockScroll() {
   _scrollY = window.scrollY || window.pageYOffset || 0;
   document.body.style.top = '-' + _scrollY + 'px';
@@ -40,6 +75,7 @@ function closeOverlay(overlay) {
   overlay._cerrando = true;
   _openCount = Math.max(0, _openCount - 1);
   if (_openCount === 0) unlockScroll();
+  syncViewport();
   if (sinMovimiento()) { overlay.remove(); return; }
   overlay.classList.add('g-modal-closing');
   setTimeout(() => { if (overlay.isConnected) overlay.remove(); }, CIERRE_MS);
@@ -56,13 +92,17 @@ export function openOverlay(modalEl) {
   // fijado devolvería 0 y al cerrar todo saltaría al tope de la pantalla.
   if (_openCount === 0) lockScroll();
   _openCount++;
+  syncViewport();
   return overlay;
 }
 
 // Crea el sheet estándar: handle + título + botón cerrar.
 // Devuelve { modal, open(), close(), lock(btn, fn) }.
-export function sheet(title) {
-  const modal = el('div', { class: 'g-modal' });
+// `opts.picker`: sheet de alto fijo cuya lista (.g-suggest) ocupa lo que sobra y
+// hace scroll por dentro; para buscadores, donde el sheet no debe saltar de
+// tamaño con cada letra.
+export function sheet(title, opts = {}) {
+  const modal = el('div', { class: opts.picker ? 'g-modal g-modal-picker' : 'g-modal' });
   modal.appendChild(el('div', { class: 'g-modal-handle' }));
   const closeBtn = el('button', { class: 'g-modal-close', type: 'button' }, ['✕']);
   modal.appendChild(el('div', { class: 'g-modal-head' }, [

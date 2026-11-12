@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { plateBreakdown, DEFAULT_BAR_LBS, DEFAULT_PLATES_LBS } from '../js/plates.js';
+import { plateBreakdown, plateSummary, nearestLoadable, DEFAULT_BAR_LBS, DEFAULT_PLATES_LBS } from '../js/plates.js';
 
 const suma = (r) => r.perSide.reduce((s, p) => s + p.disco * p.cantidad, 0);
 
@@ -88,4 +88,18 @@ test('plateBreakdown respeta un juego de discos limitado', () => {
 test('DEFAULT_PLATES_LBS va de mayor a menor', () => {
   const ordenado = DEFAULT_PLATES_LBS.slice().sort((a, b) => b - a);
   assert.deepEqual(DEFAULT_PLATES_LBS, ordenado);
+});
+
+test('plateSummary resume los discos de un lado en una línea', () => {
+  assert.equal(plateSummary(plateBreakdown(225, 45)), '2×45');
+  assert.equal(plateSummary(plateBreakdown(205, 45)), '45 + 35');
+  assert.equal(plateSummary(plateBreakdown(45, 45)), '');
+  assert.equal(plateSummary(plateBreakdown(20, 45)), '');
+  assert.equal(plateSummary(plateBreakdown(180, 0)), '2×45');
+});
+
+test('nearestLoadable da el peso cargable de abajo y de arriba', () => {
+  assert.deepEqual(nearestLoadable(188, 45), { abajo: 185, arriba: 190, paso: 5 });
+  assert.deepEqual(nearestLoadable(185, 45), { abajo: 185, arriba: 185, paso: 5 });
+  assert.deepEqual(nearestLoadable(30, 45), { abajo: 45, arriba: 45, paso: 5 });
 });

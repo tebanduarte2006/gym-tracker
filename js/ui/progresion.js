@@ -8,7 +8,7 @@ import { fmtWeight, fmtDateShort, fmtDateLong, fmtInt, kgToLbs } from '../format
 import {
   isCountable, weightPR, repsPR, epley1RM, sessionTs, sessionRows, markRunningPRs, setsPerMuscle
 } from '../stats.js';
-import { backButton } from './icons.js';
+import { ICON, backButton } from './icons.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -19,7 +19,7 @@ export function renderProgresion(panel) {
   wrap.appendChild(heroSlot);
   const muscleSlot = el('div', {});
   wrap.appendChild(muscleSlot);
-  wrap.appendChild(el('div', { class: 'g-section-label' }, ['EJERCICIOS · TAP PARA VER PROGRESIÓN']));
+  wrap.appendChild(el('div', { class: 'g-section-label' }, ['EJERCICIOS']));
   const listSlot = el('div', {});
   wrap.appendChild(listSlot);
   const noHistSlot = el('div', {});
@@ -127,7 +127,7 @@ export function renderProgresion(panel) {
           if (last.inclinacion != null) meta.push('incl. ' + last.inclinacion);
           card.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
             el('div', {}, [
-              el('div', { class: 'g-list-name' }, ['🏃 ' + tipo]),
+              el('div', { class: 'g-list-name' }, [tipo]),
               el('div', { class: 'g-list-sub' }, [
                 'Última: ' + last.duracion_min + ' min' + (meta.length ? ' · ' + meta.join(' · ') : '') +
                 ' · ' + fmtDateShort(sesMap[last.sesion_id].fecha)
@@ -267,7 +267,7 @@ function renderDetail(panel, ej) {
     const prSesion = sesMap[prW.sesion_id];
 
     const prCard = el('div', { class: 'g-pr-card' });
-    prCard.appendChild(el('div', { class: 'g-pr-card-label' }, ['🏆 PERSONAL RECORD']));
+    prCard.appendChild(el('div', { class: 'g-pr-card-label' }, [ICON.trophy({ size: 15 }), 'RÉCORD PERSONAL']));
     prCard.appendChild(el('div', { class: 'g-pr-card-value' }, [
       el('span', { class: 'g-pr-num' }, [String(prLbs)]),
       el('span', { class: 'g-pr-unit' }, ['lbs × ' + prW.reps])
@@ -285,7 +285,7 @@ function renderDetail(panel, ej) {
     const rows = markRunningPRs(sessionRows(sets, sesMap));
     const last10 = rows.slice(-10);
 
-    wrap.appendChild(buildChart(last10));
+    wrap.appendChild(buildChartCard(last10));
 
     wrap.appendChild(el('div', { class: 'g-section-label', style: 'padding-left:20px;' }, [
       'ÚLTIMAS ' + last10.length + (last10.length === 1 ? ' SESIÓN' : ' SESIONES')
@@ -296,19 +296,62 @@ function renderDetail(panel, ej) {
   });
 }
 
-function buildChart(rows) {
+// Qué puede dibujar la gráfica. El peso máximo solo no cuenta la historia:
+// subir de 8 a 11 reps con el mismo peso es progreso y la línea salía plana.
+// El 1RM estimado junta peso y reps en una cifra (Epley, solo sets de hasta 12
+// reps: por encima la fórmula deja de servir) y el volumen muestra el trabajo
+// total de la sesión.
+const METRICAS = [
+  { id: 'peso', label: 'Peso máx', titulo: 'PESO MÁX', valor: (r) => kgToLbs(r.maxPesoKg) || 0 },
+  {
+    id: '1rm', label: '1RM est.', titulo: '1RM ESTIMADO',
+    valor: (r) => r.sets.reduce((m, s) => {
+      const lbs = kgToLbs(s.peso) || 0;
+      return Number(s.reps) <= 12 ? Math.max(m, epley1RM(lbs, s.reps) || 0) : m;
+    }, 0)
+  },
+  { id: 'vol', label: 'Volumen', titulo: 'VOLUMEN', valor: (r) => Math.round(kgToLbs(r.volumenKg) || 0) }
+];
+let _metrica = 'peso';   // se recuerda al pasar de un ejercicio a otro
+
+function buildChartCard(rows) {
   const card = el('div', { class: 'g-chart-card' });
+  const seg = el('div', { class: 'g-seg', role: 'group', 'aria-label': 'Qué mostrar en la gráfica' });
+  const cuerpo = el('div', {});
+  const pintar = () => {
+    clear(cuerpo);
+    const m = METRICAS.find((x) => x.id === _metrica) || METRICAS[0];
+    [...seg.children].forEach((b) => {
+      const on = b.dataset.id === m.id;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    buildChart(cuerpo, rows, m);
+  };
+  METRICAS.forEach((m) => {
+    const b = el('button', { type: 'button', 'data-id': m.id }, [m.label]);
+    b.addEventListener('click', () => { _metrica = m.id; pintar(); });
+    seg.appendChild(b);
+  });
+  card.appendChild(seg);
+  card.appendChild(cuerpo);
+  pintar();
+  return card;
+}
+
+function buildChart(card, rows, metrica) {
   card.appendChild(el('div', { class: 'g-section-label', style: 'padding:0 0 10px;' }, [
-    'PESO MÁX · ÚLTIMAS ' + rows.length + (rows.length === 1 ? ' SESIÓN' : ' SESIONES')
+    metrica.titulo + ' · ÚLTIMAS ' + rows.length + (rows.length === 1 ? ' SESIÓN' : ' SESIONES')
   ]));
   if (rows.length === 0) {
     card.appendChild(el('div', { style: 'color:var(--color-text-secondary);font-size:calc(13rem / 17);padding:20px 0;text-align:center;' }, ['Sin datos.']));
-    return card;
+    return;
   }
   const W = 320, H = 120, padX = 14, padY = 14;
-  const pesos = rows.map((r) => kgToLbs(r.maxPesoKg) || 0);
+  const pesos = rows.map(metrica.valor);
   let minP = Math.min(...pesos);
   let maxP = Math.max(...pesos);
+  const minReal = minP, maxReal = maxP;
   if (minP === maxP) { minP = Math.max(0, minP - 1); maxP += 1; }
   const range = maxP - minP;
   const step = rows.length > 1 ? (W - 2 * padX) / (rows.length - 1) : 0;
@@ -316,6 +359,8 @@ function buildChart(rows) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', metrica.label + ' por sesión, de ' + fmtInt(minReal) + ' a ' + fmtInt(maxReal) + ' lbs');
   [0, 0.5, 1].forEach((t) => {
     const y = padY + (1 - t) * (H - 2 * padY);
     const line = document.createElementNS(SVG_NS, 'line');
@@ -326,10 +371,11 @@ function buildChart(rows) {
     svg.appendChild(line);
   });
   const pts = rows.map((r, i) => {
-    const p = kgToLbs(r.maxPesoKg) || 0;
+    const p = pesos[i];
     return {
       x: rows.length === 1 ? W / 2 : padX + i * step,
       y: padY + (1 - (range === 0 ? 0.5 : (p - minP) / range)) * (H - 2 * padY),
+      valor: p,
       row: r
     };
   });
@@ -346,24 +392,30 @@ function buildChart(rows) {
     ln.setAttribute('stroke-width', '2');
     ln.setAttribute('stroke-linecap', 'round');
     ln.setAttribute('stroke-linejoin', 'round');
+    ln.setAttribute('vector-effect', 'non-scaling-stroke');
     svg.appendChild(ln);
   }
-  pts.forEach((p) => {
-    const c = document.createElementNS(SVG_NS, 'circle');
-    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 3);
-    c.setAttribute('class', 'g-chart-dot');
-    const title = document.createElementNS(SVG_NS, 'title');
-    title.textContent = fmtDateShort(p.row.sesion ? p.row.sesion.fecha : null) + ': ' + (kgToLbs(p.row.maxPesoKg) || 0) + ' lbs';
-    c.appendChild(title);
-    svg.appendChild(c);
+  // Los puntos van en HTML encima del SVG, no dentro: el SVG se estira a lo
+  // ancho (`preserveAspectRatio: none`) y un <circle> estirado sale ovalado.
+  const capa = el('div', { class: 'g-chart-dots', 'aria-hidden': 'true' });
+  pts.forEach((p, i) => {
+    capa.appendChild(el('span', {
+      class: 'g-chart-dot' + (i === pts.length - 1 ? ' ultimo' : ''),
+      style: 'left:' + (p.x / W * 100).toFixed(2) + '%;top:' + (p.y / H * 100).toFixed(2) + '%;'
+    }));
   });
-  card.appendChild(svg);
+  const marco = el('div', { class: 'g-chart-frame' }, [svg, capa]);
+  card.appendChild(marco);
+  const primero = pesos[0], ultimo = pesos[pesos.length - 1];
+  const cambio = primero > 0 ? Math.round(((ultimo - primero) / primero) * 100) : 0;
   card.appendChild(el('div', { class: 'g-chart-axis' }, [
     el('span', {}, [fmtDateShort(rows[0].sesion ? rows[0].sesion.fecha : null)]),
-    el('span', { class: 'g-chart-axis-mid' }, ['min ' + Math.round(minP) + ' / máx ' + Math.round(maxP) + ' lbs']),
+    el('span', { class: 'g-chart-axis-mid' }, [
+      fmtInt(ultimo) + ' lbs' + (rows.length > 1 ? ' · ' + (cambio > 0 ? '+' : '') + cambio + ' %' : '')
+    ]),
     el('span', {}, [fmtDateShort(rows[rows.length - 1].sesion ? rows[rows.length - 1].sesion.fecha : null)])
   ]));
-  return card;
+  card.appendChild(el('div', { class: 'g-chart-range' }, ['mín ' + fmtInt(minReal) + ' · máx ' + fmtInt(maxReal) + ' lbs']));
 }
 
 function buildSessionDetails(row) {
@@ -393,7 +445,7 @@ function buildSessionDetails(row) {
         el('b', {}, [fmtWeight(s.peso)]), ' lbs × ', el('b', {}, [String(s.reps)])
       ])
     ]);
-    if (s._isPR) srow.appendChild(el('span', { class: 'g-pr-badge' }, ['🏆 PR']));
+    if (s._isPR) srow.appendChild(el('span', { class: 'g-pr-badge' }, ['PR']));
     body.appendChild(srow);
   });
   details.appendChild(body);

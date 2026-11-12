@@ -10,6 +10,9 @@ Pulsación larga + arrastre para reordenar los ejercicios de la sesión activa, 
 | `js/ui/entrenar.js` | `refreshExercises` (activa el arrastre), sello de tiempo del último arrastre que la cabecera consulta |
 | `styles.css` | `.g-reordenando`, `data-drag-handle`, `touch-action`, `-webkit-touch-callout` |
 
+## Teclado (2026-11-12)
+iOS pinta el teclado encima de la página y desplaza la ventana visible. `js/ui/modals.js › syncViewport` copia `visualViewport.height` y `offsetTop` a `--vv-h` y `--vv-top`, y `.g-modal-overlay` se ajusta a ellas: todo sheet termina donde empieza el teclado. **No vuelvas a poner `inset: 0` en el overlay.** Ninguna captura lo prueba (Chromium no tiene teclado en pantalla): va a `docs/esteban/pruebas-iphone.md`.
+
 ## Reordenar arrastrando (`js/ui/dragorder.js`)
 
 Sustituye los botones ↑ / ↓, que dejaban la fila de herramientas con cinco

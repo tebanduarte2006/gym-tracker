@@ -63,6 +63,8 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 | Crear DOM | `el()` de `js/dom.js`. **Nunca `innerHTML`** (no tiene puerta trasera de HTML, a propósito) | — |
 | Promesa de IndexedDB que alimenta la interfaz | Pasa por `guard()` de `js/dom.js`: error visible en un aviso, nunca pantalla en blanco | — |
 | Aviso corto | `toast(mensaje, acción opcional)`. Nada de `alert` | Deshacer al borrar un set |
+| Hoja con buscador y lista larga | `sheet(título, { picker: true })` + `.g-suggest` + `hideKeyboardOnDrag(lista, campo)` | `showAddExerciseModal` |
+| Elegir un valor de pocos posibles (tiempo, barra) | Fichas `.g-chip` dentro de `.g-chip-grid`; para afinar, `.g-step-btn` a los lados de la cifra | `openRestConfigModal`, `openPlateModal` |
 | Botón que guarda o crea algo (contra el doble toque) | `once(boton, acción)` de `js/ui/modals.js` | `openRenameModal` |
 | Actualizar una tarjeta | Su `updateSets()` interno (render quirúrgico). **Nunca** re-renderizar la lista entera por una acción puntual | `buildExerciseCard` |
 | Estilos | `styles.css`, clases `g-*`, colores solo por variables `--color-*` | — |

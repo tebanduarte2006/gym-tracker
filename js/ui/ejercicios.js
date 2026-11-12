@@ -177,7 +177,7 @@ function renderDetail(panel, ej) {
   });
   wrap.appendChild(renameBtn);
 
-  const restBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['⏱ Descanso de este ejercicio']);
+  const restBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['Descanso de este ejercicio']);
   restBtn.addEventListener('click', () => {
     openRestModal(ej, (updated) => renderDetail(panel, updated));
   });
