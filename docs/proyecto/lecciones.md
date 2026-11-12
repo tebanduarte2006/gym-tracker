@@ -251,3 +251,14 @@ Catálogo numerado de errores reales de este proyecto y de su antecesor (habitos
 60. **La curva de lo que cambia de tamaño no es la de lo que se mueve.** Una
     curva agresiva de salida es carácter en un elemento que se desplaza 18 px y
     un latigazo en uno que crece 254. La distancia decide la curva, no el gusto.
+61. **Un sheet anclado abajo no sabe que existe el teclado.** iOS no encoge la
+    página al abrir el teclado: lo pinta encima y desplaza la ventana visible.
+    Un `position:fixed; bottom:0` queda con su lista debajo del teclado y, con
+    la ventana desplazada, el toque cae en una fila distinta de la que se ve
+    (Esteban, 2026-11-12: "se elige el primero"). La única medida real es
+    `window.visualViewport` (`modals.js › syncViewport`). Chromium de escritorio
+    no tiene teclado en pantalla: esto no lo detecta ninguna captura.
+62. **Una herramienta que exige abrirla y rellenarla no se usa.** La calculadora
+    de discos era un formulario de dos campos; Esteban la abrió una vez. Lo que
+    sí se usa es lo que aparece solo donde ya estás mirando ("Por lado: 45 + 25"
+    bajo el campo de peso) y lo que se resuelve con un toque (fichas de tiempo).

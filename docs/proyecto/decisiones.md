@@ -111,3 +111,18 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **WebP animado en `<img>`, no video.** Un `<video>` servido por el service worker puede no reproducirse en Safari, porque Safari pide el video por rangos y la caché responde el archivo entero; además, el modo de bajo consumo de iOS bloquea la reproducción automática. El WebP pesa ~5 veces menos que el GIF original y anima siempre.
 - **Las animaciones van dentro de la app** (en la caché, sin señal desde el primer día), elegido por Esteban. Las fuentes (fitnessprogramer, Fitbod, Bend) están acreditadas en el JSON.
 - **Descartado:** enlazar las animaciones a la web de origen (necesitaría señal y se rompe si cambian sus enlaces); recortar el video de YouTube (YouTube bloquea las descargas desde la nube); sacar los videos de la app de Bend con ingeniería inversa (no están en su web: vienen de su servidor, detrás de la suscripción).
+
+## 2026-11-12 · Widgets y Live Activities: no existen para una PWA; lo que sí se hizo
+- **Hecho comprobado:** en iOS no hay API web para widgets ni Live Activities (WidgetKit y ActivityKit son solo para apps nativas). Safari 26 y 27 no agregan nada de esto ([WebKit, Safari 26](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/), [WWDC26](https://webkit.org/blog/17967/news-from-wwdc26-webkit-in-safari-27-beta/)). El iPhone 11 tampoco tiene Dynamic Island.
+- **Lo que se implementó (gratis, sin terceros):** título y cuenta regresiva en el *Now Playing* de la pantalla bloqueada durante el descanso, aprovechando el clip de audio de la alarma (`rutas/descanso-y-alarma.md`). Límites conocidos por reportes de terceros, sin confirmar en su iPhone: la ficha se refresca con retraso y solo existe con la alarma de fondo encendida (que puede pausar la música).
+- **Descartado, con la razón:**
+  - *App nativa propia* (widget y Live Activity reales): exige un Mac con Xcode y, sin pagar 99 USD al año, reinstalarla cada 7 días. Rompe "cero costos" y "nunca reinstalar".
+  - *PushWard* (Live Activities por HTTP, gratis hasta 250 actualizaciones al mes): es un servicio externo y necesita señal. Rompe "cero dependencias externas". Es la única vía a un Live Activity estilo Uber; queda anotada por si Esteban decide aceptar esa dependencia.
+  - *Web Push*: necesita un servidor que envíe el aviso; iOS prohíbe los avisos silenciosos y no reemplaza un aviso por otro, así que no sirve de cuenta regresiva.
+  - *Notificaciones locales programadas*: la API (Notification Triggers) fue abandonada.
+- **Para Plata** sí hay widget real con la app gratuita Scriptable (repo `finanzas-ia`, `docs/rutas/widget.md`): Plata tiene servidor; el gym no.
+
+## 2026-11-12 · Qué se copió de Hevy, Strong y compañía, y qué no
+- **Copiado:** aviso de récord al marcar el set (Hevy *Live PR*), −15/+15 en el descanso (Hevy), gráfica con varias métricas (Strong *Focus metric*), racha por semanas (Hevy), dibujo de discos (Strong/Hevy).
+- **No copiado, y por qué:** tipos de set (calentamiento, drop, fallo) y RPE agregan un campo por set y cambian el formato del export (lo consume Obsidian): requieren el visto bueno de Esteban. Sugerencia automática de "sube peso" (doble progresión de Hevy Trainer, BWS+, Alpha Progression): exige un rango de repeticiones por ejercicio, que la app no tiene. Ambos quedan en `progreso.md`, "Ideas anotadas".
+- Fuentes y detalle: `proyecto/investigacion-2026-11.md`.

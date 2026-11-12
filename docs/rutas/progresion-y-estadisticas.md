@@ -17,6 +17,9 @@ La pestaña Progresión (hero semanal, PR doble peso/reps, gráfica SVG, cardio 
 - Peso guardado en kg, mostrado en lbs (ver convenciones.md, "Peso").
 - Toda lógica de cálculo nueva va a un módulo puro con su prueba.
 
+## Gráfica del ejercicio (2026-11-12)
+`buildChartCard` pone un control **Peso máx | 1RM est. | Volumen** (`METRICAS`) sobre `buildChart`. El peso máximo solo salía plano cuando el progreso era en repeticiones. Los puntos son HTML sobre el SVG (el SVG se estira y un `<circle>` saldría ovalado). `stats.js › weekStreak` da la racha de semanas de la tarjeta semanal del inicio.
+
 ## Cómo probar
 `npm test` → `tests/stats.test.js`, `tests/plates.test.js`, `tests/format.test.js`.
 

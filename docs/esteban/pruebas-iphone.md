@@ -71,3 +71,15 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] A mitad de la rutina toco ‹ dos veces: vuelvo al inicio y el botón dice **Movilidad · continuar (n de 16)**. Al tocarlo sigo donde iba.
 - [ ] Con el teléfono en modo avión, la rutina abre y las animaciones se ven.
 - [ ] Al final toco **Terminar**: aparece **Movilidad registrada**, el botón dice **Movilidad · hecha hoy** y en **ÚLTIMOS 7 DÍAS** el día de hoy tiene un punto pequeño debajo del de entreno.
+
+## Buscador, récords, descanso y discos (pendiente, 2026-11-12)
+Nada de esto se pudo probar con el teclado ni la pantalla bloqueada de un iPhone real.
+- [ ] En una sesión, **+ Agregar ejercicio**: se ve la lista completa sin escribir. Toco el buscador: el teclado sube y **la lista queda encima del teclado**, no tapada.
+- [ ] Escribo unas letras y toco el **tercer** resultado: se agrega ese, no el primero.
+- [ ] Arrastro la lista hacia abajo: el teclado se esconde solo.
+- [ ] Registro un set con más peso que nunca: sale el aviso **Récord · … · más peso que nunca**.
+- [ ] La barra de descanso muestra el tiempo como **1:30**; **+15** y **−15** lo cambian, y la alarma suena al nuevo tiempo.
+- [ ] En la tarjeta de un ejercicio toco el **reloj** → toco **2:00**: se cierra, el reloj de la tarjeta dice **2:00** y el siguiente descanso de ese ejercicio dura 2 minutos. Mañana sigue en 2:00.
+- [ ] Toco **Discos**: veo el dibujo de la barra con los discos. Elijo la barra y toco **Listo**: bajo el campo de peso aparece **Por lado: …** y cambia cuando escribo otro peso.
+- [ ] Durante un descanso, bloqueo el iPhone: en la pantalla bloqueada aparece una ficha como de música que dice **Descanso · (ejercicio)** con una barra que avanza. *(Si no aparece o pausa tu música y te molesta, dilo: se puede apagar en **⚙︎** → alarma de fondo.)*
+- [ ] **Progresión** → un ejercicio: el control **Peso máx | 1RM est. | Volumen** cambia la gráfica.

@@ -30,7 +30,8 @@ Lee **solo** la fila de tu tarea. Cada ruta dice qué archivos abrir, qué funci
 |---|---|---|
 | [proyecto/progreso.md](proyecto/progreso.md) | Estado, lo que sigue, pendientes, ideas | Siempre, sección "Lo que sigue" |
 | [proyecto/decisiones.md](proyecto/decisiones.md) | Por qué el proyecto es como es y qué se descartó | Antes de proponer cambiar arquitectura o una función |
-| [proyecto/lecciones.md](proyecto/lecciones.md) | 60 errores reales, numerados | Solo los números que cite tu ruta (`grep -n "^38\."`) |
+| [proyecto/lecciones.md](proyecto/lecciones.md) | 62 errores reales, numerados | Solo los números que cite tu ruta (`grep -n "^38\."`) |
+| [proyecto/investigacion-2026-11.md](proyecto/investigacion-2026-11.md) | Cómo funcionan Hevy, Strong y otras, y todas las vías de widgets en iOS, con fuentes | Antes de proponer una función "como la de otra app" o reabrir el tema de widgets |
 | [proyecto/historial.md](proyecto/historial.md) | Una fila por entrega | Para agregar tu fila; léelo solo si investigas por qué algo cambió |
 
 ## Documentos para Esteban (lenguaje sencillo)

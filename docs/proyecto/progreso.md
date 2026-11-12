@@ -1,7 +1,7 @@
 # Progreso
 
-## Estado (2026-09-26)
-App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pages. Entrenar con autollenado, registro por botón, cardio, descanso con alarma, reordenar arrastrando, directorio de ejercicios con 18 músculos, Progresión con PR, gráfica, sets por músculo y exportar/importar. 86 pruebas automáticas. El detalle de cada entrega está en `historial.md`.
+## Estado (2026-11-12)
+App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pages. Entrenar con autollenado, registro por botón, cardio, descanso con alarma, reordenar arrastrando, directorio de ejercicios con 18 músculos, Progresión con PR, gráfica, sets por músculo y exportar/importar. 101 pruebas automáticas. Desde el 2026-11-12: buscador de ejercicios sobre el teclado, aviso de récord, descanso con −15/+15 y reloj por ejercicio de un toque, discos dibujados, gráfica con tres métricas y ficha en la pantalla bloqueada. El detalle de cada entrega está en `historial.md`.
 
 ## Lo que sigue
 - **Refinar la rutina de movilidad** con el uso (pedido de Esteban, 2026-10-15). Proceso, fuentes e ideas en `docs/movilidad/fuentes-y-proceso.md`. Primer pendiente: una animación real del tobillo en banco.
@@ -16,6 +16,8 @@ App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pag
 - Ajustes (⚙︎) y Apariencia del 2026-10-02: forzar Claro u Oscuro y que se mantenga al reabrir.
 - Las reglas de Apple del 2026-10-02: texto grande desde **Settings**, Volver con ‹ y Deshacer que no se va solo (`docs/esteban/pruebas-iphone.md`).
 
+- Lo del 2026-11-12 (teclado del buscador, pantalla bloqueada, récords, discos): lista en `docs/esteban/pruebas-iphone.md`.
+
 ## Pendientes técnicos conocidos
 - **Lo tecleado se pierde al reordenar o agregar ejercicio.** `refreshExercises()` reconstruye la lista entera, así que un peso a medio escribir en otra tarjeta se borra. Detectado 2026-08-02; exige reescribir el render de la lista.
 - **Deshacer un registro no para el descanso.** Cancelar siempre rompería el caso de corregir un set viejo mientras descansas del último; habría que recordar qué set arrancó el descanso.
@@ -24,9 +26,10 @@ App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pag
 - Áreas táctiles por debajo de 44 px a propósito: toggle lbs/kg (36×38), pastillas de filtro (38 de alto), 🗑 de quitar ejercicio (37 de ancho, estrecho a propósito). Medido 2026-09-13; si alguna estorba, se sube.
 
 ## Ideas anotadas (sin compromiso; requieren OK de Esteban)
+- Desde la investigación de 2026-11 (`proyecto/investigacion-2026-11.md`): tipos de set (calentamiento, drop, fallo) y RPE (cambian el export); sugerencia de "sube peso" por doble progresión (exige rango de reps por ejercicio); tabla de récords por número de repeticiones (Strong); informe mensual (Hevy); series por músculo contando los secundarios a media serie (Boostcamp).
+- Live Activity real con PushWard (servicio externo gratis hasta 250 actualizaciones al mes): rompe "cero dependencias"; solo si Esteban lo acepta (`decisiones.md`, 2026-11-12).
 - Preferencia para mostrar en kg (hoy siempre lbs).
 - Gráfica de volumen por sesión además del peso máximo.
-- Aviso de PR al registrar el set (evaluado 2026-08-12, lo dejó fuera; el cálculo ya existe en `stats.js`).
 - Series de calentamiento aparte, superseries y RPE (evaluados 2026-08-12: los tres agregan un campo por set).
 - Recordatorio de exportar si el último export tiene más de 30 días.
 - Editar sets de sesiones finalizadas (en la sesión activa ya se puede).

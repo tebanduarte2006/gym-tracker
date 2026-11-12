@@ -92,6 +92,12 @@ hizo. Es la lección 43 aplicada hasta el final: un comportamiento correcto al
 entrar a una pantalla sigue siendo incorrecto cada vez que se vuelve a ella, y
 ninguna ventana de tiempo alrededor del render lo arregla — solo no hacerlo.
 
+## Agregar ejercicio, récords y discos (2026-11-12)
+
+- **Agregar ejercicio** (`showAddExerciseModal`): `sheet(título, { picker: true })`, de alto fijo con la lista ocupando lo que sobra. Sin texto muestra el directorio entero (primero los de la rutina de hoy). Arrastrar la lista esconde el teclado (`hideKeyboardOnDrag`). El sheet vive sobre el teclado gracias a `syncViewport` (ver [gestos-y-reordenar.md](gestos-y-reordenar.md), "Teclado", y la lección 61).
+- **Récord al registrar** (`avisarPR` → `stats.js › prKind`): compara el set con todo lo anterior del ejercicio y avisa "más peso que nunca", "mejor 1RM estimado" (solo hasta 12 reps) o "más reps con ese peso". Sin historial no hay récord.
+- **Discos** (`openPlateModal`): dibujo de media barra, −/+ que saltan al peso cargable (`plates.js › nearestLoadable`), y barra por ejercicio en la preferencia `barras` (`{ ejId: lbs }`, 0 = sin barra; está en `PREFS_IMPORTABLES`). Con barra elegida, la tarjeta muestra **Por lado: …** bajo el campo de peso (`plateSummary`) y se actualiza al teclear. Sin barra elegida no aparece: en máquinas y mancuernas no significa nada.
+
 ## Cómo probar
 - `npm test` cubre `autofillPlan`, `isCountable`, `suggestNextSet`, `weekSummary` (`tests/stats.test.js`).
 - En navegador: `node scripts/capturas-iphone.mjs` restaura el seed real y recorre la sesión activa (ver [publicar-y-verificar.md](publicar-y-verificar.md)). Cualquier cosa táctil: eventos táctiles reales, nunca el ratón (convenciones.md, "Verificar").
@@ -100,4 +106,4 @@ ninguna ventana de tiempo alrededor del render lo arregla — solo no hacerlo.
 3, 6, 7, 8, 23, 25, 28, 29, 30, 43 (`docs/proyecto/lecciones.md`).
 
 ## graphify
-`graphify explain "refreshExercises"` · `graphify explain "buildExerciseCard"` · `graphify explain "autofillPlan"` · `graphify explain "finalizeSession"`
+`graphify explain "showAddExerciseModal"` · `graphify explain "openPlateModal"` · `graphify explain "prKind"` · `graphify explain "refreshExercises"` · `graphify explain "buildExerciseCard"` · `graphify explain "autofillPlan"` · `graphify explain "finalizeSession"`
