@@ -1,51 +1,104 @@
-// ejercicios.js — Tab 2: directorio de ejercicios, creación, detalle.
+// ejercicios.js — Tab 2: Plantillas y directorio de ejercicios.
+//
+// Arriba, un control segmentado Plantillas | Ejercicios (el control estándar de
+// iOS para cambiar de vista dentro de una pestaña). Pedido de Esteban
+// (2026-11-16): la pestaña estaba desordenada y las plantillas necesitaban un
+// lugar propio donde verlas todas, crearlas, editarlas y borrarlas.
 
 import { el, clear, toast, guard } from '../dom.js';
 import { dbGetAll, dbGetAllBy, dbPut, prefGet, prefSet } from '../db.js';
 import { fmtWeight, fmtDateLong, normalizeKey } from '../format.js';
 import { weightPR, isCountable, sessionTs } from '../stats.js';
 import { ICON, backButton } from './icons.js';
-import { sheet, attachSuggest, once } from './modals.js';
-import { MUSCLE_GROUPS, MUSCLES, canonicalMuscle } from '../muscles.js';
+import { sheet, once, hideKeyboardOnDrag } from './modals.js';
+import { MUSCLE_GROUPS, MUSCLES, canonicalMuscle, exerciseGroup } from '../muscles.js';
+import { TEMPLATES_PREF, templatesWithExercise } from '../templates.js';
+import { renderTemplatesView } from './plantillas.js';
 
-const _filter = { type: null, search: '' };
+// Se recuerda mientras la app está abierta: volver a la pestaña te deja donde
+// estabas. Arranca en Plantillas: es lo que se edita; el directorio se consulta.
+let _vista = 'plantillas';
+const _filter = { group: null, search: '' };
+const SIN_GRUPO = 'Sin músculo';
 
 export function renderEjercicios(panel) {
   clear(panel);
   const wrap = el('div', { class: 'g-lib' });
 
+  const seg = el('div', { class: 'g-seg g-lib-seg', role: 'group', 'aria-label': 'Qué ver' });
+  const contenido = el('div', {});
+  const vistas = [['plantillas', 'Plantillas'], ['ejercicios', 'Ejercicios']];
+  const botones = vistas.map(([id, label]) => {
+    const b = el('button', { type: 'button', class: id === _vista ? 'active' : '', 'aria-pressed': String(id === _vista) }, [label]);
+    b.addEventListener('click', () => {
+      if (_vista === id) return;
+      _vista = id;
+      botones.forEach((x, i) => {
+        const on = vistas[i][0] === id;
+        x.classList.toggle('active', on);
+        x.setAttribute('aria-pressed', String(on));
+      });
+      pintarVista();
+    });
+    return b;
+  });
+  botones.forEach((b) => seg.appendChild(b));
+  wrap.appendChild(seg);
+  wrap.appendChild(contenido);
+  panel.appendChild(wrap);
+
+  function pintarVista() {
+    clear(contenido);
+    window.scrollTo(0, 0);
+    return _vista === 'plantillas'
+      ? renderTemplatesView(contenido, () => renderEjercicios(panel))
+      : renderDirectory(contenido, panel);
+  }
+  // La cadena se DEVUELVE: `main.js` la espera para revelar el tab ya lleno en
+  // vez de enseñarlo vacío mientras IndexedDB contesta (ver renderEntrenar).
+  return pintarVista();
+}
+
+// ─── Directorio ───────────────────────────────────────────────────────────────
+// Agrupado por grupo muscular (Empuje · Tirón · Core · Pierna), calculado de los
+// músculos de cada ejercicio (muscles.js › exerciseGroup). Antes se agrupaba
+// por la etiqueta vieja `tipo` (Legs/Pull/Push/Upper), que estaba mal en muchos
+// ejercicios: Cable Crunches y Shrugs aparecían dentro de LEGS. `tipo` sigue en
+// los datos (no se borra nada), pero ya no se muestra ni se edita.
+function renderDirectory(container, panel) {
   const searchWrap = el('div', { class: 'g-search-wrap' });
   searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
   const search = el('input', { class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…', value: _filter.search || '' });
   searchWrap.appendChild(search);
-  wrap.appendChild(searchWrap);
+  container.appendChild(searchWrap);
 
   const pills = el('div', { class: 'g-pills' });
+  const listWrap = el('div', {});
+  let _cache = null;
+  const repaint = () => renderList(listWrap, panel, _cache);
+  const pillEls = [];
   const makePill = (label, value) => {
-    const active = _filter.type === value;
-    const p = el('button', { class: 'g-pill' + (active ? ' active' : ''), type: 'button' }, [label]);
+    const p = el('button', { class: 'g-pill' + (_filter.group === value ? ' active' : ''), type: 'button' }, [label]);
     p.addEventListener('click', () => {
-      _filter.type = _filter.type === value ? null : value;
-      renderEjercicios(panel);
+      _filter.group = value;
+      pillEls.forEach((x) => x.el.classList.toggle('active', x.value === value));
+      repaint();
     });
+    pillEls.push({ el: p, value });
     return p;
   };
   pills.appendChild(makePill('Todos', null));
-  wrap.appendChild(pills);
-
-  const listWrap = el('div', {});
-  wrap.appendChild(listWrap);
+  MUSCLE_GROUPS.forEach((g) => pills.appendChild(makePill(g.grupo, g.grupo)));
+  container.appendChild(pills);
+  container.appendChild(listWrap);
 
   const addBtn = el('button', { class: 'g-add-cta', type: 'button' }, ['+ Crear ejercicio']);
   addBtn.addEventListener('click', () => showNewExerciseModal(() => renderEjercicios(panel)));
-  wrap.appendChild(addBtn);
-  panel.appendChild(wrap);
+  container.appendChild(addBtn);
 
   // El directorio se carga UNA vez y se filtra en memoria. Antes cada tecla
   // disparaba dos dbGetAll completos (36 ejercicios + 559 sets y subiendo):
   // en el iPhone 11 eso se sentía como tirones al escribir.
-  let _cache = null;
-  const repaint = () => renderList(listWrap, panel, _cache);
   let _debounce = null;
   search.addEventListener('input', () => {
     _filter.search = search.value;
@@ -53,20 +106,8 @@ export function renderEjercicios(panel) {
     _debounce = setTimeout(repaint, 120);
   });
 
-  // UNA sola carga para las pastillas y para la lista. Antes se disparaban dos
-  // Promise.all distintos que pedían `ejercicios` y `sesiones` por duplicado:
-  // cinco lecturas completas de la DB para pintar una pantalla que necesita tres.
-  renderList(listWrap, panel, null);
-
-  // La cadena se DEVUELVE: `main.js` la espera para revelar el tab ya lleno en
-  // vez de enseñarlo vacío mientras IndexedDB contesta (ver renderEntrenar).
   return guard(Promise.all([dbGetAll('ejercicios'), dbGetAll('sets'), dbGetAll('sesiones')]), 'cargando ejercicios')
     .then(([ejercicios, allSets, sesiones]) => {
-      const names = new Set();
-      ejercicios.forEach((e) => e.tipo && names.add(e.tipo));
-      sesiones.forEach((s) => s.routine_type && names.add(s.routine_type));
-      [...names].sort().forEach((t) => pills.appendChild(makePill(t, t)));
-
       _cache = { ejercicios, allSets, sesiones };
       repaint();
     });
@@ -75,120 +116,114 @@ export function renderEjercicios(panel) {
 function renderList(listEl, panel, data) {
   clear(listEl);
   if (!data) return; // aún cargando; repaint() lo pinta al llegar
-  {
-    const { ejercicios, allSets, sesiones } = data;
-    // PR SOLO de sesiones finalizadas, igual que el detalle del ejercicio y
-    // que todo el tab Progresión. Antes el directorio contaba también los sets
-    // de la sesión en curso y mostraba un récord distinto en cada pantalla.
-    const finalizadas = new Set(sesiones.filter((s) => s.finalizada === true).map((s) => s.id));
-    const setsPorEj = new Map();
-    allSets.forEach((s) => {
-      if (!finalizadas.has(s.sesion_id)) return;
-      const arr = setsPorEj.get(s.ejercicio_id);
-      if (arr) arr.push(s); else setsPorEj.set(s.ejercicio_id, [s]);
-    });
-    const termKey = normalizeKey(_filter.search || '');
-    const filtered = ejercicios.filter((e) => {
-      if (_filter.type && e.tipo !== _filter.type) return false;
-      if (termKey && normalizeKey(e.nombre).indexOf(termKey) < 0) return false;
-      return true;
-    });
+  const { ejercicios, allSets, sesiones } = data;
+  // PR SOLO de sesiones finalizadas, igual que el detalle del ejercicio y
+  // que todo el tab Progresión. Antes el directorio contaba también los sets
+  // de la sesión en curso y mostraba un récord distinto en cada pantalla.
+  const finalizadas = new Set(sesiones.filter((s) => s.finalizada === true).map((s) => s.id));
+  const setsPorEj = new Map();
+  allSets.forEach((s) => {
+    if (!finalizadas.has(s.sesion_id)) return;
+    const arr = setsPorEj.get(s.ejercicio_id);
+    if (arr) arr.push(s); else setsPorEj.set(s.ejercicio_id, [s]);
+  });
+  const termKey = normalizeKey(_filter.search || '');
+  const groups = {};
+  ejercicios.forEach((e) => {
+    const g = exerciseGroup(e.musculos) || SIN_GRUPO;
+    if (_filter.group && g !== _filter.group) return;
+    if (termKey && normalizeKey(e.nombre).indexOf(termKey) < 0) return;
+    (groups[g] = groups[g] || []).push(e);
+  });
+  const keys = MUSCLE_GROUPS.map((g) => g.grupo).concat([SIN_GRUPO]).filter((k) => groups[k]);
 
-    const groups = {};
-    filtered.forEach((e) => {
-      const t = e.tipo || 'Sin tipo';
-      (groups[t] = groups[t] || []).push(e);
-    });
-    const keys = Object.keys(groups).sort((a, b) => {
-      if (a === 'Sin tipo') return 1;
-      if (b === 'Sin tipo') return -1;
-      return a.localeCompare(b);
-    });
-
-    if (keys.length === 0) {
-      listEl.appendChild(el('div', { class: 'g-empty-card', style: 'margin-top:24px;' }, ['Sin ejercicios. Crea el primero abajo.']));
-      return;
-    }
-
-    keys.forEach((k) => {
-      listEl.appendChild(el('div', { class: 'g-section-label' }, [k.toUpperCase()]));
-      const card = el('div', { class: 'g-list-card' });
-      groups[k].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((e) => {
-        const pr = weightPR(setsPorEj.get(e.id) || []);
-        const bestStr = pr ? fmtWeight(pr.peso) + ' × ' + pr.reps : '—';
-        const row = el('button', { class: 'g-list-row', type: 'button' }, [
-          el('div', {}, [
-            el('div', { class: 'g-list-name' }, [e.nombre]),
-            el('div', { class: 'g-list-sub' }, [(e.musculos || []).join(' · ') || 'sin músculo'])
-          ]),
-          el('div', { class: 'g-list-right' }, [
-            el('span', { class: 'g-list-pr' }, [bestStr]),
-            el('span', { class: 'g-list-arrow' }, ['›'])
-          ])
-        ]);
-        row.addEventListener('click', () => renderDetail(panel, e));
-        card.appendChild(row);
-      });
-      listEl.appendChild(card);
-    });
+  if (keys.length === 0) {
+    listEl.appendChild(el('div', { class: 'g-empty-card', style: 'margin-top:24px;' }, [
+      ejercicios.length ? 'Ningún ejercicio coincide.' : 'Sin ejercicios. Crea el primero abajo.'
+    ]));
+    return;
   }
+
+  keys.forEach((k) => {
+    listEl.appendChild(el('div', { class: 'g-section-label' }, [k.toUpperCase()]));
+    const card = el('div', { class: 'g-list-card' });
+    groups[k].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach((e) => {
+      const pr = weightPR((setsPorEj.get(e.id) || []).filter(isCountable));
+      const bestStr = pr ? fmtWeight(pr.peso) + ' × ' + pr.reps : '—';
+      const row = el('button', { class: 'g-list-row', type: 'button' }, [
+        el('div', {}, [
+          el('div', { class: 'g-list-name' }, [e.nombre]),
+          el('div', { class: 'g-list-sub' }, [(e.musculos || []).join(' · ') || 'sin músculo'])
+        ]),
+        el('div', { class: 'g-list-right' }, [
+          el('span', { class: 'g-list-pr' }, [bestStr]),
+          el('span', { class: 'g-list-arrow' }, ['›'])
+        ])
+      ]);
+      row.addEventListener('click', () => renderDetail(panel, e));
+      card.appendChild(row);
+    });
+    listEl.appendChild(card);
+  });
 }
 
+// ─── Ficha del ejercicio ──────────────────────────────────────────────────────
+// Lista agrupada al estilo de Ajustes de iOS (etiqueta, valor debajo, ›), en vez
+// de tres botones punteados con lápices: cada fila dice qué vale hoy y qué abre.
 function renderDetail(panel, ej) {
   clear(panel);
+  window.scrollTo(0, 0);
   const wrap = el('div', { class: 'g-detail-screen' });
   const back = backButton();
   back.addEventListener('click', () => renderEjercicios(panel));
   wrap.appendChild(back);
   wrap.appendChild(el('h2', { class: 'g-detail-title' }, [ej.nombre]));
-  wrap.appendChild(el('div', { class: 'g-detail-sub' }, [(ej.musculos || []).join(' · ') || 'sin músculo']));
+  wrap.appendChild(el('div', { class: 'g-detail-sub' }, [exerciseGroup(ej.musculos) || SIN_GRUPO]));
 
   const sesCount = el('div', { class: 'g-info-value' }, ['—']);
-  const restValue = el('div', { class: 'g-info-value' }, [ej.rest_sec ? ej.rest_sec + 's' : 'default']);
-  wrap.appendChild(el('div', { class: 'g-info-grid' }, [
-    el('div', { class: 'g-info-item' }, [
-      el('div', { class: 'g-info-label' }, ['RUTINA']),
-      el('div', { class: 'g-info-value' }, [ej.tipo || 'Sin tipo'])
-    ]),
-    el('div', { class: 'g-info-item' }, [
-      el('div', { class: 'g-info-label' }, ['SESIONES']),
-      sesCount
-    ]),
-    el('div', { class: 'g-info-item' }, [
-      el('div', { class: 'g-info-label' }, ['DESCANSO']),
-      restValue
-    ])
+  const bestValue = el('div', { class: 'g-info-value' }, ['—']);
+  wrap.appendChild(el('div', { class: 'g-info-grid g-info-grid-2' }, [
+    el('div', { class: 'g-info-item' }, [el('div', { class: 'g-info-label' }, ['SESIONES']), sesCount]),
+    el('div', { class: 'g-info-item' }, [el('div', { class: 'g-info-label' }, ['MEJOR']), bestValue])
   ]));
+
+  const restSub = el('div', { class: 'g-list-sub' }, ['…']);
+  const plantillasSub = el('div', { class: 'g-list-sub' }, ['…']);
+  const fila = (nombre, sub, onClick) => {
+    const row = el('button', { class: 'g-list-row', type: 'button' }, [
+      el('div', { class: 'g-detail-row-text' }, [el('div', { class: 'g-list-name' }, [nombre]), sub]),
+      el('span', { class: 'g-list-arrow' }, ['›'])
+    ]);
+    row.addEventListener('click', onClick);
+    return row;
+  };
+  const reabrir = (updated) => renderDetail(panel, updated);
+  const card = el('div', { class: 'g-list-card g-detail-card' }, [
+    fila('Nombre', el('div', { class: 'g-list-sub' }, [ej.nombre]), () => openRenameModal(ej, reabrir)),
+    fila('Músculos', el('div', { class: 'g-list-sub' }, [(ej.musculos || []).join(' · ') || 'sin músculo']),
+      () => openEditMusclesModal(ej, reabrir)),
+    fila('Descanso', restSub, () => openRestModal(ej, reabrir)),
+    el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
+      el('div', { class: 'g-detail-row-text' }, [el('div', { class: 'g-list-name' }, ['Plantillas']), plantillasSub])
+    ])
+  ]);
+  wrap.appendChild(card);
+
   // El descanso por defecto solo se podía tocar DENTRO de una sesión activa:
   // aquí se mostraba pero no se podía cambiar.
-  guard(prefGet('rest_default', 90), 'descanso por defecto').then((def) => {
-    if (!ej.rest_sec) restValue.textContent = def + 's (global)';
-  });
-
-  const editBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['✏️ Editar músculos']);
-  editBtn.addEventListener('click', () => {
-    openEditMusclesModal(ej, (updated) => renderDetail(panel, updated));
-  });
-  wrap.appendChild(editBtn);
-
-  const renameBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['✏️ Renombrar / cambiar rutina']);
-  renameBtn.addEventListener('click', () => {
-    openRenameModal(ej, (updated) => renderDetail(panel, updated));
-  });
-  wrap.appendChild(renameBtn);
-
-  const restBtn = el('button', { class: 'g-edit-muscles', type: 'button' }, ['Descanso de este ejercicio']);
-  restBtn.addEventListener('click', () => {
-    openRestModal(ej, (updated) => renderDetail(panel, updated));
-  });
-  wrap.appendChild(restBtn);
+  guard(Promise.all([prefGet('rest_default', 90), prefGet(TEMPLATES_PREF, [])]), 'datos del ejercicio')
+    .then(([def, plantillas]) => {
+      restSub.textContent = ej.rest_sec ? ej.rest_sec + ' s (propio)' : def + ' s (el general)';
+      const en = templatesWithExercise(plantillas, ej.id);
+      plantillasSub.textContent = en.length ? en.join(' · ') : 'No está en ninguna plantilla';
+    });
 
   wrap.appendChild(el('div', { class: 'g-section-label', style: 'padding-left:20px;' }, ['HISTORIAL']));
   const listWrap = el('div', { style: 'padding:0 16px;' });
   wrap.appendChild(listWrap);
   panel.appendChild(wrap);
 
-  guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ej.id), dbGetAll('sesiones')]), 'cargando historial')
+  return guard(Promise.all([dbGetAllBy('sets', 'ejercicio_id', ej.id), dbGetAll('sesiones')]), 'cargando historial')
     .then(([sets, sesiones]) => {
       const sesMap = {};
       sesiones.forEach((s) => { sesMap[s.id] = s; });
@@ -199,6 +234,8 @@ function renderDetail(panel, ej) {
       const bySesion = {};
       countable.forEach((st) => { (bySesion[st.sesion_id] = bySesion[st.sesion_id] || []).push(st); });
       sesCount.textContent = String(Object.keys(bySesion).length);
+      const pr = weightPR(countable);
+      if (pr) bestValue.textContent = fmtWeight(pr.peso) + ' × ' + pr.reps;
       if (countable.length === 0) {
         listWrap.appendChild(el('div', { class: 'g-empty-card' }, ['Sin registros aún para este ejercicio.']));
         return;
@@ -208,57 +245,46 @@ function renderDetail(panel, ej) {
         const arr = bySesion[sid];
         return { sesion, ts: sessionTs(sesion), count: arr.length, best: weightPR(arr) };
       }).sort((a, b) => b.ts - a.ts);
-      const card = el('div', { class: 'g-list-card' });
+      const hist = el('div', { class: 'g-list-card' });
       rows.forEach((r) => {
-        card.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
+        hist.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
           el('div', {}, [
             el('div', { class: 'g-list-name' }, [fmtDateLong(r.sesion ? r.sesion.fecha : null)]),
             el('div', { class: 'g-list-sub' }, [(r.sesion && r.sesion.routine_type) || 'Sin rutina'])
           ]),
           el('span', { class: 'g-list-pr' }, [
-            r.count + ' sets · mejor ' + fmtWeight(r.best.peso) + ' × ' + r.best.reps
+            r.count + (r.count === 1 ? ' set' : ' sets') + ' · mejor ' + fmtWeight(r.best.peso) + ' × ' + r.best.reps
           ])
         ]));
       });
-      listWrap.appendChild(card);
+      listWrap.appendChild(hist);
     });
 }
 
-// ─── Renombrar / cambiar rutina ───────────────────────────────────────────────
+// ─── Renombrar ────────────────────────────────────────────────────────────────
+// Antes este sheet también cambiaba la "rutina" del ejercicio (la etiqueta vieja
+// `tipo`). Ya no se muestra en ningún lado: qué ejercicios van en cada rutina lo
+// dice su plantilla.
 function openRenameModal(ej, onSaved) {
-  const s = sheet('Editar ejercicio');
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Nombre']));
+  const s = sheet('Nombre del ejercicio');
   const nameInput = el('input', { class: 'g-modal-input', type: 'text', value: ej.nombre });
   s.modal.appendChild(nameInput);
-  s.modal.appendChild(el('div', { class: 'g-modal-sub', style: 'margin-top:14px;' }, ['Rutina']));
-  const typeInput = el('input', {
-    class: 'g-modal-input', type: 'text', autocomplete: 'off',
-    placeholder: 'Ej. Upper, Push, Leg Day…', value: ej.tipo || ''
-  });
-  s.modal.appendChild(typeInput);
-  const typeSugg = el('div', { class: 'g-suggest' });
-  s.modal.appendChild(typeSugg);
-  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'rutinas').then(([ses, ejs]) => {
-    const names = new Set();
-    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
-    ejs.forEach((x) => x.tipo && names.add(x.tipo));
-    attachSuggest(typeInput, typeSugg, () => [...names].sort(), (n) => { typeInput.value = n; }, normalizeKey);
-  });
+  s.modal.appendChild(el('div', { class: 'g-modal-body', style: 'margin-top:8px;' }, [
+    'Tu historial y tus plantillas siguen apuntando a este ejercicio aunque cambie el nombre.'
+  ]));
 
-  const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar cambios']);
+  const save = el('button', { class: 'g-btn-primary', type: 'button' }, ['Guardar']);
   once(save, () => {
     const nombre = nameInput.value.trim();
     if (!nombre) { toast('Nombre requerido'); return null; }
-    const prev = { nombre: ej.nombre, tipo: ej.tipo };
+    const prev = ej.nombre;
     ej.nombre = nombre;
-    ej.tipo = typeInput.value.trim() || null;
     return dbPut('ejercicios', ej).then(() => {
       s.close();
       toast('Ejercicio actualizado');
       if (onSaved) onSaved(ej);
     }).catch((err) => {
-      ej.nombre = prev.nombre;
-      ej.tipo = prev.tipo;
+      ej.nombre = prev;
       // El índice `nombre` es unique: ese es el único error esperable aquí.
       toast(err && err.name === 'ConstraintError'
         ? 'Ya existe un ejercicio con ese nombre'
@@ -369,26 +395,11 @@ export function buildMusclePicker(opts = {}) {
 }
 
 // ─── Crear ejercicio (compartido con Entrenar) ────────────────────────────────
-export function showNewExerciseModal(onCreated, defaultRoutine) {
+export function showNewExerciseModal(onCreated) {
   const s = sheet('Crear ejercicio');
   s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Nombre']));
   const nameInput = el('input', { class: 'g-modal-input', type: 'text', placeholder: 'Nombre del ejercicio' });
   s.modal.appendChild(nameInput);
-
-  s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Rutina']));
-  const typeInput = el('input', {
-    class: 'g-modal-input', type: 'text', placeholder: 'Ej. Upper, Push, Leg Day…',
-    autocomplete: 'off', value: defaultRoutine || ''
-  });
-  s.modal.appendChild(typeInput);
-  const typeSugg = el('div', { class: 'g-suggest' });
-  s.modal.appendChild(typeSugg);
-  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('ejercicios')]), 'rutinas').then(([ses, ejs]) => {
-    const names = new Set();
-    ses.forEach((x) => x.routine_type && names.add(x.routine_type));
-    ejs.forEach((x) => x.tipo && names.add(x.tipo));
-    attachSuggest(typeInput, typeSugg, () => [...names].sort(), (n) => { typeInput.value = n; }, normalizeKey);
-  });
 
   s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Músculos']));
   const picker = buildMusclePicker({ initialSelected: [] });
@@ -410,7 +421,7 @@ export function showNewExerciseModal(onCreated, defaultRoutine) {
     const record = {
       nombre,
       musculos: muscles,
-      tipo: typeInput.value.trim() || null,
+      tipo: null,
       rest_sec: rest > 0 ? rest : null,
       fecha_creacion: new Date().toISOString()
     };
@@ -455,5 +466,79 @@ export function openEditMusclesModal(ej, onSaved) {
     });
   });
   s.modal.appendChild(save);
+  s.open();
+}
+
+// ─── Elegir un ejercicio del directorio (compartido) ──────────────────────────
+// La misma hoja para "Agregar ejercicio" en la sesión y para agregar a una
+// plantilla: buscador arriba, directorio entero sin teclear, "Crear ejercicio
+// nuevo" abajo. Una sola forma de elegir un ejercicio en toda la app.
+//   featured: { label, test(e) } — sección que va primero (null = ninguna)
+//   disabled: Set de ids que no se pueden elegir (ya están), se ven apagados
+//   onPick(e), onCreate() — la hoja ya se cerró cuando se llaman
+export function pickExercise({ title, featured = null, disabled = null, onPick, onCreate }) {
+  const s = sheet(title, { picker: true });
+  const searchWrap = el('div', { class: 'g-search-wrap' });
+  searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
+  const search = el('input', {
+    class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…',
+    autocomplete: 'off', autocorrect: 'off', enterkeyhint: 'search'
+  });
+  searchWrap.appendChild(search);
+  s.modal.appendChild(searchWrap);
+  const sugg = el('div', { class: 'g-suggest' });
+  s.modal.appendChild(sugg);
+  hideKeyboardOnDrag(sugg, search);
+  const newBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['+ Crear ejercicio nuevo']);
+  newBtn.addEventListener('click', () => { s.close(); onCreate(); });
+  s.modal.appendChild(newBtn);
+
+  guard(dbGetAll('ejercicios'), 'cargando directorio').then((all) => {
+    const byName = (a, b) => a.nombre.localeCompare(b.nombre);
+    const row = (e) => {
+      const ya = disabled && disabled.has(e.id);
+      const item = el('button', { class: 'g-suggest-row' + (ya ? ' dim' : ''), type: 'button' }, [
+        el('b', {}, [e.nombre]),
+        el('div', { class: 'g-suggest-meta' }, [ya ? 'Ya está' : ((e.musculos || []).join(' · ') || 'sin músculo')])
+      ]);
+      item.addEventListener('click', () => {
+        if (ya) { toast(e.nombre + ' ya está'); return; }
+        s.close();
+        onPick(e);
+      });
+      return item;
+    };
+    // Sin texto se ve el directorio entero: antes decía "Escribe para buscar" y
+    // obligaba a abrir el teclado para algo que se elige de un toque.
+    function render(term) {
+      clear(sugg);
+      sugg.scrollTop = 0;
+      const tKey = normalizeKey((term || '').trim());
+      if (!tKey) {
+        const primero = featured ? all.filter(featured.test).sort(byName) : [];
+        const resto = all.filter((e) => primero.indexOf(e) < 0).sort(byName);
+        if (primero.length) {
+          sugg.appendChild(el('div', { class: 'g-suggest-section' }, [featured.label]));
+          primero.forEach((e) => sugg.appendChild(row(e)));
+          if (resto.length) sugg.appendChild(el('div', { class: 'g-suggest-section' }, ['Otros']));
+        }
+        resto.forEach((e) => sugg.appendChild(row(e)));
+        if (!all.length) sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Aún no hay ejercicios. Crea el primero.']));
+        return;
+      }
+      // Primero los que EMPIEZAN por lo escrito, luego los que lo contienen.
+      const filtered = all
+        .filter((e) => normalizeKey(e.nombre).indexOf(tKey) >= 0)
+        .sort((a, b) => (normalizeKey(a.nombre).indexOf(tKey) === 0 ? 0 : 1) - (normalizeKey(b.nombre).indexOf(tKey) === 0 ? 0 : 1) || byName(a, b));
+      if (filtered.length === 0) {
+        sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Sin coincidencias. Usa "Crear ejercicio nuevo".']));
+        return;
+      }
+      filtered.forEach((e) => sugg.appendChild(row(e)));
+    }
+    render('');
+    search.addEventListener('input', () => render(search.value));
+  });
+
   s.open();
 }

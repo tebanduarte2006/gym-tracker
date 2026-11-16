@@ -60,6 +60,7 @@ test('normalizeKey quita acentos y case', () => {
   assert.equal(normalizeKey('Tríceps'), 'triceps');
   assert.equal(normalizeKey('  CUÁDRICEPS '), 'cuadriceps');
   assert.equal(normalizeKey(null), '');
+  assert.equal(normalizeKey('Legs  A'), normalizeKey('legs a'));
 });
 
 test('fmtDateShort', () => {

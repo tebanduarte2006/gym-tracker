@@ -122,20 +122,52 @@ async function capturar(page, tema, nombre, completa = false) {
   informe.push({ tema, nombre, ...m, ...revision });
 }
 
+// Arrastre con el DEDO de verdad (CDP Input.dispatchTouchEvent), no con el
+// ratón: pulsación larga sobre el centro de `selector`, luego `dy` px hacia
+// abajo en pasos, y soltar. docs/rutas/gestos-y-reordenar.md.
+async function arrastrarConDedo(page, selector, dy) {
+  const cdp = await page.context().newCDPSession(page);
+  const box = await page.locator(selector).first().boundingBox();
+  const x = box.x + box.width / 2;
+  let y = box.y + box.height / 2;
+  const toque = (type, yy) => cdp.send('Input.dispatchTouchEvent', {
+    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: yy, id: 1 }]
+  });
+  await toque('touchStart', y);
+  await page.waitForTimeout(450); // vence la pulsación larga (320 ms)
+  const pasos = 12;
+  for (let i = 1; i <= pasos; i++) {
+    await toque('touchMove', y + (dy * i) / pasos);
+    await page.waitForTimeout(16);
+  }
+  await toque('touchEnd', y + dy);
+  await page.waitForTimeout(300);
+  await cdp.detach();
+}
+
+// Restaurar el seed y aceptar las dos ofertas de músculos (agosto y noviembre).
+async function restaurarSeed(page, tema) {
+  await page.goto(BASE);
+  await page.waitForSelector('.g-modal', { timeout: 10000 });
+  if (tema) await capturar(page, tema, '01-restaurar');
+  await page.click('.g-modal .g-btn-primary');
+  await page.waitForSelector('text=Lista de músculos nueva', { timeout: 10000 });
+  await page.click('.g-modal .g-btn-primary');
+  await page.waitForSelector('text=Revisión de músculos', { timeout: 10000 });
+  if (tema) await capturar(page, tema, '01b-revision-musculos');
+  await page.click('.g-modal:has-text("Revisión de músculos") .g-btn-primary');
+  await page.waitForTimeout(800);
+}
+
 for (const tema of ['light', 'dark']) {
   const contexto = await navegador.newContext({ ...devices['iPhone 11'], colorScheme: tema, hasTouch: true });
   const page = await contexto.newPage();
   page.on('console', (m) => { if (m.type() === 'error') errores.push(`${tema}: ${m.text()}`); });
   page.on('pageerror', (e) => errores.push(`${tema}: ${e.message}`));
 
-  // Primera apertura: base vacía → ofrece restaurar el seed → migración de músculos.
-  await page.goto(BASE);
-  await page.waitForSelector('.g-modal', { timeout: 10000 });
-  await capturar(page, tema, '01-restaurar');
-  await page.click('.g-modal .g-btn-primary');
-  await page.waitForSelector('text=Lista de músculos nueva', { timeout: 10000 });
-  await page.click('.g-modal .g-btn-primary');
-  await page.waitForTimeout(800);
+  // Primera apertura: base vacía → ofrece restaurar el seed → migración de
+  // músculos de agosto → revisión de noviembre.
+  await restaurarSeed(page, tema);
   await capturar(page, tema, '02-entrenar-inicio');
 
   // Movilidad: portada, un paso con animación y el paso con cronómetro. Con
@@ -212,10 +244,39 @@ for (const tema of ['light', 'dark']) {
   const abiertas = await page.$$eval('.g-ex-card .g-ex-name', (n) => n.map((x) => x.textContent.trim()));
   if (!abiertas.includes(tercera)) errores.push(`${tema}: tocar "${tercera}" en el buscador no lo agregó a la sesión`);
 
+  // Plantillas: lista vacía → editor (rutina elegida de la lista, tres
+  // ejercicios) → reordenar con el dedo → guardar.
   await page.click('#tab-btn-ejercicios');
   await page.waitForTimeout(700);
+  await capturar(page, tema, '06-plantillas-vacia');
+  await page.tap('.g-lib .g-add-cta');
+  await page.waitForSelector('.g-tpl-chips .g-chip', { timeout: 5000 });
+  const rutina = (await page.textContent('.g-tpl-chips .g-chip >> nth=0')).trim();
+  await page.tap('.g-tpl-chips .g-chip >> nth=0');
+  for (let i = 0; i < 3; i++) {
+    await page.tap('.g-modal .g-add-exercise');
+    await page.waitForSelector('.g-modal-picker .g-suggest-row:not(.dim)', { timeout: 5000 });
+    await page.tap('.g-modal-picker .g-suggest-row:not(.dim) >> nth=' + i);
+    await page.waitForTimeout(450);
+  }
+  const antes = await page.$$eval('.g-tpl-item', (n) => n.map((x) => x.dataset.dragId));
+  if (antes.length !== 3) errores.push(`${tema}: la plantilla debía tener 3 ejercicios y tiene ${antes.length}`);
+  await capturar(page, tema, '06b-editor-plantilla');
+  const scrollAntes = await page.evaluate(() => document.querySelector('.g-modal').scrollTop);
+  await arrastrarConDedo(page, '.g-tpl-item >> nth=0', 130);
+  const despues = await page.$$eval('.g-tpl-item', (n) => n.map((x) => x.dataset.dragId));
+  const scrollDespues = await page.evaluate(() => document.querySelector('.g-modal').scrollTop);
+  if (despues[0] === antes[0]) errores.push(`${tema}: arrastrar con el dedo no reordenó la plantilla (${antes} → ${despues})`);
+  if (scrollAntes !== scrollDespues) errores.push(`${tema}: arrastrar en la plantilla desplazó la hoja`);
+  await page.tap('.g-modal .g-btn-primary');
+  await page.waitForTimeout(700);
+  await capturar(page, tema, '06c-plantillas');
+  const guardada = (await page.textContent('.g-lib .g-list-row .g-list-name')).trim();
+  if (guardada !== rutina) errores.push(`${tema}: la plantilla guardada se llama "${guardada}", no "${rutina}"`);
+  await page.tap('.g-lib-seg button >> nth=1');
+  await page.waitForTimeout(500);
   await capturar(page, tema, '06-ejercicios');
-  await page.click('.g-lib .g-list-row');
+  await page.click('.g-lib .g-list-card .g-list-row');
   await page.waitForTimeout(700);
   await capturar(page, tema, '07-detalle-ejercicio', true);
 
@@ -256,12 +317,7 @@ for (const tema of ['light', 'dark']) {
   });
   const page = await contexto.newPage();
   page.on('pageerror', (e) => errores.push(`texto-grande: ${e.message}`));
-  await page.goto(BASE);
-  await page.waitForSelector('.g-modal', { timeout: 10000 });
-  await page.click('.g-modal .g-btn-primary');
-  await page.waitForSelector('text=Lista de músculos nueva', { timeout: 10000 });
-  await page.click('.g-modal .g-btn-primary');
-  await page.waitForTimeout(800);
+  await restaurarSeed(page, null);
   await capturar(page, 'texto-grande', '02-entrenar-inicio');
   await page.tap('.g-mob-entry');
   await page.waitForSelector('.g-mob-list', { timeout: 10000 });

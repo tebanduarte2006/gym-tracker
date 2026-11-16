@@ -87,6 +87,9 @@ export function normalizeKey(s) {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    // Espacios internos repetidos cuentan como uno: su historial real tiene
+    // "Legs  A" (dos espacios) y "Legs A" debe ser el mismo día, no otro.
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

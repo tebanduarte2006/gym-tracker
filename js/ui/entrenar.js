@@ -24,9 +24,10 @@ import { plateBreakdown, plateSummary, nearestLoadable, DEFAULT_BAR_LBS } from '
 import { startRest, stopRest, adjustRest, restActive, restState, bindRestUI } from '../resttimer.js';
 import { keepAwake, releaseAwake } from '../wakelock.js';
 import { ICON, backButton } from './icons.js';
-import { sheet, confirmAction, confirmRow, attachSuggest, once, hideKeyboardOnDrag } from './modals.js';
-import { showNewExerciseModal, openEditMusclesModal } from './ejercicios.js';
+import { sheet, confirmAction, confirmRow, attachSuggest, once } from './modals.js';
+import { showNewExerciseModal, openEditMusclesModal, pickExercise } from './ejercicios.js';
 import { enableDragOrder } from './dragorder.js';
+import { TEMPLATES_PREF, sanitizeTemplates, findTemplate, templateExerciseIds, skippedStreak } from '../templates.js';
 import { renderMobility, mobilityProgress } from './movilidad.js';
 import { MOBILITY_PREF } from '../mobility.js';
 
@@ -40,6 +41,10 @@ let _restDefault = DEFAULT_REST;
 let _barras = {};                   // pref `barras`: ejId → lbs de la barra (0 = sin barra)
 let _dragOff = null;              // desactivador del arrastre del render actual
 let _finArrastre = 0;             // instante del último arrastre (ver head.click)
+// Cuántas veces seguidas se saltó cada ejercicio en esta rutina (ejId → n). Se
+// calcula UNA vez por sesión: depende solo de sesiones ya finalizadas, y leer
+// todos los sets en cada vuelta al tab sería tirar lecturas.
+let _saltados = { sesionId: null, porEj: new Map() };
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 // DEVUELVE una promesa que resuelve cuando la pantalla ya tiene su contenido.
@@ -485,8 +490,13 @@ function showStartModal(panel) {
     if (termino) arrancar(termino);
   });
 
-  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('sets')]), 'cargando rutinas').then(([ses, sets]) => {
+  // Cada fila dice ANTES de tocarla de dónde saldrá la lista: "Plantilla" (fija)
+  // o "Sin plantilla" (copia tu última vez). Saberlo después, por un aviso al
+  // arrancar, llega tarde para decidir.
+  guard(Promise.all([dbGetAll('sesiones'), dbGetAll('sets'), prefGet(TEMPLATES_PREF, [])]), 'cargando rutinas').then(([ses, sets, rawTpl]) => {
+    const plantillas = sanitizeTemplates(rawTpl);
     const vistos = new Set();
+    const nEjTxt = (n) => n + (n === 1 ? ' ejercicio' : ' ejercicios');
     ses.slice()
       .filter((x) => x.finalizada === true && x.routine_type)
       .sort((a, b) => sessionTs(b) - sessionTs(a))
@@ -494,18 +504,28 @@ function showStartModal(panel) {
         const key = normalizeKey(x.routine_type);
         if (vistos.has(key)) return;
         vistos.add(key);
+        const tpl = findTemplate(plantillas, x.routine_type);
+        if (tpl) {
+          dias.push({ key, nombre: tpl.nombre, plantilla: true,
+            detalle: 'Plantilla · ' + nEjTxt(tpl.ejercicios.length) + ' · ' + fmtDateShort(x.fecha) });
+          return;
+        }
         const plan = autofillPlan(x.routine_type, ses, sets);
-        const nEj = plan ? plan.ejercicios.length : 0;
-        const nSets = plan ? plan.ejercicios.reduce((t, e) => t + e.sets.length, 0) : 0;
         dias.push({
           key,
           nombre: x.routine_type,
           detalle: plan
-            ? nEj + (nEj === 1 ? ' ejercicio · ' : ' ejercicios · ') + nSets +
-              (nSets === 1 ? ' set · ' : ' sets · ') + fmtDateShort(x.fecha)
-            : 'Sin sets registrados · ' + fmtDateShort(x.fecha)
+            ? 'Sin plantilla · ' + nEjTxt(plan.ejercicios.length) + ' de tu última vez · ' + fmtDateShort(x.fecha)
+            : 'Sin plantilla · sin sets registrados · ' + fmtDateShort(x.fecha)
         });
       });
+    // Plantillas de rutinas que todavía no has hecho nunca: también se eligen.
+    plantillas.forEach((t) => {
+      const key = normalizeKey(t.nombre);
+      if (vistos.has(key)) return;
+      vistos.add(key);
+      dias.push({ key, nombre: t.nombre, plantilla: true, detalle: 'Plantilla · ' + nEjTxt(t.ejercicios.length) + ' · nueva' });
+    });
     cargado = true;
     pintar();
   });
@@ -518,9 +538,16 @@ function createSession(panel, routineType) {
   // Contador persistente + máximo del historial: no se repite aunque borres
   // sesiones (bug heredado) ni tras importar un backup con numeración mayor.
   return guard(
-    Promise.all([dbGetAll('sesiones'), dbGetAll('sets')])
-      .then(([all, allSets]) => {
-        const plan = autofillPlan(routineType, all, allSets);
+    Promise.all([dbGetAll('sesiones'), dbGetAll('sets'), dbGetAll('ejercicios'), prefGet(TEMPLATES_PREF, [])])
+      .then(([all, allSets, ejercicios, rawTpl]) => {
+        // Con plantilla se carga la plantilla ENTERA, aunque la última vez te
+        // saltaras algo (decisión 2026-11-16). Sin plantilla, como siempre: la
+        // lista de tu última vez de esta rutina.
+        const tpl = findTemplate(rawTpl, routineType);
+        const tplIds = tpl ? templateExerciseIds(tpl, ejercicios.map((e) => e.id)) : [];
+        const plan = tplIds.length > 0
+          ? { ejercicios: tplIds.map((id) => ({ ejercicio_id: id })) }
+          : autofillPlan(routineType, all, allSets);
         const now = Date.now();
         const sesion = {
           // Sin "Workout #N": era numeración heredada del template de Notion y
@@ -554,7 +581,8 @@ function createSession(panel, routineType) {
             // bloque equivalente (retirado) de refreshExercises.
             return Promise.all(inserts).then(() => {
               const nEj = plan.ejercicios.length;
-              toast('Tu último ' + routineType + ': ' + nEj + (nEj === 1 ? ' ejercicio' : ' ejercicios'));
+              const nTxt = nEj + (nEj === 1 ? ' ejercicio' : ' ejercicios');
+              toast(tplIds.length > 0 ? 'Plantilla ' + tpl.nombre + ': ' + nTxt : 'Tu último ' + routineType + ': ' + nTxt);
               renderActiveSession(panel, sesion);
             });
           });
@@ -754,6 +782,27 @@ function openRestConfigModal(ej, onSaved) {
 }
 
 // ─── Lista de ejercicios de la sesión ─────────────────────────────────────────
+// "No lo hiciste la última vez": para que un ejercicio de la plantilla que te
+// saltaste no se te pase otra vez (Esteban: "soy distraído, puedo durar varias
+// sesiones así"). Ver templates.js › skippedStreak.
+function loadSkipped(sesion, sesiones, order) {
+  if (_saltados.sesionId === sesion.id) return Promise.resolve();
+  return dbGetAll('sets').then((allSets) => {
+    const porEj = new Map();
+    order.forEach((id) => {
+      const n = skippedStreak(sesion.routine_type, id, sesiones, allSets);
+      if (n > 0) porEj.set(id, n);
+    });
+    _saltados = { sesionId: sesion.id, porEj };
+  }).catch(() => {}); // es una ayuda: si falla, la lista se pinta igual
+}
+
+function skipLabel(ejId) {
+  const n = _saltados.porEj.get(ejId) || 0;
+  if (n === 0) return null;
+  return n === 1 ? 'No lo hiciste la última vez' : 'Saltado las últimas ' + n + ' veces';
+}
+
 function refreshExercises(sesion, listEl) {
   clear(listEl);
   // `sesiones` se carga UNA vez aquí y se pasa a las cards. Antes cada card
@@ -785,6 +834,11 @@ function refreshExercises(sesion, listEl) {
         listEl.appendChild(el('div', { class: 'g-empty-card' }, ['Toca "+ Agregar ejercicio" para empezar.']));
         return;
       }
+      return loadSkipped(sesion, sesiones, order).then(() => ({ order, ejMap, sesMap }));
+    })
+    .then((r) => {
+      if (!r) return;
+      const { order, ejMap, sesMap } = r;
       // NO se abre ninguna tarjeta sola. Antes se abría la primera cuando no
       // había ninguna abierta, y como `refreshExercises` corre en CADA vuelta al
       // tab (switchTab re-renderiza siempre), el ejercicio 1 se abría solo al
@@ -846,8 +900,10 @@ function buildExerciseCard(sesion, ej, listEl, pos) {
   // empezar el gesto encima.
   const head = el('button', { class: 'g-ex-head', type: 'button', 'data-drag-handle': '' });
   const musculoEl = el('div', { class: 'g-ex-muscle' }, [(ej.musculos || []).join(' · ') || 'sin músculo']);
+  const salto = skipLabel(ej.id);
   head.appendChild(el('div', {}, [
     el('div', { class: 'g-ex-name' }, [ej.nombre]),
+    salto ? el('div', { class: 'g-ex-skip' }, [salto]) : null,
     musculoEl
   ]));
   const countEl = el('div', { class: 'g-ex-count' }, ['']);
@@ -1418,72 +1474,16 @@ function openPlateModal(ej, initialLbs, onSaved) {
 
 // ─── Agregar ejercicio a la sesión ────────────────────────────────────────────
 function showAddExerciseModal(sesion, listEl) {
-  const s = sheet('Agregar ejercicio', { picker: true });
-  const searchWrap = el('div', { class: 'g-search-wrap' });
-  searchWrap.appendChild(ICON.search({ size: 17, class: 'g-search-icon' }));
-  const search = el('input', {
-    class: 'g-search', type: 'text', placeholder: 'Buscar ejercicio…',
-    autocomplete: 'off', autocorrect: 'off', enterkeyhint: 'search'
+  pickExercise({
+    title: 'Agregar ejercicio',
+    // Primero los que usaste en la rutina de hoy (`tipo` guarda la última
+    // rutina en la que agregaste cada ejercicio; ver attachExercise).
+    featured: sesion.routine_type
+      ? { label: sesion.routine_type, test: (e) => e.tipo === sesion.routine_type }
+      : null,
+    onPick: (e) => attachExercise(sesion, e, listEl),
+    onCreate: () => showNewExerciseModal((newEj) => attachExercise(sesion, newEj, listEl))
   });
-  searchWrap.appendChild(search);
-  s.modal.appendChild(searchWrap);
-  const sugg = el('div', { class: 'g-suggest' });
-  s.modal.appendChild(sugg);
-  hideKeyboardOnDrag(sugg, search);
-  const newBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['+ Crear ejercicio nuevo']);
-  newBtn.addEventListener('click', () => {
-    s.close();
-    showNewExerciseModal((newEj) => attachExercise(sesion, newEj, listEl), sesion.routine_type);
-  });
-  s.modal.appendChild(newBtn);
-
-  guard(dbGetAll('ejercicios'), 'cargando directorio').then((all) => {
-    const byName = (a, b) => a.nombre.localeCompare(b.nombre);
-    const row = (e) => {
-      const item = el('button', { class: 'g-suggest-row', type: 'button' }, [
-        el('b', {}, [e.nombre]),
-        el('div', { class: 'g-suggest-meta' }, [(e.tipo || '—') + ' · ' + ((e.musculos || []).join(' · ') || 'sin músculo')])
-      ]);
-      item.addEventListener('click', () => {
-        s.close();
-        attachExercise(sesion, e, listEl);
-      });
-      return item;
-    };
-    // Sin texto se ve el directorio entero (primero los de la rutina de hoy):
-    // antes decía "Escribe para buscar" y obligaba a abrir el teclado para
-    // encontrar un ejercicio que se podía elegir de un toque.
-    function render(term) {
-      clear(sugg);
-      sugg.scrollTop = 0;
-      const tKey = normalizeKey((term || '').trim());
-      if (!tKey) {
-        const deHoy = all.filter((e) => sesion.routine_type && e.tipo === sesion.routine_type).sort(byName);
-        const resto = all.filter((e) => deHoy.indexOf(e) < 0).sort(byName);
-        if (deHoy.length) {
-          sugg.appendChild(el('div', { class: 'g-suggest-section' }, [sesion.routine_type]));
-          deHoy.forEach((e) => sugg.appendChild(row(e)));
-          if (resto.length) sugg.appendChild(el('div', { class: 'g-suggest-section' }, ['Otros']));
-        }
-        resto.forEach((e) => sugg.appendChild(row(e)));
-        if (!all.length) sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Aún no hay ejercicios. Crea el primero.']));
-        return;
-      }
-      // Primero los que EMPIEZAN por lo escrito, luego los que lo contienen.
-      const filtered = all
-        .filter((e) => normalizeKey(e.nombre).indexOf(tKey) >= 0)
-        .sort((a, b) => (normalizeKey(a.nombre).indexOf(tKey) === 0 ? 0 : 1) - (normalizeKey(b.nombre).indexOf(tKey) === 0 ? 0 : 1) || byName(a, b));
-      if (filtered.length === 0) {
-        sugg.appendChild(el('div', { class: 'g-suggest-empty' }, ['Sin coincidencias. Usa "Crear ejercicio nuevo".']));
-        return;
-      }
-      filtered.forEach((e) => sugg.appendChild(row(e)));
-    }
-    render('');
-    search.addEventListener('input', () => render(search.value));
-  });
-
-  s.open();
 }
 
 function attachExercise(sesion, ej, listEl) {
@@ -1638,17 +1638,29 @@ function confirmFinalize(sesion, panel) {
     if (ejSinRegistro.length > 0) {
       const aviso = el('div', { class: 'g-confirm-warn' });
       s.modal.appendChild(aviso);
-      guard(dbGetAll('ejercicios'), 'nombres de ejercicios').then((ejs) => {
+      guard(Promise.all([dbGetAll('ejercicios'), prefGet(TEMPLATES_PREF, [])]), 'nombres de ejercicios').then(([ejs, rawTpl]) => {
         const ejMap = {};
         ejs.forEach((e) => { ejMap[e.id] = e; });
-        const nombres = ejSinRegistro.map((id) => (ejMap[id] ? ejMap[id].nombre : 'un ejercicio'));
-        const uno = nombres.length === 1;
+        const nombre = (id) => (ejMap[id] ? ejMap[id].nombre : 'un ejercicio');
+        // Con plantilla no se pierde nada: la próxima vez vuelve a salir, y con
+        // la marca "No lo hiciste la última vez". Sin plantilla sí desaparece.
+        const tpl = findTemplate(rawTpl, sesion.routine_type);
+        const vuelven = tpl ? ejSinRegistro.filter((id) => tpl.ejercicios.includes(id)) : [];
+        const sePierden = ejSinRegistro.filter((id) => vuelven.indexOf(id) < 0);
+        const frases = [];
+        if (sePierden.length) {
+          const uno = sePierden.length === 1;
+          frases.push(sePierden.map(nombre).join(', ') + (uno ? ' no tiene' : ' no tienen') +
+            ' ningún set registrado, así que no ' + (uno ? 'entrará' : 'entrarán') +
+            ' en la propuesta de tu próximo ' + (sesion.routine_type || 'entrenamiento') + '.');
+        }
+        if (vuelven.length) {
+          const uno = vuelven.length === 1;
+          frases.push(vuelven.map(nombre).join(', ') + (uno ? ' no tiene' : ' no tienen') +
+            ' ningún set registrado. Tu plantilla ' + (uno ? 'lo' : 'los') + ' volverá a proponer la próxima vez.');
+        }
         clear(aviso);
-        aviso.appendChild(document.createTextNode(
-          nombres.join(', ') + (uno ? ' no tiene' : ' no tienen') +
-          ' ningún set registrado, así que no ' + (uno ? 'entrará' : 'entrarán') +
-          ' en la propuesta de tu próximo ' + (sesion.routine_type || 'entrenamiento') + '.'
-        ));
+        aviso.appendChild(document.createTextNode(frases.join(' ')));
       });
     }
     const doneBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['Finalizar y guardar']);

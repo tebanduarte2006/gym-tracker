@@ -1,14 +1,16 @@
 {
+  "0": "el",
   "1": "capturas-iphone.mjs",
   "2": "el",
-  "7": "Ruta: arranque y actualizaciones automáticas",
+  "7": "Archivos y funciones",
   "8": "00-INDICE.md",
   "12": "Pruebas en el iPhone",
   "13": "movilidad.js",
   "17": "Ruta: datos, IndexedDB y respaldos",
-  "19": "modals.js",
+  "19": "boot",
+  "20": "theme.js",
   "24": "rea",
-  "25": "Ruta: interfaz y diseño",
-  "27": "Cómo funcionan las apps de gimnasio",
+  "25": "Ruta: función nueva",
+  "27": "Investigación 2026-11: apps de gimnasio y widgets en iOS",
   "28": "Movilidad: fuentes, evidencia y cómo mejorar la rutina"
 }

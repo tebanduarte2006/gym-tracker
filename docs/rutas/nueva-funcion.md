@@ -1,7 +1,7 @@
 # Ruta: función nueva
 
 ## Antes de programar
-1. Revisa `../proyecto/progreso.md` ("Lo que sigue" y "Pendientes") y `../proyecto/decisiones.md`: no propongas lo ya descartado sin una razón nueva (plantillas como entidad, hábitos o salud mental, widgets o Live Activities, frameworks o bundlers).
+1. Revisa `../proyecto/progreso.md` ("Lo que sigue" y "Pendientes") y `../proyecto/decisiones.md`: no propongas lo ya descartado sin una razón nueva (hábitos o salud mental, widgets o Live Activities, frameworks o bundlers).
 2. Si el pedido no está claro, pregunta a Esteban **con opciones concretas**, no con preguntas abiertas.
 3. Lee `../convenciones.md`: cada pieza (pantalla, cálculo, preferencia, prueba) tiene un patrón que se copia.
 

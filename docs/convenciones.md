@@ -26,12 +26,14 @@ js/
   plates.js           [PURO] calculadora de discos (enteros de 0,2 lb)
   muscles.js          [PURO] 18 músculos + migración del etiquetado viejo
   mobility.js         [PURO] rutina de movilidad: pasos, dosis, días hechos, validación
+  templates.js        [PURO] plantillas fijas por rutina: guardar, buscar, saltados seguidos
   importer.js         [PURO] backups v2 (habitos-app) y v3 (nativo), PREFS_IMPORTABLES
   audio.js            Alarma de descanso (clip WAV generado por <audio> + Web Audio de respaldo)
   wakelock.js         Screen Wake Lock durante la sesión
   resttimer.js        Descanso por timestamp fijo
   ui/entrenar.js      Pestaña Entrenar (sesión activa, sets, cardio, finalizar)
-  ui/ejercicios.js    Pestaña Ejercicios (directorio, crear/editar, selector de músculos)
+  ui/ejercicios.js    Pestaña Ejercicios (Plantillas | Ejercicios, directorio, ficha, selector de músculos, pickExercise)
+  ui/plantillas.js    Vista Plantillas y su editor (lista, reordenar, agregar, borrar)
   ui/progresion.js    Pestaña Progresión (hero, PR, gráfica, sets por músculo, cardio)
   ui/movilidad.js     Rutina de movilidad guiada (portada + un paso por pantalla), se abre desde Entrenar
   ui/ajustes.js       Hoja de Ajustes (⚙︎): apariencia, descanso global, alarma, exportar/importar, versión
@@ -63,7 +65,10 @@ graphify-out/         Mapa del código (graphify). Se actualiza con `graphify up
 | Crear DOM | `el()` de `js/dom.js`. **Nunca `innerHTML`** (no tiene puerta trasera de HTML, a propósito) | — |
 | Promesa de IndexedDB que alimenta la interfaz | Pasa por `guard()` de `js/dom.js`: error visible en un aviso, nunca pantalla en blanco | — |
 | Aviso corto | `toast(mensaje, acción opcional)`. Nada de `alert` | Deshacer al borrar un set |
-| Hoja con buscador y lista larga | `sheet(título, { picker: true })` + `.g-suggest` + `hideKeyboardOnDrag(lista, campo)` | `showAddExerciseModal` |
+| Hoja con buscador y lista larga | `sheet(título, { picker: true })` + `.g-suggest` + `hideKeyboardOnDrag(lista, campo)` | `pickExercise` |
+| Elegir un ejercicio del directorio | `pickExercise({ title, featured, disabled, onPick, onCreate })` de `js/ui/ejercicios.js`. No hagas otro buscador | `showAddExerciseModal`, editor de plantilla |
+| Lista reordenable | `enableDragOrder(contenedor, { onDrop })` de `js/ui/dragorder.js`: hijos con `data-drag-id`, asa con `data-drag-handle`, `gap` en el contenedor | `refreshExercises`, `openTemplateEditor` |
+| Cambiar de vista dentro de una pestaña | `.g-seg` (control segmentado) | `renderEjercicios`, gráfica de Progresión |
 | Elegir un valor de pocos posibles (tiempo, barra) | Fichas `.g-chip` dentro de `.g-chip-grid`; para afinar, `.g-step-btn` a los lados de la cifra | `openRestConfigModal`, `openPlateModal` |
 | Botón que guarda o crea algo (contra el doble toque) | `once(boton, acción)` de `js/ui/modals.js` | `openRenameModal` |
 | Actualizar una tarjeta | Su `updateSets()` interno (render quirúrgico). **Nunca** re-renderizar la lista entera por una acción puntual | `buildExerciseCard` |

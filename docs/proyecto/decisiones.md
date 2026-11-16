@@ -27,7 +27,7 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Por qué:** borrar la PWA borra IndexedDB, o sea todo el historial. Seis piezas en `js/swupdate.js` (ver `rutas/arranque-y-actualizaciones.md`) + versión visible y botón manual como salida de emergencia.
 - **Auto-activación** si no hay sesión de gym a medias; con sesión a medias se pregunta (recargar a mitad de una serie es peor que esperar).
 
-## 2026-08-12 · Autollenado desde la última sesión, NO plantillas
+## 2026-08-12 · Autollenado desde la última sesión, NO plantillas (reemplazada en parte el 2026-11-16)
 - **Decisión:** al empezar "Upper A" se proponen los ejercicios y sets de la última sesión finalizada llamada "Upper A". Lo que registre se vuelve el molde de la próxima. **El template ES la sesión anterior.**
 - **Descartado:** un CRUD de plantillas. Esteban no quiere nada que crear, nombrar, editar ni mantener. No lo construyas.
 - **Reemplaza** la decisión original del 2026-07-28 ("sin plantillas, armar cada sesión a mano").
@@ -126,3 +126,26 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Copiado:** aviso de récord al marcar el set (Hevy *Live PR*), −15/+15 en el descanso (Hevy), gráfica con varias métricas (Strong *Focus metric*), racha por semanas (Hevy), dibujo de discos (Strong/Hevy).
 - **No copiado, y por qué:** tipos de set (calentamiento, drop, fallo) y RPE agregan un campo por set y cambian el formato del export (lo consume Obsidian): requieren el visto bueno de Esteban. Sugerencia automática de "sube peso" (doble progresión de Hevy Trainer, BWS+, Alpha Progression): exige un rango de repeticiones por ejercicio, que la app no tiene. Ambos quedan en `progreso.md`, "Ideas anotadas".
 - Fuentes y detalle: `proyecto/investigacion-2026-11.md`.
+
+## 2026-11-16 · Plantillas fijas por rutina (reemplaza en parte la de 2026-08-12)
+- **Por qué:** Esteban: *"hay días que no puedo hacer uno o más ejercicios. La siguiente vez no van a salir, y soy distraído: puedo durar varias sesiones así"*. Con el autollenado, un ejercicio sin sets registrados desaparecía del molde; el aviso de finalizar no bastaba.
+- **Qué:** cada rutina puede tener UNA plantilla (ejercicios y orden; pesos y sets no). Si la tiene, al empezar se carga entera. Si no, sigue el autollenado desde la última sesión. La clave es `normalizeKey(nombre)`: "Upper A", "upper a" y "Upper  A" son la misma, y no se puede crear una segunda.
+- **Dónde se editan:** solo en **Ejercicios** → **Plantillas** (crear, editar, reordenar arrastrando, borrar). Quitar un ejercicio con la caneca en una sesión NO toca la plantilla. Esteban rechazó un botón en la tarjeta EN CURSO: prefiere una sección propia.
+- **Se crean a mano**, no copiando una sesión (decisión suya).
+- **Aviso "No lo hiciste la última vez"** en la tarjeta cerrada, con el número de veces seguidas si se acumula (`templates.js › skippedStreak`).
+- **Guardado:** preferencia `plantillas` en `PREFS_IMPORTABLES`: entra en el respaldo sin cambiar el esquema ni las sesiones/sets del export. Esteban lo aprobó.
+- **Descartado:** "rutina con memoria" (que lo saltado volviera solo, sin plantillas). Se la propuse por cero mantenimiento; Esteban prefirió plantillas fijas.
+- **De paso:** `normalizeKey` ahora trata espacios repetidos como uno (su historial tenía "Legs  A").
+
+## 2026-11-16 · Pestaña Ejercicios: Plantillas | Ejercicios, agrupada por grupo muscular
+- **Control segmentado** arriba (el de Progresión, `.g-seg`). Arranca en Plantillas.
+- **Directorio agrupado por Empuje · Tirón · Core · Pierna** (`muscles.js › exerciseGroup`: gana el grupo con más músculos). La etiqueta vieja `tipo` (Legs/Pull/Push/Upper) estaba mal en muchos ejercicios y ya no se muestra ni se edita; sigue en los datos (no se borró) y `attachExercise` la sigue escribiendo para ordenar el buscador de la sesión.
+- **Ficha del ejercicio** como lista de Ajustes de iOS (Nombre, Músculos, Descanso, Plantillas) en lugar de botones punteados con emojis.
+- **Un solo buscador de ejercicios** (`ejercicios.js › pickExercise`) para la sesión y para las plantillas.
+- **Pendiente de unificar:** hay dos controles segmentados con estilos distintos (`.g-segmented` en Ajustes y `.g-seg`). Anotado en `progreso.md`.
+
+## 2026-11-16 · Revisión de músculos con criterio único
+- **Criterio (aprobado por Esteban fila por fila):** cuentan el músculo principal y los ayudantes grandes (tríceps en todo press, bíceps en jalones y remos) y no los que casi no trabajan (isquios y abductores en sentadillas y prensas, Bryanton et al. 2012; lumbares en el RDL). 17 ejercicios cambian (`muscles.js › REVISION_2026_11`).
+- **Se borran** Single Leg Extension (duplicado de S/L Extensions) y High-To-Low Cable Fly: 0 sets en toda su historia. Solo si siguen en 0 sets y fuera de toda plantilla al aplicarla.
+- **Se ofrece, no se aplica sola** (`main.js › maybeOfferMuscleReview`), después de la migración de agosto. Su decisión queda en `revision_musculos_2026_11`.
+

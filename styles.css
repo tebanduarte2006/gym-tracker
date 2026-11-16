@@ -331,7 +331,7 @@ body.g-modal-open {
 .g-surface,
 .g-session-card, .g-ex-card, .g-recent-card, .g-empty-card,
 .g-list-card, .g-chart-card, .g-info-item, .g-session-row,
-.g-add-exercise, .g-secondary-btn, .g-search-wrap {
+.g-add-exercise, .g-secondary-btn, .g-search-wrap, .g-tpl-item {
   background: var(--color-surface);
   box-shadow: 0 0 0 1px var(--color-separator), 0 2px 8px var(--color-shadow);
 }
@@ -441,6 +441,7 @@ body.g-modal-open {
    existe para eliminar. Con `.open` explícito son cuatro clases y gana esta. */
 .g-reordenando .g-ex-count,
 .g-reordenando .g-ex-chevron,
+.g-reordenando .g-ex-skip,
 .g-reordenando .g-ex-muscle { display: none; }
 /* `transition: none` NO es opcional: dragorder.js mide las tarjetas en el
    mismo tick en que pone esta clase, y una altura a media animación le daría
@@ -500,6 +501,11 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 }
 .g-ex-name { font-size: calc(16rem / 17); font-weight: 620; letter-spacing: -0.012em; }
 .g-ex-muscle { font-size: calc(13rem / 17); color: var(--color-text-secondary); margin-top: 1px; }
+/* "No lo hiciste la última vez": SÍ se ve con la tarjeta cerrada (es la única
+   excepción a "cerrada = nombre + contador"). Existe para que lo veas al pasar
+   la vista por la lista; escondido tras un toque no serviría. Color de enlace,
+   no el naranja de acento: es el tono de acento que cumple contraste como texto. */
+.g-ex-skip { font-size: calc(13rem / 17); font-weight: 600; color: var(--color-link); margin-top: 2px; }
 .g-ex-head-right { display: flex; align-items: center; gap: 10px; }
 .g-ex-count {
   font-family: var(--font-rounded);
@@ -853,6 +859,67 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 
 /* Directorio / Progresión */
 .g-lib { padding: 14px 16px 24px; }
+/* Plantillas | Ejercicios: mismo control segmentado que la gráfica de Progresión. */
+.g-lib-seg { margin-bottom: 14px; }
+.g-tpl-row-text, .g-detail-row-text { min-width: 0; }
+/* Vista previa de los ejercicios de la plantilla: dos líneas como máximo, para
+   que una plantilla de 10 ejercicios no haga una fila gigante. */
+.g-tpl-preview {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.g-tpl-empty { text-align: left; margin-top: 8px; margin-bottom: 14px; }
+
+/* Editor de plantilla (sheet). El `gap` vive en la lista y NO como margen de
+   la fila: dragorder.js lo lee para calcular el hueco del arrastre. */
+.g-tpl-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.g-tpl-chips .g-chip { padding: 0 14px; }
+.g-tpl-hint { margin: -2px 0 10px; }
+.g-tpl-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.g-tpl-item {
+  display: flex; align-items: center; gap: 4px;
+  border-radius: var(--r-md);
+  padding-left: 14px;
+}
+.g-tpl-item-main {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  min-height: 44px;
+  /* Asa del arrastre: sin lupa ni menú de iOS, permanente (gestos-y-reordenar.md, regla 3). */
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.g-tpl-num {
+  flex: 0 0 auto;
+  min-width: 1.6em;
+  font-family: var(--font-rounded);
+  font-size: calc(14rem / 17); font-weight: 700;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.g-tpl-remove {
+  flex: 0 0 auto;
+  width: 44px; height: 44px; margin-right: 4px;
+  display: grid; place-items: center;
+  border: none; border-radius: var(--r-sm);
+  background: none;
+  color: var(--color-text-secondary);
+}
+.g-tpl-remove:active { background: var(--color-fill-strong); }
+.g-reordenando .g-tpl-item { transition: transform var(--base) var(--ease); will-change: transform; }
+.g-reordenando .g-tpl-remove { visibility: hidden; }
+.g-tpl-item.g-arrastrando {
+  transition: none;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 0 0 1px var(--color-separator), 0 18px 44px var(--color-shadow);
+  animation: drag-lift .18s var(--ease) forwards;
+}
+.g-suggest-row.dim { opacity: .45; }
+
+/* Ficha del ejercicio: dos cifras arriba y la lista de ajustes debajo. */
+.g-info-grid.g-info-grid-2 { grid-template-columns: 1fr 1fr; }
+.g-detail-card { margin: 0 16px 4px; }
 .g-prog { padding: 10px 16px 24px; }
 .g-search-wrap {
   display: flex; align-items: center; gap: 9px;
@@ -1104,19 +1171,6 @@ body.g-drag-activo { -webkit-user-select: none; user-select: none; -webkit-touch
 .g-info-item { border-radius: var(--r-md); padding: 12px 13px; }
 .g-info-label { font-size: calc(11rem / 17); font-weight: 750; color: var(--color-text-secondary); letter-spacing: 0.8px; text-transform: uppercase; }
 .g-info-value { font-size: calc(16rem / 17); font-weight: 700; color: var(--color-text); margin-top: 4px; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
-.g-edit-muscles {
-  margin: 0 16px 10px;
-  padding: 13px 14px;
-  min-height: 44px;
-  background: transparent;
-  border: 1px dashed var(--color-text-tertiary);
-  border-radius: var(--r-md);
-  color: var(--color-text);
-  font-size: calc(14rem / 17); font-weight: 600;
-  width: calc(100% - 32px);
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 6px;
-}
 
 /* Chart.
    Los colores del SVG viven AQUÍ, no en atributos desde JS: así el acento se
@@ -1604,7 +1658,6 @@ body.g-update-open #app { padding-top: calc(max(env(safe-area-inset-top), 16px) 
 /* Botones de puro texto: no hay fondo que teñir, así que bajan de opacidad. */
 .g-link-btn:active,
 .g-back-inline:active,
-.g-edit-muscles:active,
 .g-rest-skip:active { opacity: .55; }
 
 /* Touch targets — red de seguridad. Ver docs/rutas/interfaz-y-diseno.md: 44px es piso, no objetivo. */
