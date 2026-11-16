@@ -40,6 +40,7 @@ function key(s) {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -167,4 +168,81 @@ export function needsMuscleMigration(ejercicios) {
 // Regiones vagas, exportadas para que la UI pueda marcarlas como "revisar".
 export function isVagueRegion(musculo) {
   return REGIONES.has(key(musculo));
+}
+
+// ─── Grupo de un ejercicio (para agrupar la lista de Ejercicios) ─────────────
+// Gana el grupo con MÁS músculos del ejercicio; si empatan, el primero en el
+// orden de MUSCLE_GROUPS. Así RDL (Isquiotibiales + Glúteos) cae en Pierna y
+// Pull ups (Dorsales + Trapecios + Bíceps) en Tirón, sin mantener nada a mano.
+// Reemplaza la etiqueta vieja `tipo` (Legs/Pull/Push/Upper), que estaba mal en
+// muchos ejercicios (Cable Crunches y Shrugs aparecían dentro de LEGS).
+export function exerciseGroup(musculos) {
+  let mejor = null;
+  let max = 0;
+  MUSCLE_GROUPS.forEach((g) => {
+    const n = (musculos || []).filter((m) => g.musculos.includes(canonicalMuscle(m))).length;
+    if (n > max) { max = n; mejor = g.grupo; }
+  });
+  return mejor;
+}
+
+// ─── Revisión de músculos de noviembre de 2026 ────────────────────────────────
+// Esteban pidió (2026-11-16) revisar los 57 ejercicios de su respaldo real con
+// un criterio único: cuentan el músculo principal Y los ayudantes grandes (el
+// tríceps en todo press, el bíceps en todo jalón y remo), y no cuentan los que
+// casi no trabajan (isquios y abductores en sentadillas y prensas: el isquio
+// apenas cambia de largo en la sentadilla, Bryanton et al. 2012; lumbares en el
+// RDL, que solo sostienen). Cada fila la aprobó él una por una.
+//
+// Como la de agosto, se OFRECE con el antes y el después (main.js); nunca se
+// aplica sola. Tabla de UNA sola vez: un ejercicio nuevo se crea ya bien.
+const REVISION_2026_11 = {
+  'squat- smith': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'squat peso libre': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'leg press inclinado': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'flat leg press': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'goblet squat': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'sumo squats dumbbell': ['Cuádriceps', 'Glúteos', 'Aductores'],
+  'patada': ['Glúteos'],
+  'rdl- smith': ['Isquiotibiales', 'Glúteos'],
+  'high row + kelso (pull-down bar)': ['Trapecios', 'Deltoides posterior'],
+  'rope hammer curls': ['Bíceps', 'Antebrazos'],
+  'dumbbell shoulder press': ['Deltoides frontal', 'Deltoides lateral', 'Tríceps'],
+  'dumbbell incline chest press': ['Pecho', 'Deltoides frontal', 'Tríceps'],
+  'bench press': ['Pecho', 'Deltoides frontal', 'Tríceps'],
+  'bench press dumbbell': ['Pecho', 'Deltoides frontal', 'Tríceps'],
+  'lat pull-down': ['Dorsales', 'Trapecios', 'Bíceps'],
+  's/a dumbbell row': ['Dorsales', 'Trapecios', 'Bíceps'],
+  's/a cable row': ['Dorsales', 'Trapecios', 'Bíceps']
+};
+
+// Ejercicios que él pidió borrar: tenían 0 sets en toda su historia. Uno era un
+// duplicado (Single Leg Extension = S/L Extensions) y el otro no lo usa.
+const BORRAR_2026_11 = new Set(['single leg extension', 'high-to-low cable fly']);
+
+export const MUSCLE_REVIEW_PREF = 'revision_musculos_2026_11';
+
+// Plan de la revisión contra los datos de HOY (no los del respaldo): solo entra
+// lo que todavía difiere. Devuelve
+//   { cambios: [{ id, nombre, antes, despues }], borrar: [{ id, nombre }] }
+// Un ejercicio se borra SOLO si no tiene ni un set (de ningún estado) y no está
+// en ninguna plantilla: si desde el respaldo lo usó, se queda.
+//   setsCount(id) → número de sets que lo referencian; usadoEnPlantilla(id) → bool
+export function planMuscleReview(ejercicios, setsCount, usadoEnPlantilla) {
+  const cambios = [];
+  const borrar = [];
+  (ejercicios || []).forEach((e) => {
+    const k = key(e.nombre);
+    if (BORRAR_2026_11.has(k)) {
+      if (setsCount(e.id) === 0 && !usadoEnPlantilla(e.id)) borrar.push({ id: e.id, nombre: e.nombre });
+      return;
+    }
+    const objetivo = REVISION_2026_11[k];
+    if (!objetivo) return;
+    const despues = MUSCLES.filter((m) => objetivo.includes(m));
+    const antes = (e.musculos || []).filter(Boolean).map(String);
+    const igual = antes.length === despues.length && despues.every((m) => antes.includes(m));
+    if (!igual) cambios.push({ id: e.id, nombre: e.nombre, antes, despues });
+  });
+  return { cambios, borrar };
 }

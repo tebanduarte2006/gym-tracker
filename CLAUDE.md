@@ -20,7 +20,7 @@ El proyecto tiene **una estructura fija y una sola forma de hacer cada cosa**, p
   - Solo gimnasio. Hábitos y salud mental, fuera para siempre.
   - Cero costos y cero dependencias externas.
   - **Nunca hay que borrar y reinstalar la app**: se actualiza sola. Hoy los datos viven en el teléfono, así que borrarla borra su historial. No le pidas eso jamás.
-  - Sin plantillas como entidad: la sesión anterior es el molde de la próxima.
+  - Plantillas fijas por rutina (desde 2026-11-16): si una rutina tiene plantilla, se carga entera; si no, la sesión anterior es el molde de la próxima. Se editan solo en **Ejercicios** → **Plantillas**.
 - Estado actual y lo que sigue: `docs/proyecto/progreso.md`.
 
 ## 2. Cómo comunicarte con Esteban

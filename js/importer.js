@@ -26,9 +26,11 @@ export const EXPORT_VERSION = 3;
 // aquí, restaurar un backup en otro teléfono lo perdería en silencio — que es
 // exactamente el bug que ya costó las preferencias enteras una vez.
 // `movilidad_dias`: días en que hizo la rutina de movilidad (js/mobility.js).
+// `plantillas`: plantilla fija de cada rutina (js/templates.js).
+// `revision_musculos_2026_11`: ya decidió la revisión de músculos (no volver a ofrecerla).
 export const PREFS_IMPORTABLES = new Set([
   'rest_default', 'contador_workouts', 'seed_decidido', 'bar_lbs', 'musculos_migrados',
-  'alarma_fondo', 'movilidad_dias', 'barras'
+  'alarma_fondo', 'movilidad_dias', 'barras', 'plantillas', 'revision_musculos_2026_11'
 ]);
 
 function parseMuscles(raw) {

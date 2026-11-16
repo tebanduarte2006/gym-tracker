@@ -3,7 +3,7 @@
 // arquitectura de módulos de habitos-app era overhead sin uso aquí).
 
 import { el, clear, toast, guard, sinMovimiento } from './dom.js';
-import { dbGetAll, dbPut, prefGet, prefSet, dbBulkImport } from './db.js';
+import { dbGetAll, dbPut, dbDelete, prefGet, prefSet, dbBulkImport } from './db.js';
 import { registerSW } from './swupdate.js';
 import { normalizeBackup } from './importer.js';
 import { installAudioUnlock, setBackgroundAlarm } from './audio.js';
@@ -13,7 +13,8 @@ import { renderProgresion } from './ui/progresion.js';
 import { sheet, confirmRow, once } from './ui/modals.js';
 import { openSettings } from './ui/ajustes.js';
 import { startThemeSync } from './theme.js';
-import { planMuscleMigration } from './muscles.js';
+import { planMuscleMigration, planMuscleReview, MUSCLE_REVIEW_PREF } from './muscles.js';
+import { TEMPLATES_PREF, sanitizeTemplates } from './templates.js';
 
 const TABS = [
   { id: 'entrenar', label: 'Entrenar', render: renderEntrenar },
@@ -100,9 +101,9 @@ function boot() {
 function maybeOfferMuscleMigration() {
   guard(Promise.all([dbGetAll('ejercicios'), prefGet('musculos_migrados', false)]), 'revisando músculos')
     .then(([ejercicios, yaDecidido]) => {
-      if (yaDecidido || ejercicios.length === 0) return;
+      if (yaDecidido || ejercicios.length === 0) { maybeOfferMuscleReview(); return; }
       const plan = planMuscleMigration(ejercicios);
-      if (plan.length === 0) { prefSet('musculos_migrados', true); return; }
+      if (plan.length === 0) { prefSet('musculos_migrados', true); maybeOfferMuscleReview(); return; }
 
       const s = sheet('Lista de músculos nueva');
       s.modal.appendChild(el('div', { class: 'g-modal-body' }, [
@@ -148,11 +149,88 @@ function maybeOfferMuscleMigration() {
           .then(() => {
             s.close();
             toast(jobs.length + ' ejercicios actualizados');
+            maybeOfferMuscleReview();
           });
       });
       const no = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Dejarlo como está']);
       no.addEventListener('click', () => {
         prefSet('musculos_migrados', true);
+        s.close();
+        maybeOfferMuscleReview();
+      });
+      s.modal.appendChild(ok);
+      s.modal.appendChild(no);
+      s.open();
+    })
+    .catch(() => {}); // nunca puede tumbar el arranque
+}
+
+// ─── Revisión de músculos de noviembre de 2026 ────────────────────────────────
+// Él la pidió y aprobó cada fila (ver muscles.js › REVISION_2026_11), pero
+// igual se OFRECE con el antes y el después, porque reescribe el volumen por
+// músculo de todo su historial. Corre DESPUÉS de la migración de agosto, nunca
+// a la vez: dos hojas encimadas no se pueden leer. Si dice que no, se recuerda.
+function maybeOfferMuscleReview() {
+  guard(Promise.all([
+    dbGetAll('ejercicios'), dbGetAll('sets'), prefGet(MUSCLE_REVIEW_PREF, false), prefGet(TEMPLATES_PREF, [])
+  ]), 'revisando músculos')
+    .then(([ejercicios, sets, yaDecidido, plantillas]) => {
+      if (yaDecidido || ejercicios.length === 0) return;
+      const usos = {};
+      sets.forEach((st) => { usos[st.ejercicio_id] = (usos[st.ejercicio_id] || 0) + 1; });
+      const enPlantilla = new Set();
+      sanitizeTemplates(plantillas).forEach((t) => t.ejercicios.forEach((id) => enPlantilla.add(id)));
+      const plan = planMuscleReview(ejercicios, (id) => usos[id] || 0, (id) => enPlantilla.has(id));
+      if (plan.cambios.length === 0 && plan.borrar.length === 0) { prefSet(MUSCLE_REVIEW_PREF, true); return; }
+
+      const s = sheet('Revisión de músculos');
+      s.modal.appendChild(el('div', { class: 'g-modal-body' }, [
+        'Lo que revisamos juntos: cuentan el músculo principal y los ayudantes grandes ' +
+        '(tríceps en los press, bíceps en jalones y remos) y dejan de contar los que casi ' +
+        'no trabajan. Cambia tu volumen por músculo, no tus sets ni tus pesos.'
+      ]));
+      if (plan.cambios.length > 0) {
+        s.modal.appendChild(el('div', { class: 'g-modal-sub' }, [
+          plan.cambios.length + (plan.cambios.length === 1 ? ' ejercicio' : ' ejercicios')
+        ]));
+        const card = el('div', { class: 'g-list-card' });
+        plan.cambios.forEach((p) => {
+          card.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
+            el('div', {}, [
+              el('div', { class: 'g-list-name' }, [p.nombre]),
+              el('div', { class: 'g-list-sub' }, [(p.antes.join(' · ') || 'sin músculo') + '  →  ' + p.despues.join(' · ')])
+            ])
+          ]));
+        });
+        s.modal.appendChild(card);
+      }
+      if (plan.borrar.length > 0) {
+        s.modal.appendChild(el('div', { class: 'g-modal-sub' }, ['Se borran (0 sets en toda tu historia)']));
+        const card = el('div', { class: 'g-list-card' });
+        plan.borrar.forEach((b) => {
+          card.appendChild(el('div', { class: 'g-list-row', style: 'cursor:default;' }, [
+            el('div', { class: 'g-list-name' }, [b.nombre])
+          ]));
+        });
+        s.modal.appendChild(card);
+      }
+
+      const ok = el('button', { class: 'g-btn-primary', type: 'button' }, ['Aplicar']);
+      once(ok, () => {
+        const jobs = plan.cambios.map((p) => {
+          const ej = ejercicios.find((e) => e.id === p.id);
+          ej.musculos = p.despues;
+          return dbPut('ejercicios', ej);
+        }).concat(plan.borrar.map((b) => dbDelete('ejercicios', b.id)));
+        return guard(Promise.all(jobs).then(() => prefSet(MUSCLE_REVIEW_PREF, true)), 'aplicando revisión')
+          .then(() => {
+            s.close();
+            toast('Músculos revisados');
+          });
+      });
+      const no = el('button', { class: 'g-btn-secondary', type: 'button' }, ['Dejarlo como está']);
+      no.addEventListener('click', () => {
+        prefSet(MUSCLE_REVIEW_PREF, true);
         s.close();
       });
       s.modal.appendChild(ok);

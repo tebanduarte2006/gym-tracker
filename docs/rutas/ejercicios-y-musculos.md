@@ -1,14 +1,29 @@
 # Ruta: ejercicios y taxonomía de músculos
 
 ## Qué es
-La pestaña Ejercicios (directorio, crear, editar, renombrar, descanso por ejercicio) y la lista cerrada de 18 músculos con la que se etiqueta cada ejercicio.
+La pestaña Ejercicios: arriba un control segmentado **Plantillas | Ejercicios**. Plantillas = una plantilla fija por rutina (crear, editar, reordenar, borrar). Ejercicios = el directorio agrupado por grupo muscular, crear, la ficha (nombre, músculos, descanso, en qué plantillas está). Y la lista cerrada de 18 músculos con la que se etiqueta cada ejercicio.
 
 ## Archivos y funciones
 | Dónde | Qué |
 |---|---|
-| `js/ui/ejercicios.js` | `renderEjercicios` (devuelve promesa), `renderList`, `renderDetail`, `openRenameModal`, `openRestModal`, `buildMusclePicker`, `showNewExerciseModal`, `openEditMusclesModal` (también desde la tarjeta durante la rutina) |
-| `js/muscles.js` [puro] | `MUSCLE_GROUPS`, `MUSCLES`, `canonicalMuscle`, `canonicalizeExercise`, `planMuscleMigration`, `needsMuscleMigration`, `isVagueRegion`, tabla `POR_EJERCICIO` (de una sola vez) |
-| `js/main.js` | `maybeOfferMuscleMigration` (se ofrece con el antes/después, nunca se aplica sola) |
+| `js/ui/ejercicios.js` | `renderEjercicios` (devuelve promesa; control segmentado, `_vista`), `renderDirectory`, `renderList` (agrupa con `exerciseGroup`), `renderDetail` (lista estilo Ajustes), `openRenameModal` (solo nombre), `openRestModal`, `buildMusclePicker`, `showNewExerciseModal`, `openEditMusclesModal` (también desde la tarjeta durante la rutina), `pickExercise` (el ÚNICO buscador de ejercicios: sesión y plantillas) |
+| `js/ui/plantillas.js` | `renderTemplatesView` (lista), `openTemplateEditor` (copia de trabajo; nada se guarda hasta **Guardar plantilla**; reordenar con `enableDragOrder`) |
+| `js/templates.js` [puro] | `TEMPLATES_PREF`, `sanitizeTemplates`, `findTemplate`, `saveTemplate` (una por rutina, por `normalizeKey`), `deleteTemplate`, `templateExerciseIds`, `templatesWithExercise`, `skippedStreak` |
+| `js/muscles.js` [puro] | `MUSCLE_GROUPS`, `MUSCLES`, `canonicalMuscle`, `canonicalizeExercise`, `planMuscleMigration`, `needsMuscleMigration`, `isVagueRegion`, tabla `POR_EJERCICIO` (de una sola vez), `exerciseGroup`, `planMuscleReview` + tabla `REVISION_2026_11` (de una sola vez) |
+| `js/main.js` | `maybeOfferMuscleMigration` y después `maybeOfferMuscleReview` (se ofrecen con el antes/después, nunca se aplican solas) |
+
+## Plantillas (2026-11-16)
+- Una por rutina; la clave es `normalizeKey(nombre)`. `saveTemplate` rechaza un nombre que ya tiene otra plantilla, también al renombrar.
+- Guardadas en la preferencia `plantillas` (`[{ nombre, ejercicios: [ids] }]`), en `PREFS_IMPORTABLES`. Pesos y sets NO van ahí.
+- Se editan **solo** en esta pestaña. La caneca de la sesión no las toca. `createSession` (entrenar.js) las lee; ver `rutas/entrenar.md`.
+- Al crear, las rutinas ya hechas sin plantilla se ofrecen como fichas para no teclear el nombre (lección 30).
+- Un ejercicio borrado del directorio se ignora al cargar la plantilla (`templateExerciseIds`).
+
+## Directorio por grupo muscular (2026-11-16)
+`exerciseGroup(musculos)`: gana el grupo con más músculos; empate → el primero de `MUSCLE_GROUPS`. La etiqueta vieja `tipo` ya no se muestra ni se edita (estaba mal en muchos ejercicios). Sigue en los datos y `attachExercise` la escribe para ordenar el buscador de la sesión.
+
+## Revisión de noviembre de 2026
+Criterio único aprobado por Esteban: principal + ayudantes grandes; fuera los que casi no trabajan. 17 cambios y 2 borrados (0 sets). Se ofrece una vez (`revision_musculos_2026_11`). Detalle en `decisiones.md`.
 
 ## Taxonomía de músculos (2026-08-12)
 
@@ -57,10 +72,10 @@ se puede traducir sin adivinar se queda como está y se marca para que lo ajuste
 agosto de 2026: un ejercicio nuevo se crea ya con la lista canónica.
 
 ## Cómo probar
-`npm test` → `tests/muscles.test.js` (14 pruebas, incluida una sobre los 36 ejercicios reales del seed: ninguno sin músculos ni fuera de la taxonomía).
+`npm test` → `tests/templates.test.js` (plantillas y saltados) y `tests/muscles.test.js` (incluye `exerciseGroup` y `planMuscleReview`; incluida una sobre los 36 ejercicios reales del seed: ninguno sin músculos ni fuera de la taxonomía).
 
 ## Lecciones que aplican
 14, 30, 31, 32, 33.
 
 ## graphify
-`graphify explain "buildMusclePicker"` · `graphify explain "planMuscleMigration"` · `graphify explain "canonicalMuscle"`
+`graphify explain "openTemplateEditor"` · `graphify explain "pickExercise"` · `graphify explain "skippedStreak"` · `graphify explain "buildMusclePicker"` · `graphify explain "planMuscleMigration"` · `graphify explain "canonicalMuscle"`

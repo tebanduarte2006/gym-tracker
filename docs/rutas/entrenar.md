@@ -54,7 +54,9 @@ conviertas en "toca la fila" por elegancia.**
 **Editar un set NO lo registra.** Cambiar un peso puede ser ajustar el plan
 antes de levantarlo. Registrar es siempre un acto explícito.
 
-**Consecuencia que hay que avisar, y se avisa.** Como el molde de la próxima vez
+**Plantillas (2026-11-16).** Si la rutina tiene plantilla (`templates.js › findTemplate`), `createSession` carga la plantilla ENTERA y no el autollenado. El sheet de **Empezar** dice en cada fila *Plantilla · N ejercicios* o *Sin plantilla · N ejercicios de tu última vez*, e incluye las plantillas de rutinas nunca hechas. La tarjeta de un ejercicio que estaba en la lista de la última sesión de esa rutina y quedó sin sets registrados dice **No lo hiciste la última vez** (o *Saltado las últimas N veces*), visible con la tarjeta cerrada; se calcula una vez por sesión (`loadSkipped`, `_saltados`). El aviso de finalizar distingue lo que la plantilla volverá a proponer de lo que se pierde.
+
+**Consecuencia que hay que avisar, y se avisa** (solo sin plantilla). Como el molde de la próxima vez
 ES esta sesión, un ejercicio que termines sin ningún set registrado desaparece
 de la propuesta de la semana que viene. Es lo que Esteban pidió (el plan se
 corrige solo), pero encogería el entrenamiento en silencio y semanas después
@@ -106,4 +108,4 @@ ninguna ventana de tiempo alrededor del render lo arregla — solo no hacerlo.
 3, 6, 7, 8, 23, 25, 28, 29, 30, 43 (`docs/proyecto/lecciones.md`).
 
 ## graphify
-`graphify explain "showAddExerciseModal"` · `graphify explain "openPlateModal"` · `graphify explain "prKind"` · `graphify explain "refreshExercises"` · `graphify explain "buildExerciseCard"` · `graphify explain "autofillPlan"` · `graphify explain "finalizeSession"`
+`graphify explain "showAddExerciseModal"` · `graphify explain "openPlateModal"` · `graphify explain "prKind"` · `graphify explain "refreshExercises"` · `graphify explain "buildExerciseCard"` · `graphify explain "autofillPlan"` · `graphify explain "loadSkipped"` · `graphify explain "findTemplate"` · `graphify explain "finalizeSession"`

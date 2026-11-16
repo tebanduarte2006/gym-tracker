@@ -3,7 +3,7 @@
 ## Qué es
 Una rutina de movilidad aparte del entrenamiento de fuerza. Se abre con el botón **Movilidad** del inicio de Entrenar (debajo de **▶ Iniciar sesión**). Primero hay una portada con la lista, y después un paso por pantalla: animación en bucle, nombre, dosis, instrucciones y **Anterior / Siguiente**. Esteban la sigue con el teléfono en el piso. Al terminar solo se guarda **el día**, y la tarjeta **ÚLTIMOS 7 DÍAS** lo marca con un punto pequeño.
 
-**Esteban la refina con el tiempo pidiéndoselo a un agente.** No hay editor en la app (misma regla que "sin plantillas", `decisiones.md` 2026-08-12). Las fuentes, la evidencia y el registro de cambios de la rutina están en [../movilidad/fuentes-y-proceso.md](../movilidad/fuentes-y-proceso.md): **léelo antes de cambiar un ejercicio.**
+**Esteban la refina con el tiempo pidiéndoselo a un agente.** No hay editor en la app (la rutina es un archivo, `decisiones.md` 2026-10-15). Las fuentes, la evidencia y el registro de cambios de la rutina están en [../movilidad/fuentes-y-proceso.md](../movilidad/fuentes-y-proceso.md): **léelo antes de cambiar un ejercicio.**
 
 ## Archivos y funciones
 | Dónde | Qué |

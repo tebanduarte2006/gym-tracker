@@ -141,3 +141,29 @@ test('migración del directorio REAL: los 11 ejercicios con región vaga se trad
     assert.deepEqual(r.sinResolver, [], e.nombre + ' no tiene traducción por ejercicio');
   });
 });
+
+import { exerciseGroup, planMuscleReview } from '../js/muscles.js';
+
+test('exerciseGroup: gana el grupo con más músculos', () => {
+  assert.equal(exerciseGroup(['Isquiotibiales', 'Glúteos']), 'Pierna');
+  assert.equal(exerciseGroup(['Lumbares', 'Isquiotibiales', 'Glúteos']), 'Pierna');
+  assert.equal(exerciseGroup(['Dorsales', 'Trapecios', 'Bíceps']), 'Tirón');
+  assert.equal(exerciseGroup(['Pecho', 'Deltoides frontal', 'Tríceps']), 'Empuje');
+  assert.equal(exerciseGroup(['Abdominales', 'Oblicuos']), 'Core');
+  assert.equal(exerciseGroup([]), null);
+});
+
+test('planMuscleReview: solo lo que difiere, y borra solo sin sets ni plantilla', () => {
+  const ejs = [
+    { id: 1, nombre: 'Squat Peso Libre', musculos: ['Cuádriceps', 'Isquiotibiales', 'Aductores'] },
+    { id: 2, nombre: 'Bench Press', musculos: ['Pecho', 'Deltoides frontal', 'Tríceps'] },
+    { id: 3, nombre: 'Single Leg Extension', musculos: ['Cuádriceps'] },
+    { id: 4, nombre: 'High-To-Low Cable Fly', musculos: ['Pecho'] },
+    { id: 5, nombre: 'Machine Fly', musculos: ['Pecho'] }
+  ];
+  const plan = planMuscleReview(ejs, (id) => (id === 4 ? 2 : 0), () => false);
+  assert.deepEqual(plan.cambios, [{ id: 1, nombre: 'Squat Peso Libre',
+    antes: ['Cuádriceps', 'Isquiotibiales', 'Aductores'], despues: ['Cuádriceps', 'Glúteos', 'Aductores'] }]);
+  assert.deepEqual(plan.borrar, [{ id: 3, nombre: 'Single Leg Extension' }]);
+  assert.deepEqual(planMuscleReview(ejs, () => 0, (id) => id === 3).borrar.map((b) => b.id), [4]);
+});

@@ -21,6 +21,17 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 - [ ] El rojo solo aparece en lo que borra algo.
 - [ ] Durante una sesión real, a un brazo de distancia, leo sin esfuerzo el peso y las repeticiones.
 
+## Plantillas y revisión de músculos (pendiente, 2026-11-16)
+- [ ] Al abrir la app después de la actualización aparece **Revisión de músculos** con 17 ejercicios (antes → después) y 2 que se borran (Single Leg Extension, High-To-Low Cable Fly). Toco **Aplicar** y dice **Músculos revisados**.
+- [ ] **Ejercicios**: arriba veo **Plantillas | Ejercicios**. En **Ejercicios** la lista está agrupada en EMPUJE, TIRÓN, CORE y PIERNA (Cable Crunches ya no sale en piernas).
+- [ ] **Plantillas** → **+ Nueva plantilla** → toco la ficha **Upper A** (no lo escribo) → **+ Agregar ejercicio** uno por uno → **Guardar plantilla**. Aparece en la lista con sus ejercicios.
+- [ ] En el editor mantengo presionado un ejercicio con el pulgar y lo arrastro: se mueve, la hoja no se desplaza, y el número de orden cambia al soltar.
+- [ ] Intento crear otra plantilla llamada **upper a**: dice **Ya tienes una plantilla para Upper A**.
+- [ ] **Entrenar** → **Iniciar sesión**: **Upper A** dice **Plantilla · N ejercicios**; las demás, **Sin plantilla**. La elijo y salen todos los de la plantilla en su orden.
+- [ ] Dejo un ejercicio sin registrar y finalizo: el aviso dice que la plantilla lo volverá a proponer. La próxima **Upper A** lo muestra con **No lo hiciste la última vez** en naranja.
+- [ ] Quito un ejercicio con la caneca durante la sesión: la plantilla en **Ejercicios** → **Plantillas** sigue igual.
+- [ ] Toco un ejercicio en **Ejercicios**: la ficha muestra **Nombre**, **Músculos**, **Descanso** y **Plantillas** (en cuáles está).
+
 ## Entrenar
 - [ ] Empiezo un día que ya hice antes ("Upper A"): aparecen propuestos (apagados) los ejercicios y sets de la última vez.
 - [ ] Toco el botón de registrar de una fila: la fila se vuelve sólida y arranca el descanso.

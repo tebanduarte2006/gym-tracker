@@ -50,6 +50,7 @@ actualizar `importer.js` + tests + esta sección, en el mismo commit.
 
 ## Reglas
 - **Peso canónico SIEMPRE en kg** en la base. La unidad es asunto de entrada y pantalla, jamás de almacenamiento.
+- Preferencias de 2026-11-16: `plantillas` (plantillas por rutina, `js/templates.js`) y `revision_musculos_2026_11` (ya decidió la revisión de músculos). Ambas en el respaldo; el formato del export no cambió.
 - **Toda preferencia nueva va a `PREFS_IMPORTABLES`**, o restaurar un backup la pierde en silencio. Hay una prueba que lo exige (lección 27).
 - **Los esquemas viejos nunca mueren** (lección 5): el importador rescata los 167 sets con solo `peso_lbs`. Nunca asumas que el histórico es uniforme.
 - IndexedDB no indexa booleanos (lección 10).
