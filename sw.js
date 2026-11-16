@@ -1,7 +1,7 @@
 // Service Worker — Gym Tracker
 // Bumpear CACHE en cada deploy (formato gymtracker-YYYYMMDD-N).
 // Archivos nuevos → agregarlos a ASSETS. Ver docs/rutas/publicar-y-verificar.md.
-var CACHE = "gymtracker-" + "20261116-1";
+var CACHE = "gymtracker-" + "20261116-2";
 var ASSETS = [
   "./",
   "./index.html",
@@ -43,14 +43,16 @@ var ASSETS = [
   "./fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2",
   "./data/seed.json",
   "./data/movilidad.json",
-  "./media/movilidad/toalla.webp",
   "./media/movilidad/extension-toracica.webp",
   "./media/movilidad/gato-vaca.webp",
   "./media/movilidad/noventa-noventa.webp",
   "./media/movilidad/tobillo.png",
   "./media/movilidad/sentadilla-goblet.webp",
   "./media/movilidad/peso-muerto-una-pierna.webp",
-  "./media/movilidad/talon-una-pierna.webp"
+  "./media/movilidad/talon-una-pierna.webp",
+  "./media/movilidad/rotacion-cuatro-apoyos.webp",
+  "./media/movilidad/cruzado.webp",
+  "./media/movilidad/flexor-cadera.webp"
 ];
 
 // El shell mínimo se cachea de forma atómica (sin él la app no arranca offline).

@@ -29,7 +29,7 @@ Una rutina de movilidad aparte del entrenamiento de fuerza. Se abre con el botó
 
 ## Cómo probar
 - `npm test` → `tests/mobility.test.js`, más `weekSummary` en `tests/stats.test.js`.
-- `node scripts/capturas-iphone.mjs` → `02a-movilidad-portada`, `02b-movilidad-paso` y `02c-movilidad-cronometro`, en claro, en oscuro y con texto grande; comprueba además que el botón ofrezca continuar. Todo con `tap` (eventos táctiles).
+- `node scripts/capturas-iphone.mjs` → `02a-movilidad-portada`, `02b-movilidad-paso` y `02c-movilidad-cronometro`, en claro, en oscuro y con texto grande; comprueba además que el botón ofrezca continuar. Todo con `tap` (eventos táctiles). **La captura del cronómetro avanza 5 pasos: el paso 6 de la rutina tiene que ser de tipo `tiempo`** (hoy, el flexor de cadera); si reordenas, ajusta el número de toques en `scripts/capturas-iphone.mjs`.
 - En el iPhone: lista de `docs/esteban/pruebas-iphone.md`, sección **Movilidad**.
 
 ## Lecciones que aplican

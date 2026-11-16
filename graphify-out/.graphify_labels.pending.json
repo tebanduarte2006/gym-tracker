@@ -2,7 +2,7 @@
   "0": "el",
   "1": "capturas-iphone.mjs",
   "2": "el",
-  "7": "Archivos y funciones",
+  "7": "muscles.js",
   "8": "00-INDICE.md",
   "12": "Pruebas en el iPhone",
   "13": "movilidad.js",
@@ -12,5 +12,11 @@
   "24": "rea",
   "25": "Ruta: función nueva",
   "27": "Investigación 2026-11: apps de gimnasio y widgets en iOS",
-  "28": "Movilidad: fuentes, evidencia y cómo mejorar la rutina"
+  "28": "Movilidad: fuentes, evidencia y cómo mejorar la rutina",
+  "29": "importer.test.js",
+  "30": "Ruta: ejercicios y taxonomía de músculos",
+  "31": "Ruta: interfaz y diseño",
+  "32": "Lineamientos de diseño iOS (Apple HIG) para Plata y Gym Tracker",
+  "33": "ref_node_assert",
+  "34": "Convenciones: una sola forma de hacer cada cosa"
 }
