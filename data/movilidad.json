@@ -1,21 +1,20 @@
 {
-  "version": 1,
+  "version": 2,
   "nombre": "Movilidad",
   "vueltas": 2,
-  "fuente": "Rutina de Jeremy Ethier (Built With Science, 2021) y un bloque de equilibrio",
+  "fuente": "Rutina de Jeremy Ethier (Built With Science, 2021) con ajustes para el hombro, y un bloque de equilibrio",
   "ejercicios": [
     {
-      "id": "toalla",
-      "nombre": "Estiramiento con toalla",
-      "zona": "Hombros",
-      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "por brazo" },
+      "id": "gato-vaca",
+      "nombre": "Gato-vaca",
+      "zona": "Espalda alta",
+      "dosis": { "tipo": "reps", "min": 6, "max": 6, "unidad": "en cada dirección" },
       "pasos": [
-        "Toalla detrás de la espalda: una mano arriba, por encima del hombro, y la otra abajo, a la altura de la cintura.",
-        "Para el brazo de arriba, la mano de abajo tira la toalla hacia abajo mientras el de arriba intenta bajar.",
-        "Para el de abajo, al revés: la de arriba tira hacia arriba.",
-        "El hombro no se va hacia adelante. Más repeticiones en el lado más rígido."
+        "En cuatro apoyos: manos debajo de los hombros y rodillas debajo de la cadera.",
+        "Redondea la espalda hacia el techo (gato) y luego húndela mirando al frente (vaca).",
+        "Lento. El movimiento sale de la mitad de la espalda, no del cuello."
       ],
-      "animacion": "media/movilidad/toalla.webp",
+      "animacion": "media/movilidad/gato-vaca.webp",
       "credito": "fitnessprogramer.com"
     },
     {
@@ -32,16 +31,31 @@
       "credito": "Fitbod"
     },
     {
-      "id": "gato-vaca",
-      "nombre": "Gato-vaca",
+      "id": "rotacion-cuatro-apoyos",
+      "nombre": "Rotación de espalda en cuatro apoyos",
       "zona": "Espalda alta",
-      "dosis": { "tipo": "reps", "min": 6, "max": 6, "unidad": "en cada dirección" },
+      "dosis": { "tipo": "reps", "min": 6, "max": 8, "unidad": "por lado" },
       "pasos": [
         "En cuatro apoyos: manos debajo de los hombros y rodillas debajo de la cadera.",
-        "Redondea la espalda hacia el techo (gato) y luego húndela mirando al frente (vaca).",
-        "Lento. El movimiento sale de la mitad de la espalda, no del cuello."
+        "Pasa un brazo por debajo del otro, hacia el lado contrario, dejando bajar el hombro.",
+        "Luego abre ese brazo hacia el techo girando el pecho, y sigue la mano con la mirada.",
+        "El giro sale de la mitad de la espalda: la cadera no se mueve."
       ],
-      "animacion": "media/movilidad/gato-vaca.webp",
+      "animacion": "media/movilidad/rotacion-cuatro-apoyos.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "cruzado",
+      "nombre": "Estiramiento cruzado de hombro",
+      "zona": "Hombros (rotación interna)",
+      "dosis": { "tipo": "tiempo", "segundos": 60 },
+      "pasos": [
+        "De pie, con la espalda y el omóplato del brazo que estiras pegados a la pared.",
+        "Lleva ese brazo recto cruzado frente al pecho y jálalo con la otra mano por encima del codo.",
+        "30 segundos por brazo: cambia de brazo cuando el cronómetro vaya por la mitad.",
+        "Debe jalar atrás del hombro. Si pincha adelante más de 2 de 10, afloja: el omóplato no se despega de la pared."
+      ],
+      "animacion": "media/movilidad/cruzado.webp",
       "credito": "fitnessprogramer.com"
     },
     {
@@ -56,6 +70,20 @@
         "Para estirar más, inclínate sobre la pierna de adelante."
       ],
       "animacion": "media/movilidad/noventa-noventa.webp",
+      "credito": "fitnessprogramer.com"
+    },
+    {
+      "id": "flexor-cadera",
+      "nombre": "Flexor de cadera de rodillas",
+      "zona": "Caderas (parte de adelante)",
+      "dosis": { "tipo": "tiempo", "segundos": 60 },
+      "pasos": [
+        "Una rodilla en el piso (sobre una toalla doblada) y el otro pie adelante, como en una zancada.",
+        "Aprieta la cola de la pierna de atrás y lleva la cadera un poco hacia adelante.",
+        "30 segundos por lado: cambia cuando el cronómetro vaya por la mitad.",
+        "La espalda baja no se arquea: el estiramiento se siente adelante de la cadera de atrás."
+      ],
+      "animacion": "media/movilidad/flexor-cadera.webp",
       "credito": "fitnessprogramer.com"
     },
     {

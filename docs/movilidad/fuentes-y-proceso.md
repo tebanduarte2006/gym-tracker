@@ -2,7 +2,7 @@
 
 **Documento vivo.** Lo pidió Esteban el 2026-10-15: la rutina de movilidad se va a ir refinando con el tiempo (quitar, agregar o cambiar ejercicios) con Claude u otros agentes, y cada vez tiene que salir mejor y más rápido. **Cada agente que toque la rutina agrega aquí lo que aprendió**: una fuente nueva, un truco o un callejón sin salida. La parte técnica (archivos, reglas de código) está en [../rutas/movilidad.md](../rutas/movilidad.md).
 
-Contexto de Esteban: avanzado en el gimnasio, **novato en movilidad**, con equilibrio y coordinación flojos (sus palabras), y un iPhone 11 con poca memoria.
+Contexto de Esteban: avanzado en el gimnasio, **novato en movilidad**, rígido en general (caderas sobre todo), con equilibrio y coordinación flojos (sus palabras), y un iPhone 11 con poca memoria. **Hombros:** tendinitis y bursitis en ambos (2026), en fisioterapia desde ~septiembre de 2026; el derecho sigue rígido. Su test y lo que hace en fisioterapia están en §7: **léelo antes de tocar un ejercicio de hombro.** Hace la rutina sobre todo en casa, los días sin gimnasio (tiene mancuernas de hasta 5 lb, una banda elástica, un banco y una silla).
 
 ## 1. Proceso estándar para cambiar la rutina
 
@@ -22,6 +22,11 @@ Contexto de Esteban: avanzado en el gimnasio, **novato en movilidad**, con equil
 | La carga pesada y lenta sirve para rehabilitar el tendón de Aquiles | Ensayo aleatorizado (tendón **lesionado**) | Beyer et al., 2015, *Am J Sports Med* 43(7) |
 | Gelatina con vitamina C antes de una carga corta (~6 min) aumenta la síntesis de colágeno | Preliminar, muestra pequeña | Shaw et al., 2017, *Am J Clin Nutr* 105(1); trabajo de Keith Baar (UC Davis) |
 | Más rango de movimiento no garantiza más rendimiento | Revisión (verificar autores antes de citar) | *Sports Medicine* 2017, DOI 10.1007/s40279-017-0797-9 (citada por Built With Science) |
+| El estiramiento **cruzado** (brazo frente al pecho) mejoró la rotación interna; el "sleeper" no mostró mejora clara. La diferencia entre ambos no fue estadísticamente firme | Ensayo aleatorizado pequeño (54 personas, 4 semanas), verificado en resúmenes secundarios el 2026-11-16 | McClure et al., 2007, *JOSPT* 37(3):108-14 ([resumen](https://myorthoevidence.com/AceReport/Report/734)) |
+| Déficit de rotación interna (GIRD) = 20° o más frente al otro hombro; perder más de 5° de arco total se asoció a más lesiones | Cohorte de lanzadores profesionales, verificado en resúmenes el 2026-11-16 | Wilk et al., 2011, *Am J Sports Med* 39(2):329-35 ([revisión PMC5865552](https://pmc.ncbi.nlm.nih.gov/articles/PMC5865552)) |
+| El ejercicio sirve para el dolor tipo pinzamiento de hombro, y el **específico** más que el genérico | Metaanálisis, pero con evidencia de calidad **muy baja** según los autores | Steuri et al., 2017, *BJSM* 51(18):1340-7 ([PEDro](https://search.pedro.org.au/search-results/record-detail/50325)) |
+| La rotación externa acostado de lado es el ejercicio que más activa infraespinoso y redondo menor | EMG, 10 personas sanas | Reinold et al., 2004, *JOSPT* 34(7):385-94 ([PubMed](https://pubmed.ncbi.nlm.nih.gov/15296366/)) |
+| Rotación externa de lado, flexión de lado, "T" boca abajo con rotación externa y extensión boca abajo activan trapecio medio e inferior sin que domine el superior | EMG de superficie, 45 personas sanas; las reseñas difieren en la lista exacta | Cools et al., 2007, *Am J Sports Med* ([reseña](https://brookbushinstitute.com/article/what-are-the-best-exercises-to-promote-scapular-muscle-balance)) |
 | La "rutina de mantenimiento de tendones" en personas sanas | **Poco respaldo**: el levantamiento de pesas ya carga los tendones | Inferencia a partir de lo anterior |
 
 Para que no se pierda: la movilidad sirve para **ganar rango** donde falta; el equilibrio sí tiene evidencia preventiva. Antes de entrenar, mejor movimientos dinámicos que estiramientos estáticos largos (Built With Science lo dice; es la recomendación habitual). Las citas de esta tabla salen del conocimiento general del agente del 2026-10-15 y **no se verificaron en línea**: compruébalas antes de usarlas para algo importante.
@@ -68,9 +73,41 @@ Límite: **250 KB por animación** (lo exige la prueba). Las de hoy pesan entre 
 - **Progresiones de equilibrio**: apoyo en una pierna con ojos cerrados, sobre superficie blanda.
 - **Rutina de tendones** con carga, si algún día hay una molestia concreta: ahí la evidencia (Beyer 2015) sí aplica.
 - Encontrar una **animación real del tobillo en banco** (hoy es una ilustración fija de Bend).
+- **Estiramiento de pectoral en el marco de la puerta** (Borstad y Ludewig 2006, sin verificar): Esteban siente tensión adelante al rotar hacia afuera. Se dejó fuera el 2026-11-16 porque puede pinchar donde hoy le duele; reconsiderar cuando el pinchazo anterior se haya ido.
+- **Fuerza de manguito y omóplato** (rotación externa de lado con 1-2 kg, Reinold 2004; "T" boca abajo, Cools 2007): entra si Esteban deja la fisioterapia, que hoy ya se la da.
+
+### Si la rutina se le hace larga (candidatos a recortar, en este orden)
+Objetivo: unos 25 minutos (la app estima 24). Si Esteban dice que pasa de 30, recorta en este orden y díselo:
+1. **Gato-vaca**: la rotación en cuatro apoyos y la extensión en banco ya mueven la columna.
+2. **Flexor de cadera**: el 90/90 ya trabaja la cadera; se puede dejar para los días de gimnasio.
+3. **Sentadilla goblet con balanceo**: tobillo y cadera ya están cubiertos por separado.
+**Nunca recortes** el estiramiento cruzado (es la razón de esta versión), el 90/90 ni el equilibrio (pedidos expresos de Esteban).
 
 ## 6. Registro de cambios de la rutina
 
 | Fecha | Cambio | Por qué |
 |---|---|---|
+| 2026-11-16 | Versión 2 (10 ejercicios, ~24 min): **sale** la toalla; **entran** rotación de espalda en cuatro apoyos (3), estiramiento cruzado de hombro contra la pared con cronómetro de 60 s (4) y flexor de cadera de rodillas, 60 s (6). Animaciones de fitnessprogramer (`Kneeling-T-spine-Rotation`, `Across-Chest-Shoulder-Stretch`, `Kneeling-Hip-Flexor-Stretch`) | Test de hombro de Esteban (§7): déficit de rotación interna del derecho; la toalla pinchaba justo en esa posición. Rotación de espalda: el golf y el brazo arriba la piden. Flexor: rígido en general y muchas horas sentado. La fuerza del hombro no se agrega porque ya la da su fisio (`decisiones.md` 2026-11-16). Se buscó un "libro abierto" animado y no hay en fitnessprogramer ni en la web de Fitbod (403); la rotación en cuatro apoyos cumple la misma función |
 | 2026-10-15 | Rutina inicial: los 6 ejercicios de Jeremy Ethier (toalla, extensión de espalda en banco, gato-vaca, 90/90, tobillo en banco, sentadilla goblet con balanceo) + bloque de equilibrio (peso muerto a una pierna sin peso, elevación de talón a una pierna). 2 vueltas | Esteban mandó el video de Ethier; el equilibrio se agregó porque es su punto débil y tiene evidencia (Hupperets 2009). La elevación de talón también carga el tendón de Aquiles |
+
+## 7. Hombros de Esteban: test y fisioterapia (2026-11-16)
+
+**No es un diagnóstico**: es un test casero, medido con **Measure** → **Level** del iPhone en la mano, con certeza media. Lo que más vale es la diferencia entre lados. Si vuelve a hacerlo, compara contra esta tabla.
+
+| Prueba | Derecho | Izquierdo |
+|---|---|---|
+| Rotación externa acostado, brazo a 90° | ~90°, sin dolor; estira adelante (pecho/deltoide anterior) | ~90°; más tensión adelante (3-4/10) |
+| Rotación interna acostado, omóplato bloqueado | **~45°**, pinchazo 4/10 a media altura/adelante | ~70°, pinchazo parecido, algo mayor |
+| Rascado de Apley | Por arriba: se tocan, pinchazo dentro de la articulación al final. **Por detrás: ni se acerca**, duele adelante | Normal |
+| Brazos arriba contra la pared | Los pulgares tocan. Pinchazo adelante, bajo la clavícula, con el brazo junto a la oreja (el mismo de dominadas y jalones) | Normal |
+| Brazo cruzado, omóplato contra la cama | **No llega**, pinchazo entre deltoide anterior y lateral | Llega |
+| Abducción lateral completa | Pinchazo arriba del todo | Normal |
+| Fuerza isométrica rotación externa e interna | Pareja, sin dolor | Pareja, sin dolor |
+| Rotación de espalda alta (palo) | No se hizo | — |
+
+**Lectura (certeza media):** déficit de rotación interna del derecho de ~25° con pérdida de arco total (cumple el criterio de Wilk 2011) = rigidez de la parte de atrás del hombro. Pinchazo anterior en varios rangos de ambos lados = tejido anterior aún sensible: **no estirar dentro del pinchazo** (regla: tensión sí, pinchazo máximo 2/10 que se haya ido al día siguiente). En remos altos y encogimientos siente que el omóplato derecho "no cierra".
+
+**Lo que le molesta en el gimnasio:** extensión de tríceps a un brazo por encima de la cabeza (la dejó), remos altos y encogimientos Kelso (omóplato), dominadas y jalones en el punto más estirado. Sin problema: press militar, inclinado moderado, aperturas, elevaciones laterales.
+
+**Lo que le da su fisioterapeuta** (descrito el 2026-11-16, todos 3×10): flexiones de omóplato en plancha, nadadores boca abajo con botella, "T" boca abajo rotando los puños (no isométrica; ahí le traquea mucho el derecho), espantapájaros boca abajo alternando rotaciones, rotación externa sentado con el codo en un banco (2 s arriba) y plancha lateral con rotación externa y press. **No dupliques esto en la rutina de movilidad** mientras siga en fisioterapia.
+

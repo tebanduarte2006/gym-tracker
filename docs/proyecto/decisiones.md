@@ -149,3 +149,7 @@ Formato: fecha, decisión, por qué, lo descartado. Léelo antes de proponer cam
 - **Se borran** Single Leg Extension (duplicado de S/L Extensions) y High-To-Low Cable Fly: 0 sets en toda su historia. Solo si siguen en 0 sets y fuera de toda plantilla al aplicarla.
 - **Se ofrece, no se aplica sola** (`main.js › maybeOfferMuscleReview`), después de la migración de agosto. Su decisión queda en `revision_musculos_2026_11`.
 
+## 2026-11-16 · Movilidad 2: el hombro sin duplicar la fisioterapia
+- **Contexto:** Esteban tuvo tendinitis y bursitis en ambos hombros; está en fisioterapia (unos 2 meses) y el derecho sigue rígido. Su test (`docs/movilidad/fuentes-y-proceso.md` §7) mostró un déficit de rotación interna del derecho de ~25° y un pinchazo adelante al final de varios rangos.
+- **Decisión:** la rutina de movilidad cubre lo que la fisioterapia no: rotación interna (estiramiento cruzado con el omóplato contra la pared, McClure 2007), espalda alta y el resto del cuerpo. **No** lleva ejercicios de fuerza del manguito ni del omóplato mientras su fisio se los dé (rotación externa en banco, T, espantapájaros, nadadores, plancha lateral con rotación, flexiones de omóplato, 3×10): duplicarlos sumaría carga sobre un tejido que aún pincha. Si deja la fisioterapia, se reconsidera.
+- **Descartado:** la toalla detrás de la espalda (rotación interna en extensión, justo la posición que le dolía) y, por ahora, el estiramiento de pectoral en el marco de la puerta (puede pinchar adelante). Duración objetivo: unos 25 min, no 45: pesa más la frecuencia.

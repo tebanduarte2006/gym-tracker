@@ -74,14 +74,20 @@ Los agentes agregan aquí la lista de cada función nueva, y marcan con **(pendi
 
 ## Movilidad (pendiente, 2026-10-15)
 - [ ] En **Entrenar**, debajo de **▶ Iniciar sesión**, aparece el botón **Movilidad**.
-- [ ] Lo toco: veo **Movilidad**, "8 ejercicios · 2 vueltas" y la lista. Toco **Empezar**.
+- [ ] Lo toco: veo **Movilidad**, "10 ejercicios · 2 vueltas · unos 24 min" y la lista. Toco **Empezar**.
 - [ ] La animación se mueve en bucle. Debajo están el nombre, cuántas repeticiones y las instrucciones; **Anterior** y **Siguiente** se ven sin bajar la pantalla.
 - [ ] Con el modo de bajo consumo encendido (**Settings** → **Battery** → **Low Power Mode**), las animaciones se siguen moviendo. **(pendiente: no lo pude comprobar)**
-- [ ] En el paso 6 (sentadilla goblet) toco **Iniciar 45 s**: cuenta hacia atrás y al llegar a cero suena la alarma y dice **Listo**.
+- [ ] En el paso 4 (estiramiento cruzado) toco **Iniciar 60 s**: cuenta hacia atrás y al llegar a cero suena la alarma y dice **Listo**.
 - [ ] La pantalla no se apaga sola mientras hago la rutina.
-- [ ] A mitad de la rutina toco ‹ dos veces: vuelvo al inicio y el botón dice **Movilidad · continuar (n de 16)**. Al tocarlo sigo donde iba.
+- [ ] A mitad de la rutina toco ‹ dos veces: vuelvo al inicio y el botón dice **Movilidad · continuar (n de 20)**. Al tocarlo sigo donde iba.
 - [ ] Con el teléfono en modo avión, la rutina abre y las animaciones se ven.
 - [ ] Al final toco **Terminar**: aparece **Movilidad registrada**, el botón dice **Movilidad · hecha hoy** y en **ÚLTIMOS 7 DÍAS** el día de hoy tiene un punto pequeño debajo del de entreno.
+
+## Movilidad con énfasis en el hombro (pendiente, 2026-11-16)
+- [ ] La lista ya no tiene **Estiramiento con toalla**; aparecen **Rotación de espalda en cuatro apoyos** (3), **Estiramiento cruzado de hombro** (4) y **Flexor de cadera de rodillas** (6), cada uno con su animación.
+- [ ] En el cruzado y en el flexor, el cronómetro es de 60 s: a los 30 s cambio de lado.
+- [ ] La primera vez que la hago completa, anoto cuánto duró de verdad. Si pasa de 30 minutos, se lo digo al agente: los candidatos a recortar ya están anotados en `docs/movilidad/fuentes-y-proceso.md` §5.
+- [ ] Al día siguiente, el hombro derecho no está peor que antes. Si el cruzado pincha adelante más de 2 de 10 aun aflojando, se lo digo al agente y al fisioterapeuta.
 
 ## Buscador, récords, descanso y discos (pendiente, 2026-11-12)
 Nada de esto se pudo probar con el teclado ni la pantalla bloqueada de un iPhone real.

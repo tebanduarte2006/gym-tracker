@@ -187,7 +187,7 @@ for (const tema of ['light', 'dark']) {
   await page.tap('.g-back-inline');
   await page.waitForSelector('.g-week-card', { timeout: 5000 });
   const etiqueta = await page.textContent('.g-mob-entry');
-  if (!/continuar \(6 de 16\)/.test(etiqueta)) errores.push(`${tema}: el botón de movilidad no ofrece continuar (dice "${etiqueta}")`);
+  if (!/continuar \(6 de \d+\)/.test(etiqueta)) errores.push(`${tema}: el botón de movilidad no ofrece continuar (dice "${etiqueta}")`);
 
   // Sesión: repetir el primer día de la lista (autollenado).
   await page.click('.g-start-cta');

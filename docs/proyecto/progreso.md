@@ -4,12 +4,12 @@
 App completa y en uso diario en el iPhone 11 de Esteban, publicada en GitHub Pages. Entrenar con autollenado, registro por botón, cardio, descanso con alarma, reordenar arrastrando, directorio de ejercicios con 18 músculos, Progresión con PR, gráfica, sets por músculo y exportar/importar. 101 pruebas automáticas. Desde el 2026-11-12: buscador de ejercicios sobre el teclado, aviso de récord, descanso con −15/+15 y reloj por ejercicio de un toque, discos dibujados, gráfica con tres métricas y ficha en la pantalla bloqueada. Desde el 2026-11-16: plantillas fijas por rutina (**Ejercicios** → **Plantillas**), aviso de ejercicio saltado, directorio por grupo muscular y revisión de músculos. El detalle de cada entrega está en `historial.md`.
 
 ## Lo que sigue
-- **Refinar la rutina de movilidad** con el uso (pedido de Esteban, 2026-10-15). Proceso, fuentes e ideas en `docs/movilidad/fuentes-y-proceso.md`. Primer pendiente: una animación real del tobillo en banco.
+- **Refinar la rutina de movilidad** con el uso (pedido de Esteban, 2026-10-15; versión 2 con énfasis en el hombro el 2026-11-16). Proceso, fuentes, su test de hombro y los candidatos a recortar si se le hace larga en `docs/movilidad/fuentes-y-proceso.md`. Pendientes: que Esteban diga cuánto dura de verdad, y una animación real del tobillo en banco.
 - **Volver deslizando desde el borde izquierdo** (Apple lo espera; las PWA instaladas no lo traen). Esteban lo dejó para después el 2026-10-02: choca con el arrastre para reordenar. Ya estaba anotado abajo como "Sin historial del navegador".
 - **Respaldo de datos fuera del teléfono** (en evaluación, 2026-09-26): hoy todo vive en IndexedDB del iPhone y exportar en la PWA instalada no está verificado. Opciones evaluadas con Esteban; la decisión quedará en `decisiones.md`.
 
 ## Pendiente de probar en el iPhone (Esteban)
-- La rutina de movilidad del 2026-10-15: que las animaciones se muevan (también con el modo de bajo consumo), que suene el final del cronómetro y que funcione sin señal (`docs/esteban/pruebas-iphone.md`, **Movilidad**).
+- La rutina de movilidad 2 del 2026-11-16 (sección **Movilidad con énfasis en el hombro**) y la del 2026-10-15: que las animaciones se muevan (también con el modo de bajo consumo), que suene el final del cronómetro y que funcione sin señal (`docs/esteban/pruebas-iphone.md`, **Movilidad**).
 - Que la alarma de descanso suene con la pantalla bloqueada (verificada solo en Chromium). Si no suena, la siguiente parada es Web Push, que exige un servidor.
 - Que **Exportar** funcione con la app instalada (en modo standalone iOS puede ignorar `<a download>` sin avisar).
 - El tema nuevo (crema/Everforest) en claro y oscuro, con la letra nueva.
