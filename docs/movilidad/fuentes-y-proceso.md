@@ -104,8 +104,12 @@ Objetivo: unos 25 minutos (la app estima 24). Si Esteban dice que pasa de 30, re
 | Abducción lateral completa | Pinchazo arriba del todo | Normal |
 | Fuerza isométrica rotación externa e interna | Pareja, sin dolor | Pareja, sin dolor |
 | Rotación de espalda alta (palo) | No se hizo | — |
+| Test del omóplato (McClure 2009), 5 subidas con 3-5 lb, de espalda en video (2026-11-19) | **Por el frente:** normal. **Por los lados:** se siente notablemente más débil, cuesta más subirlo, en el video se ve trabado y traquea hacia 90° | Por el frente: pinchazo puntual adelante, "como una agujita". Por los lados: normal |
+| Largo del pectoral menor (acostado, Lewis y Valentine 2007) | No se hizo (baja precisión diagnóstica; Esteban lo descartó) | — |
 
 **Lectura (certeza media):** déficit de rotación interna del derecho de ~25° con pérdida de arco total (cumple el criterio de Wilk 2011) = rigidez de la parte de atrás del hombro. Pinchazo anterior en varios rangos de ambos lados = tejido anterior aún sensible: **no estirar dentro del pinchazo** (regla: tensión sí, pinchazo máximo 2/10 que se haya ido al día siguiente). En remos altos y encogimientos siente que el omóplato derecho "no cierra".
+
+**Postura (2026-11-18, observación de Esteban):** siente el hombro derecho girado hacia adelante, y al flexear frente al espejo el trapecio derecho queda más alto. No es una medición (contracción voluntaria), y la postura sola se asocia poco al dolor (Barrett 2016, *Manual Therapy*). **Lectura del test del omóplato:** el derecho controla peor la subida lateral (rotación hacia arriba del omóplato: serrato y trapecio inferior), coherente con que "no cierra" en remos altos. El traqueo sin dolor suele ser benigno. **Decisión:** no se agrega nada a la rutina, porque es justo lo que trabaja su fisioterapia (T, nadadores, flexiones de omóplato); Esteban le lleva el video. El pectoral sigue fuera (§5).
 
 **Lo que le molesta en el gimnasio:** extensión de tríceps a un brazo por encima de la cabeza (la dejó), remos altos y encogimientos Kelso (omóplato), dominadas y jalones en el punto más estirado. Sin problema: press militar, inclinado moderado, aperturas, elevaciones laterales.
 
