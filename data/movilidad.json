@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "nombre": "Movilidad",
   "vueltas": 2,
   "fuente": "Rutina de Jeremy Ethier (Built With Science, 2021) con ajustes para el hombro, y un bloque de equilibrio",
@@ -45,18 +45,18 @@
       "credito": "fitnessprogramer.com"
     },
     {
-      "id": "cruzado",
-      "nombre": "Estiramiento cruzado de hombro",
+      "id": "rotacion-interna-lado",
+      "nombre": "Rotación interna de hombro, de lado",
       "zona": "Hombros (rotación interna)",
-      "dosis": { "tipo": "tiempo", "segundos": 60 },
+      "dosis": { "tipo": "reps", "min": 4, "max": 5, "unidad": "por brazo" },
       "pasos": [
-        "De pie, con la espalda y el omóplato del brazo que estiras pegados a la pared.",
-        "Lleva ese brazo recto cruzado frente al pecho y jálalo con la otra mano por encima del codo.",
-        "30 segundos por brazo: cambia de brazo cuando el cronómetro vaya por la mitad.",
-        "Debe jalar atrás del hombro. Si pincha adelante más de 2 de 10, afloja: el omóplato no se despega de la pared."
+        "Acostado de lado sobre el hombro que vas a trabajar, con el cuerpo girado un poco hacia atrás (no encima del hombro). Brazo al frente a la altura del hombro, codo a 90° y dedos hacia el techo.",
+        "Con la otra mano, baja ese antebrazo hacia el piso hasta sentir tensión atrás del hombro.",
+        "Ahí, empuja el antebrazo hacia arriba contra tu mano 5 segundos sin moverlo. Suelta y bájalo un poco más. Eso es una repetición.",
+        "Si pincha adelante más de 2 de 10, no bajes tanto o gira más el cuerpo hacia atrás."
       ],
-      "animacion": "media/movilidad/cruzado.webp",
-      "credito": "fitnessprogramer.com"
+      "animacion": "media/movilidad/rotacion-interna-lado.webp",
+      "credito": "trainwell"
     },
     {
       "id": "noventa-noventa",
@@ -87,17 +87,18 @@
       "credito": "fitnessprogramer.com"
     },
     {
-      "id": "tobillo",
-      "nombre": "Tobillo en banco",
-      "zona": "Tobillos",
-      "dosis": { "tipo": "reps", "min": 5, "max": 10, "unidad": "por pierna" },
+      "id": "aductores",
+      "nombre": "Balanceo de aductores",
+      "zona": "Caderas (parte de adentro del muslo)",
+      "dosis": { "tipo": "reps", "min": 8, "max": 10, "unidad": "por lado" },
       "pasos": [
-        "Un pie encima de un banco o un escalón.",
-        "Lleva la rodilla hacia adelante, por encima de los dedos, sin despegar el talón.",
-        "Quédate 1 o 2 segundos y vuelve. Puedes agarrarte del banco para empujarte."
+        "En cuatro apoyos. Estira una pierna hacia el lado, recta, con todo el pie apoyado en el piso.",
+        "Lleva la cadera hacia atrás, hacia el talón de la rodilla que está apoyada, hasta sentir el estiramiento adentro del muslo estirado.",
+        "Quédate 1 o 2 segundos y vuelve adelante. Cada vez llega un poco más atrás.",
+        "Espalda recta: el movimiento sale de la cadera, no de doblar la espalda."
       ],
-      "animacion": "media/movilidad/tobillo.png",
-      "credito": "Bend"
+      "animacion": "media/movilidad/aductores.webp",
+      "credito": "fitnessprogramer.com"
     },
     {
       "id": "sentadilla-goblet",

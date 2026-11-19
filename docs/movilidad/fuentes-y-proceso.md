@@ -39,6 +39,7 @@ Para que no se pierda: la movilidad sirve para **ganar rango** donde falta; el e
 | **fitbod.me** | Videos MP4 de una persona real, 720p, unos 10 a 15 s, con dos ángulos | Página `fitbod.me/exercises/<slug>` → en el HTML, `app-media-r2.fitbod.me/v2/<n>/videos/full_720p.mp4` | Usada para la extensión de espalda en banco (`bench-t-spine-stretch`) y la elevación de talón a una pierna (`single-leg-standing-calf-raise`). Recortar 2 s y cuadrar (receta abajo). Los slugs no se adivinan: buscar en la web con `site:fitbod.me` |
 | **bend.com/routines** | Unas 100 rutinas públicas de estiramiento y movilidad (por zona: tobillos, caderas, espalda, hombros, splits…) con el nombre de cada ejercicio e **ilustraciones fijas** planas de unos 3 KB | En el HTML de cada rutina, `api.bend.com/static/exercise_images/image_XXXXX.png` | Excelente para **diseñar** rutinas (qué ejercicios, en qué orden). Usada para el tobillo (`image_00172`, "Soleus Stretch"). Los videos de la app de Bend no están en la web: van dentro de la app con suscripción |
 | **builtwithscience.com** | Artículos de Jeremy Ethier con la rutina escrita, pruebas de autoevaluación y estudios citados | Leer el artículo en vez del video | Fuente de la rutina inicial: `fitness-tips/full-body-mobility-routine/` |
+| **trainwell.net/exercises** | Videos MP4 cuadrados 1280×1280 de una persona real, ~5 s | Página `trainwell.net/exercises/<slug>` → en el HTML, `copilot-exercise-media.s3…/<nombre>.mp4` | Usada para la rotación interna de lado (`sleeper-stretch`, de 2,5 s en adelante es la vista de lado). fitwill.app y fitbod.me devuelven 403 |
 | **YouTube, TikTok, Instagram** | Lo que mande Esteban | **YouTube bloquea las descargas desde la nube** ("Sign in to confirm you're not a bot", 2026-10-15). Alternativas: el título con `youtube.com/oembed?url=…&format=json`, el artículo del mismo autor, o pedirle a Esteban una grabación de pantalla del iPhone | Sin descarga, recortar del video no es posible desde aquí |
 
 ### Receta para convertir (ffmpeg, ya instalado en la nube)
@@ -72,21 +73,22 @@ Límite: **250 KB por animación** (lo exige la prueba). Las de hoy pesan entre 
 - **Pruebas de autoevaluación** de Ethier (rascado de Apley para hombros, sentadilla con y sin talones elevados para tobillos) para personalizar qué ejercicios hacer.
 - **Progresiones de equilibrio**: apoyo en una pierna con ojos cerrados, sobre superficie blanda.
 - **Rutina de tendones** con carga, si algún día hay una molestia concreta: ahí la evidencia (Beyer 2015) sí aplica.
-- Encontrar una **animación real del tobillo en banco** (hoy es una ilustración fija de Bend).
+- **Tobillo**: salió el 2026-11-19 porque el del banco no se entendía. Si vuelve, usar **rodilla a la pared** (de pie frente a la pared, la rodilla la toca sin despegar el talón), que es más fácil de explicar.
 - **Estiramiento de pectoral en el marco de la puerta** (Borstad y Ludewig 2006, sin verificar): Esteban siente tensión adelante al rotar hacia afuera. Se dejó fuera el 2026-11-16 porque puede pinchar donde hoy le duele; reconsiderar cuando el pinchazo anterior se haya ido.
 - **Fuerza de manguito y omóplato** (rotación externa de lado con 1-2 kg, Reinold 2004; "T" boca abajo, Cools 2007): entra si Esteban deja la fisioterapia, que hoy ya se la da.
 
 ### Si la rutina se le hace larga (candidatos a recortar, en este orden)
-Objetivo: unos 25 minutos (la app estima 24). Si Esteban dice que pasa de 30, recorta en este orden y díselo:
+Objetivo: unos 25 minutos (la app estima 23; la versión 2 le tomó a Esteban unos 20, 2026-11-19). Si Esteban dice que pasa de 30, recorta en este orden y díselo:
 1. **Gato-vaca**: la rotación en cuatro apoyos y la extensión en banco ya mueven la columna.
 2. **Flexor de cadera**: el 90/90 ya trabaja la cadera; se puede dejar para los días de gimnasio.
 3. **Sentadilla goblet con balanceo**: tobillo y cadera ya están cubiertos por separado.
-**Nunca recortes** el estiramiento cruzado (es la razón de esta versión), el 90/90 ni el equilibrio (pedidos expresos de Esteban).
+**Nunca recortes** la rotación interna de lado (es lo único que trabaja el déficit del hombro derecho), el 90/90 ni el equilibrio (pedidos expresos de Esteban).
 
 ## 6. Registro de cambios de la rutina
 
 | Fecha | Cambio | Por qué |
 |---|---|---|
+| 2026-11-19 | Versión 3 (10 ejercicios, ~23 min): **sale** el estiramiento cruzado (4) y entra la **rotación interna de hombro de lado** con contraer-relajar, 4-5 por brazo (sleeper modificado: cuerpo girado hacia atrás, Reinold); **sale** el tobillo en banco (7) y entra el **balanceo de aductores**, 8-10 por lado. Animaciones: trainwell (`sleeper-stretch`) y fitnessprogramer (`Kneeling-Leg-Out-Adductor-Stretch`, la animación es la posición fija: el balanceo está en los pasos) | Esteban hizo la versión 2 en ~20 min y no hizo esos dos: el cruzado le pareció pasivo y aburrido (60 s quieto) y el tobillo no se entendía con la foto. Pidió algo de rotación interna; los círculos de hombro le traquean ambos hombros. El sleeper tiene evidencia más débil que el cruzado (McClure 2007) y puede pinchar adelante: por eso la versión modificada y la regla de 2/10. Aductores: la rigidez de cadera no tenía nada para la parte de adentro del muslo |
 | 2026-11-16 | Versión 2 (10 ejercicios, ~24 min): **sale** la toalla; **entran** rotación de espalda en cuatro apoyos (3), estiramiento cruzado de hombro contra la pared con cronómetro de 60 s (4) y flexor de cadera de rodillas, 60 s (6). Animaciones de fitnessprogramer (`Kneeling-T-spine-Rotation`, `Across-Chest-Shoulder-Stretch`, `Kneeling-Hip-Flexor-Stretch`) | Test de hombro de Esteban (§7): déficit de rotación interna del derecho; la toalla pinchaba justo en esa posición. Rotación de espalda: el golf y el brazo arriba la piden. Flexor: rígido en general y muchas horas sentado. La fuerza del hombro no se agrega porque ya la da su fisio (`decisiones.md` 2026-11-16). Se buscó un "libro abierto" animado y no hay en fitnessprogramer ni en la web de Fitbod (403); la rotación en cuatro apoyos cumple la misma función |
 | 2026-10-15 | Rutina inicial: los 6 ejercicios de Jeremy Ethier (toalla, extensión de espalda en banco, gato-vaca, 90/90, tobillo en banco, sentadilla goblet con balanceo) + bloque de equilibrio (peso muerto a una pierna sin peso, elevación de talón a una pierna). 2 vueltas | Esteban mandó el video de Ethier; el equilibrio se agregó porque es su punto débil y tiene evidencia (Hupperets 2009). La elevación de talón también carga el tendón de Aquiles |
 
