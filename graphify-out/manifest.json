@@ -1,452 +1,452 @@
 {
   "js/audio.js": {
-    "mtime": 1794845710.7029335,
-    "seen": 1794852678.8580563,
+    "mtime": 1795103548.4132445,
+    "seen": 1795106323.0221138,
     "ast_hash": "8e1483ed0df083f74d055af8a9251c47",
     "semantic_hash": ""
   },
   "js/db.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.858061,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221162,
     "ast_hash": "37e211144dfd4f1569f2d25384dbe61b",
     "semantic_hash": ""
   },
   "js/dom.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.8580642,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221176,
     "ast_hash": "fbee67d68cce9b3a7ead2ed1b16ee9af",
     "semantic_hash": ""
   },
   "js/format.js": {
-    "mtime": 1794854744.7756875,
-    "seen": 1794864346.9909663,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221193,
     "ast_hash": "1fb4c86954a074b6cb581e238b302f10",
     "semantic_hash": ""
   },
   "js/importer.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.990969,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221207,
     "ast_hash": "fc72efff70cfff0d85b5120f57e1ed6e",
     "semantic_hash": ""
   },
   "js/main.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.9909704,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.022122,
     "ast_hash": "44f63c4cc6b8ea55941c40c3bf245bc7",
     "semantic_hash": ""
   },
   "js/muscles.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.9909744,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221245,
     "ast_hash": "3db366870369b8e70bdc3ba4a893cf35",
     "semantic_hash": ""
   },
   "js/plates.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.8580787,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221262,
     "ast_hash": "64aa1643cc8fd5edb3a63fe995471aa6",
     "semantic_hash": ""
   },
   "js/resttimer.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.858081,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221274,
     "ast_hash": "720e8a313202d7899a9ab77edc5446f5",
     "semantic_hash": ""
   },
   "js/stats.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.858083,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221286,
     "ast_hash": "23716e7191452ed3434d3132cca83038",
     "semantic_hash": ""
   },
   "js/swupdate.js": {
-    "mtime": 1794864131.061084,
-    "seen": 1794864346.9909806,
-    "ast_hash": "b89bf9d7ee08b0354b05da060be8e7d7",
+    "mtime": 1795106222.6415384,
+    "seen": 1795106323.0221298,
+    "ast_hash": "b267abfaa41cf6e3758f939ded5bc020",
     "semantic_hash": ""
   },
   "js/ui/dragorder.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.8580956,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.022135,
     "ast_hash": "c55a6a2e16ec1721c9ad84ecb836f5b4",
     "semantic_hash": ""
   },
   "js/ui/ejercicios.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.9909906,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.022136,
     "ast_hash": "ca4d12028743f5998e2140c690c94b85",
     "semantic_hash": ""
   },
   "js/ui/entrenar.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.9909923,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221374,
     "ast_hash": "15da01492458a46c845905738099a557",
     "semantic_hash": ""
   },
   "js/ui/icons.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.858102,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221384,
     "ast_hash": "86825584315f2900124a34688febab8f",
     "semantic_hash": ""
   },
   "js/ui/modals.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.858104,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221395,
     "ast_hash": "16009eee62a891fbb3e69ec2e8e7da37",
     "semantic_hash": ""
   },
   "js/ui/progresion.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.8581111,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221431,
     "ast_hash": "15ffeff4b48a7b9d1dd548ab537e608a",
     "semantic_hash": ""
   },
   "js/wakelock.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.8581135,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221446,
     "ast_hash": "4a5feaa45040d7f95048403d6ad1e20e",
     "semantic_hash": ""
   },
   "manifest.json": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.8581665,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221455,
     "ast_hash": "2436eb71025f33fcaa51e605cef2c4bb",
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.8581703,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221465,
     "ast_hash": "f973bd33047f4ef7080298431ad25589",
     "semantic_hash": ""
   },
   "scripts/capturas-iphone.mjs": {
-    "mtime": 1794864216.318641,
-    "seen": 1794864346.9910076,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221477,
     "ast_hash": "6e4867a8dabaa0d95a07149188a8e714",
     "semantic_hash": ""
   },
   "scripts/check-syntax.mjs": {
-    "mtime": 1794845710.7095065,
-    "seen": 1794852678.8581743,
+    "mtime": 1795103548.4211237,
+    "seen": 1795106323.0221484,
     "ast_hash": "796aded1945cf640988737c83db088c4",
     "semantic_hash": ""
   },
   "sw.js": {
-    "mtime": 1794864131.060638,
-    "seen": 1794864346.991011,
-    "ast_hash": "51eb830102cb95ebd3e754575dfeec25",
+    "mtime": 1795106222.6393893,
+    "seen": 1795106323.0221493,
+    "ast_hash": "c898ca4e28e08f548402f6379372f14d",
     "semantic_hash": ""
   },
   "tests/audio.test.js": {
-    "mtime": 1794845710.7095065,
-    "seen": 1794852678.8581784,
+    "mtime": 1795103548.4211237,
+    "seen": 1795106323.0221508,
     "ast_hash": "c9151a9b0928d7ae124f8527f84842e3",
     "semantic_hash": ""
   },
   "tests/format.test.js": {
-    "mtime": 1794854744.7836876,
-    "seen": 1794864346.991014,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221517,
     "ast_hash": "1630a9856f4a8236f4e2fcbb7709774b",
     "semantic_hash": ""
   },
   "tests/importer.test.js": {
-    "mtime": 1794854744.7836876,
-    "seen": 1794864346.9910152,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221527,
     "ast_hash": "1a3cc668c408c08e4a5a738303a3fd36",
     "semantic_hash": ""
   },
   "tests/muscles.test.js": {
-    "mtime": 1794854744.7836876,
-    "seen": 1794864346.991018,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221553,
     "ast_hash": "55c2162745ed1cd51ceda61d78a58b1a",
     "semantic_hash": ""
   },
   "tests/plates.test.js": {
-    "mtime": 1794845710.709953,
-    "seen": 1794852678.8581896,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221562,
     "ast_hash": "76afa3d4ca4069427fcab6f9d435d577",
     "semantic_hash": ""
   },
   "tests/stats.test.js": {
-    "mtime": 1794845710.709953,
-    "seen": 1794852678.8581917,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.022157,
     "ast_hash": "6950bd524e1ea356f3cb8b7f51e5b1a7",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1794845710.6987658,
-    "seen": 1794852678.8580396,
+    "mtime": 1795103548.4064765,
+    "seen": 1795106323.0221035,
     "ast_hash": "9e7209c89ffbaf0a3e74983b4626261f",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910235,
+    "mtime": 1795103548.4064765,
+    "seen": 1795106323.0221598,
     "ast_hash": "c48ef847adf70bc01fc9dfec19c84bc6",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1794845710.6987658,
-    "seen": 1794852678.8581991,
+    "mtime": 1795103548.4064765,
+    "seen": 1795106323.022161,
     "ast_hash": "abf3bfcf2976a0970bb3c0ffec5a132d",
     "semantic_hash": ""
   },
   "docs/00-INDICE.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910264,
+    "mtime": 1795103548.4066901,
+    "seen": 1795106323.0221622,
     "ast_hash": "a70340941d75c4e9f3636a89e18214ef",
     "semantic_hash": ""
   },
   "docs/convenciones.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910276,
+    "mtime": 1795103548.4069963,
+    "seen": 1795106323.0221634,
     "ast_hash": "4e6c468122077c2fbb03498625f95199",
     "semantic_hash": ""
   },
   "docs/esteban/guia-vibe-coding.md": {
-    "mtime": 1794845710.6991873,
-    "seen": 1794852678.8582091,
+    "mtime": 1795103548.4069963,
+    "seen": 1795106323.0221658,
     "ast_hash": "cb690b2e6dcabe1e91cf72cb60000d02",
     "semantic_hash": ""
   },
   "docs/esteban/pruebas-iphone.md": {
-    "mtime": 1794864303.383821,
-    "seen": 1794864346.9910321,
-    "ast_hash": "882efd4bcbe19a6c474948b670dc7442",
+    "mtime": 1795106315.717426,
+    "seen": 1795106323.0221667,
+    "ast_hash": "b0e2e9a20511be88469cf123649e42ff",
     "semantic_hash": ""
   },
   "docs/proyecto/decisiones.md": {
-    "mtime": 1794864303.3886316,
-    "seen": 1794864346.9910345,
+    "mtime": 1795103548.4072752,
+    "seen": 1795106323.0221689,
     "ast_hash": "3e391daf60af426b9e9155ad0995f659",
     "semantic_hash": ""
   },
   "docs/proyecto/historial.md": {
-    "mtime": 1794864303.3879013,
-    "seen": 1794864346.9910362,
-    "ast_hash": "2996250ba1ba9758f3334a486073b3d6",
+    "mtime": 1795106315.718231,
+    "seen": 1795106323.0221696,
+    "ast_hash": "58c90fb102c642da9ffc4baa4f85c3dc",
     "semantic_hash": ""
   },
   "docs/proyecto/lecciones.md": {
-    "mtime": 1794845710.699688,
-    "seen": 1794852678.8582218,
+    "mtime": 1795103548.407718,
+    "seen": 1795106323.022172,
     "ast_hash": "496bfe771a782ee4c04624595b5c25c1",
     "semantic_hash": ""
   },
   "docs/proyecto/progreso.md": {
-    "mtime": 1794864303.3869178,
-    "seen": 1794864346.991041,
-    "ast_hash": "996cab91df4120de623cf2f2a908bdde",
+    "mtime": 1795106315.71774,
+    "seen": 1795106323.0221727,
+    "ast_hash": "a57bbebf03f9aeee3fd1218bf79bb9d3",
     "semantic_hash": ""
   },
   "docs/rutas/arranque-y-actualizaciones.md": {
-    "mtime": 1794845710.699688,
-    "seen": 1794852678.858226,
+    "mtime": 1795103548.407718,
+    "seen": 1795106323.0221736,
     "ast_hash": "1bca706ad38f1e80dc1259262afb1030",
     "semantic_hash": ""
   },
   "docs/rutas/datos-y-respaldos.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910443,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221744,
     "ast_hash": "e1ad24f452a336f563e50414331c3f3b",
     "semantic_hash": ""
   },
   "docs/rutas/descanso-y-alarma.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.8582304,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221758,
     "ast_hash": "98ca267e8a29ac9458e1eef42c5eff8b",
     "semantic_hash": ""
   },
   "docs/rutas/ejercicios-y-musculos.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910474,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221767,
     "ast_hash": "9f80d14804e5131cdd09005a8969377d",
     "semantic_hash": ""
   },
   "docs/rutas/entrenar.md": {
-    "mtime": 1794854744.7716875,
-    "seen": 1794864346.9910488,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221777,
     "ast_hash": "331827d0e9d100cb9c44acd40e35b9c2",
     "semantic_hash": ""
   },
   "docs/rutas/gestos-y-reordenar.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.8582375,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.022179,
     "ast_hash": "3421822c18becb09439d13797b73811f",
     "semantic_hash": ""
   },
   "docs/rutas/interfaz-y-diseno.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.85824,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221796,
     "ast_hash": "7999005472f171b03c26ec69743d84fc",
     "semantic_hash": ""
   },
   "docs/rutas/movimiento-y-transiciones.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.8582442,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221817,
     "ast_hash": "58c3ae35647f33520b228dcead87fd82",
     "semantic_hash": ""
   },
   "docs/rutas/nueva-funcion.md": {
-    "mtime": 1794854744.7756875,
-    "seen": 1794864346.9910562,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221827,
     "ast_hash": "1e48ea3ec205126147845a52f2b049cf",
     "semantic_hash": ""
   },
   "docs/rutas/progresion-y-estadisticas.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.8582482,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221834,
     "ast_hash": "2625f02c17a90c344f1cc571273123e4",
     "semantic_hash": ""
   },
   "docs/rutas/publicar-y-verificar.md": {
-    "mtime": 1794845710.7001135,
-    "seen": 1794852678.8582504,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221844,
     "ast_hash": "acc6ad89ff4cc90aa95b1e2cd7d2cfb1",
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1794845710.7029335,
-    "seen": 1794852678.8582525,
+    "mtime": 1795103548.4132445,
+    "seen": 1795106323.0221853,
     "ast_hash": "912830768549635882423d7b24bdb243",
     "semantic_hash": ""
   },
   "docs/diseno-ios.md": {
-    "mtime": 1794845710.6991873,
-    "seen": 1794852678.8582063,
+    "mtime": 1795103548.4069963,
+    "seen": 1795106323.022165,
     "ast_hash": "28a16768ecd066d1a326e6360b14d49c",
     "semantic_hash": ""
   },
   "js/theme.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.8580906,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221324,
     "ast_hash": "b7eb219d5a1a21d7b76eb3dc753b86ca",
     "semantic_hash": ""
   },
   "js/ui/ajustes.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.8580933,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221338,
     "ast_hash": "c83d6352ef4ba0b07ee115dd7792d9cb",
     "semantic_hash": ""
   },
   ".mcp.json": {
-    "mtime": 1794845710.6987658,
-    "seen": 1794852678.8580503,
+    "mtime": 1795103548.4064765,
+    "seen": 1795106323.0221105,
     "ast_hash": "ce26bf0e7967771c8889ea45e5595b28",
     "semantic_hash": ""
   },
   "js/mobility.js": {
-    "mtime": 1794845710.7049644,
-    "seen": 1794852678.858074,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221236,
     "ast_hash": "94ccf62df098f28111898dc996365113",
     "semantic_hash": ""
   },
   "js/ui/movilidad.js": {
-    "mtime": 1794845710.705568,
-    "seen": 1794852678.8581066,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.022141,
     "ast_hash": "3e70e0f3fbcf1645f1bd2c1f4c0510d4",
     "semantic_hash": ""
   },
   "tests/mobility.test.js": {
-    "mtime": 1794845710.709953,
-    "seen": 1794852678.8581855,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221543,
     "ast_hash": "1e67ba8e90238719d1034625d1e751c9",
     "semantic_hash": ""
   },
   "docs/movilidad/fuentes-y-proceso.md": {
-    "mtime": 1794864342.119567,
-    "seen": 1794864346.9910336,
-    "ast_hash": "942e09750aa720ddfa447d5436d3d5ea",
+    "mtime": 1795106315.7193792,
+    "seen": 1795106323.022168,
+    "ast_hash": "6396c6d05c984f7ce3cdffd2fb206045",
     "semantic_hash": ""
   },
   "docs/rutas/movilidad.md": {
-    "mtime": 1794864342.120106,
-    "seen": 1794864346.9910526,
+    "mtime": 1795103548.4083023,
+    "seen": 1795106323.0221806,
     "ast_hash": "532f88647798fa14d4e160409076fb02",
     "semantic_hash": ""
   },
   "media/movilidad/extension-toracica.webp": {
-    "mtime": 1794845710.7064695,
-    "seen": 1794852678.8582547,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221875,
     "ast_hash": "b8cd4b97e46054e1b1fe1eb7cda763fd",
     "semantic_hash": ""
   },
   "media/movilidad/gato-vaca.webp": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.8582568,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221899,
     "ast_hash": "20f702b31938bace7082df166b2ea3ac",
     "semantic_hash": ""
   },
   "media/movilidad/noventa-noventa.webp": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.858259,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221908,
     "ast_hash": "76352c0ef890e7ef712919135f675d17",
     "semantic_hash": ""
   },
   "media/movilidad/peso-muerto-una-pierna.webp": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.858261,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221918,
     "ast_hash": "bb8d115f500265f6b89478807e7e62e6",
     "semantic_hash": ""
   },
   "media/movilidad/sentadilla-goblet.webp": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.8582633,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.0221949,
     "ast_hash": "2f0494478a9c9e293c3a49658d0bb29f",
     "semantic_hash": ""
   },
   "media/movilidad/talon-una-pierna.webp": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.8582654,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.022196,
     "ast_hash": "331fdac5ba2454fea447ba34b6457f7f",
     "semantic_hash": ""
   },
-  "media/movilidad/tobillo.png": {
-    "mtime": 1794845710.7070951,
-    "seen": 1794852678.8582702,
-    "ast_hash": "e65f8b291d9bcb14b84a3c2b482c53e2",
-    "semantic_hash": ""
-  },
   "docs/proyecto/investigacion-2026-11.md": {
-    "mtime": 1794845710.699688,
-    "seen": 1794852678.8582199,
+    "mtime": 1795103548.407718,
+    "seen": 1795106323.022171,
     "ast_hash": "fa9b3d1eb0ad0b621af0f02bed411701",
     "semantic_hash": ""
   },
   "js/templates.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.9909828,
+    "mtime": 1795103548.415472,
+    "seen": 1795106323.0221312,
     "ast_hash": "b845661cfc239ee5e716b28dbae515b6",
     "semantic_hash": ""
   },
   "js/ui/plantillas.js": {
-    "mtime": 1794854744.7796876,
-    "seen": 1794864346.990999,
+    "mtime": 1795103548.4162862,
+    "seen": 1795106323.0221422,
     "ast_hash": "6e9faa424e80667f33463982e871ec5b",
     "semantic_hash": ""
   },
   "tests/templates.test.js": {
-    "mtime": 1794854744.7836876,
-    "seen": 1794864346.9910223,
+    "mtime": 1795103548.4216082,
+    "seen": 1795106323.0221586,
     "ast_hash": "e83bd45dbe990ecd3bdd8f7fe9716d8e",
     "semantic_hash": ""
   },
-  "media/movilidad/cruzado.webp": {
-    "mtime": 1794864112.1269598,
-    "seen": 1794864346.9910622,
-    "ast_hash": "99565dc63f9c8e33bf3a70f4a14b6d1e",
-    "semantic_hash": ""
-  },
   "media/movilidad/flexor-cadera.webp": {
-    "mtime": 1794864112.30296,
-    "seen": 1794864346.9910731,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.022189,
     "ast_hash": "d9ab8013668040fcb44811a757801bbe",
     "semantic_hash": ""
   },
   "media/movilidad/rotacion-cuatro-apoyos.webp": {
-    "mtime": 1794864112.5509598,
-    "seen": 1794864346.9910789,
+    "mtime": 1795103548.4174058,
+    "seen": 1795106323.022193,
     "ast_hash": "1244a583769485e657138eefc18f0b62",
+    "semantic_hash": ""
+  },
+  "media/movilidad/aductores.webp": {
+    "mtime": 1795106208.1028123,
+    "seen": 1795106323.0221863,
+    "ast_hash": "f322f0e20932dc66033fc42ce8e83e5d",
+    "semantic_hash": ""
+  },
+  "media/movilidad/rotacion-interna-lado.webp": {
+    "mtime": 1795106207.9668124,
+    "seen": 1795106323.0221937,
+    "ast_hash": "be905c48aa29bc7cd55230d274e9415e",
     "semantic_hash": ""
   }
 }
